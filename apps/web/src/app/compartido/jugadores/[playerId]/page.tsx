@@ -10,7 +10,7 @@ export default async function SharedPlayerPage({
 }) {
   const { playerId } = await params;
   return (
-    <div className="dark min-h-svh bg-background text-foreground">
+    <div className="min-h-svh bg-background text-foreground">
       <Suspense fallback={<StatsLoading />}>
         <SharedPlayerStats playerId={playerId} />
       </Suspense>

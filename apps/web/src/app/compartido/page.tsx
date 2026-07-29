@@ -5,7 +5,7 @@ import { StatsLoading } from "@/features/stats/stats-loading";
 
 export default function SharedDashboardPage() {
   return (
-    <div className="dark min-h-svh bg-background text-foreground">
+    <div className="min-h-svh bg-background text-foreground">
       <Suspense fallback={<StatsLoading />}>
         <SharedStatsDashboard />
       </Suspense>

@@ -14,7 +14,7 @@ export default async function MemberMatchPage({
   const { matchId } = await params;
 
   return (
-    <div className="dark min-h-svh bg-background text-foreground">
+    <div className="min-h-svh bg-background text-foreground">
       <MemberMatchStats matchId={matchId} />
     </div>
   );

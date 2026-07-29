@@ -7,7 +7,7 @@ export default async function SharedMatchPage({
 }) {
   const { matchId } = await params;
   return (
-    <div className="dark min-h-svh bg-background text-foreground">
+    <div className="min-h-svh bg-background text-foreground">
       <SharedMatchStats matchId={matchId} />
     </div>
   );

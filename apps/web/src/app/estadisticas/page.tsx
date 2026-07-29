@@ -11,7 +11,7 @@ export default async function StatsPage() {
   if (!session?.user) redirect("/login");
 
   return (
-    <div className="dark min-h-svh bg-background text-foreground">
+    <div className="min-h-svh bg-background text-foreground">
       <Suspense fallback={<StatsLoading />}>
         <MemberStatsDashboard />
       </Suspense>

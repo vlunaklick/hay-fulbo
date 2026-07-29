@@ -13,7 +13,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider
       attribute="class"
       defaultTheme="dark"
-      forcedTheme="dark"
+      enableSystem
+      storageKey="hay-fulbo-theme"
       disableTransitionOnChange
     >
       <QueryClientProvider client={queryClient}>

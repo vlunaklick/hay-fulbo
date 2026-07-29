@@ -15,8 +15,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "dark",
-  themeColor: "#101512",
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafcf9" },
+    { media: "(prefers-color-scheme: dark)", color: "#101512" },
+  ],
   viewportFit: "cover",
 };
 
@@ -26,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="dark" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <body className={`${manrope.variable} antialiased`}>
         <Providers>{children}</Providers>
       </body>

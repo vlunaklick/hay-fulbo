@@ -43,7 +43,6 @@ import {
   LogOutIcon,
   MapPinIcon,
   PlusIcon,
-  ShieldCheckIcon,
   UsersRoundIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -53,6 +52,9 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { queryClient, trpc } from "@/utils/trpc";
+
+import { LogoMark } from "./logo-mark";
+import { ModeToggle } from "./mode-toggle";
 
 type AppContextValue = {
   activeGroupId: string;
@@ -209,10 +211,13 @@ export function AppShell({
               <span className="truncate text-sm font-semibold">{group.name}</span>
               <span className="truncate text-xs text-muted-foreground">{user.name}</span>
             </div>
-            <Badge variant="outline">
-              <CircleUserRoundIcon aria-hidden="true" />
-              {context.role === "owner" ? "Organizador" : "Miembro"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <ModeToggle />
+              <Badge variant="outline">
+                <CircleUserRoundIcon aria-hidden="true" />
+                {context.role === "owner" ? "Organizador" : "Miembro"}
+              </Badge>
+            </div>
           </header>
           <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 md:px-8 md:py-8">
             {children}
@@ -244,9 +249,7 @@ export function AppShell({
 function Brand() {
   return (
     <Link href="/dashboard" className="flex items-center gap-2">
-      <span className="grid size-9 place-items-center rounded-md bg-primary text-primary-foreground">
-        <ShieldCheckIcon aria-hidden="true" />
-      </span>
+      <LogoMark className="size-9 shrink-0" />
       <span className="font-bold tracking-tight">Hay Fulbo</span>
     </Link>
   );
