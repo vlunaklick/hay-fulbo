@@ -8,8 +8,12 @@ Hay Fulbo organiza partidos informales entre personas que pueden reunirse en dis
 Espacio privado que reúne sus propios jugadores, partidos, pagos y estadísticas. Una misma persona puede participar en más de un grupo.
 _Avoid_: Liga, club, comunidad
 
+**Grupo archivado**:
+Grupo conservado como historial, pero fuera de la operación cotidiana y sin nuevos partidos.
+_Avoid_: Grupo eliminado, grupo cerrado
+
 **Jugador**:
-Persona que participa en partidos y acumula estadísticas dentro de un grupo. Puede existir sin tener acceso a la aplicación.
+Persona que participa en partidos y acumula estadísticas dentro de un grupo. Puede existir sin acceso a la aplicación y archivarse sin perder su historia.
 _Avoid_: Usuario, cuenta
 
 **Usuario**:
@@ -81,5 +85,5 @@ Partido que no se disputará y no aporta resultados, estadísticas ni deuda. Con
 _Avoid_: Partido eliminado, partido cerrado
 
 **Cancha**:
-Lugar reutilizable de un grupo donde se disputan partidos, identificado por nombre, dirección y enlace de ubicación.
+Lugar reutilizable de un grupo donde se disputan partidos, identificado por nombre, dirección y enlace de ubicación. Puede archivarse para dejar de seleccionarla sin borrar partidos anteriores.
 _Avoid_: Locación, sede
