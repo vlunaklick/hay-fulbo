@@ -90,6 +90,7 @@ function createFakeCoolify() {
         fqdn: state.generatedFqdn,
         status: "running:healthy",
       };
+      delete app.autogenerate_domain;
       state.apps.push(app);
       return json(app, 201);
     }
@@ -179,6 +180,11 @@ test("apply is idempotent and never sends Crecenly in a mutation", async () => {
   assert.equal(fake.state.projects.filter(({ name }) => name === "hay-fulbo").length, 1);
   assert.equal(fake.state.databases.filter(({ name }) => name === "hay-fulbo-postgres").length, 1);
   assert.equal(fake.state.apps.filter(({ name }) => name === "hay-fulbo-web").length, 1);
+  assert.ok(
+    fake.state.mutations
+      .filter(({ method, path }) => method === "PATCH" && path === "/applications/hay-app")
+      .every(({ body }) => !("autogenerate_domain" in body)),
+  );
   assert.ok(fake.state.mutations.every((mutation) => !JSON.stringify(mutation).match(/crecenly/i)));
   const env = Object.fromEntries(
     fake.state.envs.get("hay-app").map(({ key, value }) => [key, value]),

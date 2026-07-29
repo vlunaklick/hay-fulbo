@@ -19,7 +19,7 @@ export const NAMES = Object.freeze({
 
 const APP_DESCRIPTION = "Hay Fulbo production web application";
 const DB_DESCRIPTION = "PostgreSQL 18 production database for Hay Fulbo";
-const REPOSITORY = "https://github.com/vlunaklick/hay-fulbo";
+const REPOSITORY = "vlunaklick/hay-fulbo";
 
 function asArray(value, key) {
   if (Array.isArray(value)) return value;
@@ -395,6 +395,7 @@ export async function reconcileCoolify({
             "environment_uuid",
             "destination_uuid",
             "instant_deploy",
+            "autogenerate_domain",
           ].includes(key),
       ),
     );
