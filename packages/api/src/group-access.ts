@@ -60,6 +60,7 @@ type GroupAccessDependencies = {
   organizations: OrganizationGateway;
   appBaseUrl: string;
   invitationEmailDelivery: "email" | "link";
+  requireVerifiedEmailForGroupCreation: boolean;
 };
 
 function cleanRequired(value: string, label: string) {
@@ -83,6 +84,7 @@ export function createGroupAccess({
   organizations,
   appBaseUrl,
   invitationEmailDelivery,
+  requireVerifiedEmailForGroupCreation,
 }: GroupAccessDependencies) {
   const authorize = async (
     actor: GroupActor,
@@ -109,7 +111,7 @@ export function createGroupAccess({
       actor: GroupActor,
       input: { name: string; slug: string },
     ): Promise<GroupSummary> {
-      if (!actor.emailVerified) {
+      if (requireVerifiedEmailForGroupCreation && !actor.emailVerified) {
         throw new GroupAccessError(
           "EMAIL_NOT_VERIFIED",
           "A verified email is required to create a group",

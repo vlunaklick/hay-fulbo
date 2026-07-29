@@ -14,7 +14,10 @@ const actor = {
   headers: new Headers({ cookie: "session=owner" }),
 };
 
-function setup(role: "owner" | "member" | null = "owner") {
+function setup(
+  role: "owner" | "member" | null = "owner",
+  invitationEmailDelivery: "email" | "link" = "link",
+) {
   const links: Array<{ groupId: string; playerId: string; linkedUserId: string | null }> = [];
   const invitations: Array<{ email: string; groupId: string }> = [];
   const selections: string[] = [];
@@ -44,7 +47,8 @@ function setup(role: "owner" | "member" | null = "owner") {
       repository,
       organizations,
       appBaseUrl: "https://fulbo.example",
-      invitationEmailDelivery: "link",
+      invitationEmailDelivery,
+      requireVerifiedEmailForGroupCreation: invitationEmailDelivery === "email",
     }),
     invitations,
     links,
@@ -71,12 +75,20 @@ describe("groupAccess public interface", () => {
     expect(selections).toEqual(["group-1"]);
   });
 
-  test("does not let an unverified user create a group", async () => {
-    const { access } = setup();
+  test("does not let an unverified user create a group when email delivery is configured", async () => {
+    const { access } = setup("owner", "email");
 
     await expect(
       access.createGroup({ ...actor, emailVerified: false }, { name: "Los Pibes", slug: "pibes" }),
     ).rejects.toMatchObject({ code: "EMAIL_NOT_VERIFIED" });
+  });
+
+  test("allows first-group creation when verification email cannot be delivered", async () => {
+    const { access } = setup("owner", "link");
+
+    await expect(
+      access.createGroup({ ...actor, emailVerified: false }, { name: "Los Pibes", slug: "pibes" }),
+    ).resolves.toMatchObject({ name: "Los Pibes", slug: "pibes" });
   });
 
   test("centralizes member and owner guards", async () => {

@@ -107,6 +107,7 @@ export const groupAccess = createGroupAccess({
   invitationEmailDelivery: invitationDeliveryMode,
   organizations: organizationGateway,
   repository: groupAccessRepository,
+  requireVerifiedEmailForGroupCreation: invitationDeliveryMode === "email",
 });
 
 const statsQueries = createStatsQueries(db);
