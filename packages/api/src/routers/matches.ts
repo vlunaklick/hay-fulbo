@@ -1,0 +1,255 @@
+import { db } from "@hay-fulbo/db";
+import {
+  createMatchCommands,
+  createMatchQueries,
+  MatchCommandError,
+  type MatchCommand,
+  type MatchDetail,
+  type MatchListItem,
+} from "@hay-fulbo/db/matches";
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
+
+import { protectedProcedure, router } from "../index";
+
+const commands = createMatchCommands(db);
+const queries = createMatchQueries(db);
+
+const id = z.string().uuid();
+const versioned = {
+  matchId: id,
+  expectedLockVersion: z.number().int().nonnegative(),
+};
+const nonnegativeMinor = z
+  .string()
+  .regex(/^\d+$/)
+  .transform((value) => BigInt(value));
+const optionalMinor = z
+  .string()
+  .regex(/^\d+$/)
+  .nullable()
+  .transform((value) => (value === null ? null : BigInt(value)));
+const sportingTotal = z.number().int().nonnegative();
+
+const commandSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("createMatch"),
+    scheduledAt: z.coerce.date(),
+    courtId: id.nullish(),
+    courtCostMinor: optionalMinor.optional(),
+    teams: z.tuple([
+      z.object({
+        displayName: z.string().trim().min(1),
+        color: z.string().trim().nullable().optional(),
+      }),
+      z.object({
+        displayName: z.string().trim().min(1),
+        color: z.string().trim().nullable().optional(),
+      }),
+    ]),
+  }),
+  z.object({
+    type: z.literal("upsertPlayer"),
+    playerId: id.optional(),
+    displayName: z.string().trim().min(1),
+    linkedUserId: z.string().min(1).nullable().optional(),
+  }),
+  z.object({
+    type: z.literal("archivePlayer"),
+    playerId: id,
+    archived: z.boolean(),
+  }),
+  z.object({
+    type: z.literal("upsertCourt"),
+    courtId: id.optional(),
+    name: z.string().trim().min(1),
+    address: z.string().trim().min(1),
+    mapsUrl: z.url(),
+  }),
+  z.object({
+    type: z.literal("archiveCourt"),
+    courtId: id,
+    archived: z.boolean(),
+  }),
+  z.object({
+    type: z.literal("updateMatch"),
+    ...versioned,
+    scheduledAt: z.coerce.date().optional(),
+    courtId: id.nullable().optional(),
+    courtCostMinor: optionalMinor.optional(),
+  }),
+  z.object({
+    type: z.literal("updateTeam"),
+    ...versioned,
+    teamId: id,
+    displayName: z.string().trim().min(1),
+    color: z.string().trim().nullable().optional(),
+  }),
+  z.object({
+    type: z.literal("setCaptain"),
+    ...versioned,
+    teamId: id,
+    captainUserId: z.string().min(1).nullable(),
+  }),
+  z.object({
+    type: z.literal("addParticipant"),
+    ...versioned,
+    teamId: id,
+    playerId: id,
+  }),
+  z.object({
+    type: z.literal("removeParticipant"),
+    ...versioned,
+    playerId: id,
+  }),
+  z.object({
+    type: z.literal("assignParticipantTeam"),
+    ...versioned,
+    playerId: id,
+    teamId: id,
+  }),
+  z.object({
+    type: z.literal("updateAppearance"),
+    ...versioned,
+    playerId: id,
+    goals: sportingTotal,
+    assists: sportingTotal,
+    ownGoals: sportingTotal,
+  }),
+  z.object({
+    type: z.literal("setUnattributedGoals"),
+    ...versioned,
+    teamId: id,
+    goals: sportingTotal,
+  }),
+  z.object({
+    type: z.literal("setExpectedContribution"),
+    ...versioned,
+    playerId: id,
+    kind: z.enum(["automatic", "fixed"]),
+    expectedMinor: nonnegativeMinor.optional(),
+  }),
+  z.object({
+    type: z.literal("updatePaid"),
+    ...versioned,
+    playerId: id,
+    paidMinor: nonnegativeMinor,
+  }),
+  z.object({ type: z.literal("closeMatch"), ...versioned }),
+  z.object({
+    type: z.literal("reopenMatch"),
+    ...versioned,
+    reason: z.string().trim().min(1),
+  }),
+  z.object({
+    type: z.literal("cancelMatch"),
+    ...versioned,
+    reason: z.string().trim().min(1),
+  }),
+  z.object({
+    type: z.literal("restoreMatch"),
+    ...versioned,
+    reason: z.string().trim().min(1),
+  }),
+  z.object({
+    type: z.literal("transferOrganizer"),
+    ...versioned,
+    nextOrganizerUserId: z.string().min(1),
+    reason: z.string().trim().min(1),
+  }),
+]);
+
+export const matchesRouter = router({
+  execute: protectedProcedure.input(commandSchema).mutation(async ({ ctx, input }) => {
+    try {
+      return await commands.execute(scopeFromSession(ctx.session), input as MatchCommand);
+    } catch (error) {
+      throw asTrpcError(error);
+    }
+  }),
+
+  detail: protectedProcedure.input(z.object({ matchId: id })).query(async ({ ctx, input }) => {
+    try {
+      const detail = await queries.detail(scopeFromSession(ctx.session), input.matchId);
+      return serializeDetail(detail);
+    } catch (error) {
+      throw asTrpcError(error);
+    }
+  }),
+
+  list: protectedProcedure
+    .input(
+      z
+        .object({
+          status: z.enum(["open", "closed", "cancelled"]).optional(),
+          courtId: id.optional(),
+          scheduledFrom: z.coerce.date().optional(),
+          scheduledTo: z.coerce.date().optional(),
+          limit: z.number().int().min(1).max(100).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        const rows = await queries.list(scopeFromSession(ctx.session), input);
+        return rows.map(serializeListItem);
+      } catch (error) {
+        throw asTrpcError(error);
+      }
+    }),
+});
+
+function scopeFromSession(session: {
+  user: { id: string };
+  session: { activeOrganizationId?: string | null };
+}) {
+  const groupId = session.session.activeOrganizationId;
+  if (!groupId) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Select an active group first",
+    });
+  }
+  return { groupId, actorUserId: session.user.id };
+}
+
+function asTrpcError(error: unknown) {
+  if (!(error instanceof MatchCommandError)) return error;
+  const code =
+    error.code === "not_found"
+      ? "NOT_FOUND"
+      : error.code === "concurrent_update"
+        ? "CONFLICT"
+        : error.code === "forbidden" || error.code === "membership_required"
+          ? "FORBIDDEN"
+          : "BAD_REQUEST";
+  return new TRPCError({
+    code,
+    message: error.message,
+    cause: { domainCode: error.code, details: error.details },
+  });
+}
+
+function serializeDetail(detail: MatchDetail) {
+  return {
+    ...detail,
+    courtCostMinor: detail.courtCostMinor?.toString() ?? null,
+    teams: detail.teams.map((team) => ({
+      ...team,
+      appearances: team.appearances.map((appearance) => ({
+        ...appearance,
+        expectedMinor: appearance.expectedMinor.toString(),
+        paidMinor: appearance.paidMinor.toString(),
+        debtMinor: appearance.debtMinor.toString(),
+        overpaidMinor: appearance.overpaidMinor.toString(),
+      })),
+    })),
+  };
+}
+
+function serializeListItem(item: MatchListItem) {
+  return {
+    ...item,
+    courtCostMinor: item.courtCostMinor?.toString() ?? null,
+  };
+}
