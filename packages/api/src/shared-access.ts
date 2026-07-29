@@ -1,4 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
+import type {
+  PlayerStats,
+  StatsDashboard,
+  StatsFilters,
+  StatsMatchDetail,
+} from "@hay-fulbo/db/stats";
 
 import type { GroupActor, GroupAuthorization } from "./group-access";
 
@@ -61,6 +67,19 @@ export interface SharedAccessRepository {
     generation: number;
     tokenHash: Buffer;
   }): Promise<SharedGroupSnapshot>;
+  readDashboard(
+    context: { groupId: string; generation: number; tokenHash: Buffer },
+    filters: StatsFilters,
+  ): Promise<StatsDashboard>;
+  readPlayer(
+    context: { groupId: string; generation: number; tokenHash: Buffer },
+    playerId: string,
+    filters: StatsFilters,
+  ): Promise<PlayerStats>;
+  readMatch(
+    context: { groupId: string; generation: number; tokenHash: Buffer },
+    matchId: string,
+  ): Promise<StatsMatchDetail>;
 }
 
 export type SharedAccessErrorCode =
@@ -151,6 +170,30 @@ export function createSharedAccess({
         throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
       }
       return repository.readSnapshot({ ...context, tokenHash });
+    },
+
+    async readDashboard(context: SharedAccessContext, filters: StatsFilters = {}) {
+      const tokenHash = contextHashes.get(context);
+      if (!tokenHash) {
+        throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
+      }
+      return repository.readDashboard({ ...context, tokenHash }, filters);
+    },
+
+    async readPlayer(context: SharedAccessContext, playerId: string, filters: StatsFilters = {}) {
+      const tokenHash = contextHashes.get(context);
+      if (!tokenHash) {
+        throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
+      }
+      return repository.readPlayer({ ...context, tokenHash }, playerId, filters);
+    },
+
+    async readMatch(context: SharedAccessContext, matchId: string) {
+      const tokenHash = contextHashes.get(context);
+      if (!tokenHash) {
+        throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
+      }
+      return repository.readMatch({ ...context, tokenHash }, matchId);
     },
   };
 }

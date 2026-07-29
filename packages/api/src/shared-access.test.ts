@@ -67,6 +67,15 @@ function setup() {
       }
       return snapshot;
     },
+    readDashboard: async () => {
+      throw new Error("not used");
+    },
+    readPlayer: async () => {
+      throw new Error("not used");
+    },
+    readMatch: async () => {
+      throw new Error("not used");
+    },
   };
 
   const access = createSharedAccess({
