@@ -14,9 +14,11 @@ import {
   sendInvitationEmail,
   sendVerificationEmail,
 } from "./email";
+import { createVerificationPolicy } from "./verification-policy";
 
 export function createAuth() {
   const db = createDb();
+  const verificationPolicy = createVerificationPolicy(emailDeliveryConfigured);
 
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -39,12 +41,13 @@ export function createAuth() {
     baseURL: env.BETTER_AUTH_URL,
     plugins: [
       organization({
-        allowUserToCreateOrganization: (user) => user.emailVerified,
+        allowUserToCreateOrganization: verificationPolicy.canCreateOrganization,
         cancelPendingInvitationsOnReInvite: true,
         creatorRole: "owner",
         disableOrganizationDeletion: true,
         invitationExpiresIn: 60 * 60 * 48,
-        requireEmailVerificationOnInvitation: true,
+        requireEmailVerificationOnInvitation:
+          verificationPolicy.requireVerifiedEmailForInvitation,
         roles: {
           member: memberAc,
           owner: ownerAc,

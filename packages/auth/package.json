@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@hay-fulbo/config": "workspace:*",
+    "@types/bun": "^1.3.3",
     "typescript": "^6.0.3"
   }
 }
