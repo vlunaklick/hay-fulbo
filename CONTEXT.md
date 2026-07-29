@@ -20,6 +20,10 @@ _Avoid_: Jugador, perfil
 Usuario responsable de crear un partido, definir sus datos, designar capitanes, corregir cualquier carga y cerrarlo como autoridad final.
 _Avoid_: Administrador, dueño
 
+**Responsable del grupo**:
+Usuario que controla la membresía y las invitaciones de un grupo. Esta autoridad no lo convierte automáticamente en organizador de todos sus partidos.
+_Avoid_: Organizador, administrador global
+
 **Capitán**:
 Usuario designado para armar uno de los equipos y cargar la participación, los pagos y las estadísticas de sus jugadores. Sus cargas permanecen bajo la autoridad del organizador.
 _Avoid_: Organizador, entrenador
@@ -36,6 +40,22 @@ _Avoid_: Estado de pago manual, saldo entre partidos
 Participación de un jugador en un partido, con sus totales de goles y asistencias. No representa una cronología de jugadas.
 _Avoid_: Evento, jugada
 
+**Gol atribuido**:
+Gol que acredita a un jugador participante y aporta al marcador de su equipo.
+_Avoid_: Gol normal, gol de jugador
+
+**Gol sin autor**:
+Gol que aporta al marcador de un equipo sin acreditar a un jugador.
+_Avoid_: Gol anónimo, gol faltante
+
+**Autogol**:
+Gol atribuido por separado al jugador que lo hizo, que aporta al marcador rival sin sumarse a sus goles ni a su G+A.
+_Avoid_: Gol atribuido, gol a favor
+
+**Marcador**:
+Total de goles de los dos equipos en un partido, compuesto por goles atribuidos, goles sin autor y autogoles rivales.
+_Avoid_: Resultado manual, tanteador independiente
+
 **Equipo de partido**:
 Agrupación temporal de jugadores que existe solo dentro de un partido. No conserva un plantel ni identidad entre fechas.
 _Avoid_: Club, plantel, equipo permanente
@@ -45,12 +65,20 @@ Acceso privado de solo lectura a toda la información de un grupo mediante un en
 _Avoid_: Cuenta de invitado, acceso público
 
 **Partido**:
-Encuentro programado dentro de un grupo con dos equipos temporales, una cancha, un costo y actuaciones. Solo al cerrarse consolida resultados y estadísticas globales.
+Encuentro programado dentro de un grupo con dos equipos temporales, una cancha, un costo y actuaciones. Puede estar abierto, cerrado o cancelado.
 _Avoid_: Fecha, evento
 
+**Partido abierto**:
+Partido editable que todavía no aporta resultados ni estadísticas globales.
+_Avoid_: Borrador, partido activo
+
 **Partido cerrado**:
-Partido validado por el organizador cuyos datos ya cuentan para resultados y estadísticas.
+Partido validado por el organizador cuyos datos deportivos y aportes esperados quedaron congelados y ya cuentan para resultados y estadísticas.
 _Avoid_: Partido terminado, borrador
+
+**Partido cancelado**:
+Partido que no se disputará y no aporta resultados, estadísticas ni deuda. Conserva su lugar en el historial del grupo.
+_Avoid_: Partido eliminado, partido cerrado
 
 **Cancha**:
 Lugar reutilizable de un grupo donde se disputan partidos, identificado por nombre, dirección y enlace de ubicación.
