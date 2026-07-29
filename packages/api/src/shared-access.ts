@@ -1,0 +1,158 @@
+import { createHash, randomBytes } from "node:crypto";
+
+import type { GroupActor, GroupAuthorization } from "./group-access";
+
+export type SharedGroupSnapshot = {
+  group: {
+    id: string;
+    name: string;
+    slug: string;
+    currencyCode: string;
+    timeZone: string;
+  };
+  players: Array<{
+    id: string;
+    displayName: string;
+    archivedAt: string | null;
+  }>;
+  courts: Array<{
+    id: string;
+    name: string;
+    address: string;
+    mapsUrl: string;
+    archivedAt: string | null;
+  }>;
+  matches: Array<{
+    id: string;
+    courtId: string | null;
+    scheduledAt: string;
+    courtCostMinor: string | null;
+    status: "open" | "closed" | "cancelled";
+    teams: Array<{
+      id: string;
+      slot: number;
+      displayName: string;
+      color: string | null;
+      unattributedGoals: number;
+    }>;
+    appearances: Array<{
+      playerId: string;
+      teamId: string;
+      goals: number;
+      assists: number;
+      ownGoals: number;
+      expectedMinor: string;
+      paidMinor: string;
+    }>;
+  }>;
+};
+
+export interface SharedAccessRepository {
+  replaceLink(input: {
+    actorUserId: string;
+    groupId: string;
+    mode: "issue" | "rotate";
+    tokenHash: Buffer;
+  }): Promise<{ generation: number }>;
+  revokeLink(input: { actorUserId: string; groupId: string }): Promise<{ generation: number }>;
+  resolveLink(tokenHash: Buffer): Promise<{ groupId: string; generation: number } | null>;
+  readSnapshot(context: {
+    groupId: string;
+    generation: number;
+    tokenHash: Buffer;
+  }): Promise<SharedGroupSnapshot>;
+}
+
+export type SharedAccessErrorCode =
+  | "INVALID_SHARED_ACCESS"
+  | "SHARED_LINK_ALREADY_ACTIVE"
+  | "SHARED_LINK_NOT_ACTIVE";
+
+export class SharedAccessError extends Error {
+  readonly code: SharedAccessErrorCode;
+
+  constructor(code: SharedAccessErrorCode, message: string) {
+    super(message);
+    this.name = "SharedAccessError";
+    this.code = code;
+  }
+}
+
+export type SharedAccessContext = {
+  groupId: string;
+  generation: number;
+};
+
+type SharedAccessDependencies = {
+  repository: SharedAccessRepository;
+  authorizeOwner: (actor: GroupActor, groupId: string) => Promise<GroupAuthorization>;
+  appBaseUrl: string;
+};
+
+function hashToken(token: string) {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+    throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
+  }
+  return createHash("sha256").update(token, "utf8").digest();
+}
+
+export function createSharedAccess({
+  repository,
+  authorizeOwner,
+  appBaseUrl,
+}: SharedAccessDependencies) {
+  const contextHashes = new WeakMap<SharedAccessContext, Buffer>();
+
+  const replace = async (actor: GroupActor, groupId: string, mode: "issue" | "rotate") => {
+    await authorizeOwner(actor, groupId);
+    const token = randomBytes(32).toString("base64url");
+    const link = await repository.replaceLink({
+      actorUserId: actor.userId,
+      groupId,
+      mode,
+      tokenHash: hashToken(token),
+    });
+    return {
+      generation: link.generation,
+      token,
+      url: `${new URL("/compartido", appBaseUrl).href}#${token}`,
+    };
+  };
+
+  const authenticateHash = async (tokenHash: Buffer): Promise<SharedAccessContext> => {
+    const resolved = await repository.resolveLink(tokenHash);
+    if (!resolved) {
+      throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
+    }
+    const context: SharedAccessContext = {
+      groupId: resolved.groupId,
+      generation: resolved.generation,
+    };
+    contextHashes.set(context, tokenHash);
+    return context;
+  };
+
+  return {
+    issue: (actor: GroupActor, groupId: string) => replace(actor, groupId, "issue"),
+    rotate: (actor: GroupActor, groupId: string) => replace(actor, groupId, "rotate"),
+
+    async revoke(actor: GroupActor, groupId: string) {
+      await authorizeOwner(actor, groupId);
+      return repository.revokeLink({ actorUserId: actor.userId, groupId });
+    },
+
+    async authenticate(token: string) {
+      return authenticateHash(hashToken(token));
+    },
+
+    async readSnapshot(context: SharedAccessContext) {
+      const tokenHash = contextHashes.get(context);
+      if (!tokenHash) {
+        throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
+      }
+      return repository.readSnapshot({ ...context, tokenHash });
+    },
+  };
+}
+
+export type SharedAccess = ReturnType<typeof createSharedAccess>;
