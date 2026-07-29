@@ -1,1 +1,98 @@
 @import "@hay-fulbo/ui/globals.css";
+
+.prototype-route {
+  color-scheme: light;
+  isolation: isolate;
+  z-index: 40;
+}
+
+.prototype-variant-a {
+  --background: oklch(0.965 0.025 92);
+  --foreground: oklch(0.22 0.04 154);
+  --card: oklch(0.99 0.012 92);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.38 0.1 153);
+  --primary-foreground: oklch(0.98 0.015 92);
+  --secondary: oklch(0.9 0.05 88);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.91 0.025 92);
+  --muted-foreground: oklch(0.47 0.035 150);
+  --accent: oklch(0.87 0.07 85);
+  --accent-foreground: var(--foreground);
+  --border: oklch(0.75 0.035 92);
+  --input: oklch(0.78 0.03 92);
+  --ring: var(--primary);
+  background-image:
+    linear-gradient(oklch(0.38 0.1 153 / 5%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.38 0.1 153 / 5%) 1px, transparent 1px);
+  background-size: 22px 22px;
+  font-family: "Avenir Next", ui-rounded, sans-serif;
+}
+
+.prototype-variant-b {
+  --background: oklch(0.16 0.02 255);
+  --foreground: oklch(0.96 0.015 120);
+  --card: oklch(0.21 0.025 255);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.22 0.025 255);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.9 0.22 125);
+  --primary-foreground: oklch(0.16 0.02 255);
+  --secondary: oklch(0.29 0.025 255);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.25 0.02 255);
+  --muted-foreground: oklch(0.72 0.025 250);
+  --accent: oklch(0.34 0.04 245);
+  --accent-foreground: var(--foreground);
+  --border: oklch(0.37 0.03 255);
+  --input: oklch(0.38 0.03 255);
+  --ring: var(--primary);
+  color-scheme: dark;
+  background-image: radial-gradient(circle at 50% -10%, oklch(0.9 0.22 125 / 15%), transparent 35%);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.prototype-variant-c {
+  --background: oklch(0.98 0.012 255);
+  --foreground: oklch(0.24 0.08 255);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.58 0.2 28);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.89 0.055 250);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.93 0.025 250);
+  --muted-foreground: oklch(0.5 0.06 255);
+  --accent: oklch(0.87 0.09 80);
+  --accent-foreground: var(--foreground);
+  --border: oklch(0.68 0.08 255);
+  --input: oklch(0.73 0.055 255);
+  --ring: var(--primary);
+  background-image: linear-gradient(90deg, transparent 49.7%, oklch(0.58 0.2 28 / 7%) 50%);
+  background-size: 36px 100%;
+  font-family: "Trebuchet MS", ui-sans-serif, sans-serif;
+}
+
+.prototype-eyebrow {
+  margin-bottom: 0.25rem;
+  color: var(--muted-foreground);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.prototype-score-hero {
+  border-bottom: 1px solid var(--border);
+  background:
+    linear-gradient(
+      120deg,
+      transparent 0 60%,
+      color-mix(in oklch, var(--primary), transparent 92%) 60%
+    ),
+    var(--card);
+}
