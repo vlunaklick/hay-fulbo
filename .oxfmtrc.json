@@ -1,3 +1,7 @@
 {
-  "ignorePatterns": []
+  "ignorePatterns": [
+    ".impeccable/**",
+    "docs/superpowers/plans/**",
+    "packages/db/src/migrations/meta/**"
+  ]
 }
