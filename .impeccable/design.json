@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-29T19:32:23Z",
+  "title": "Design System: Hay Fulbo",
+  "extensions": {
+    "colorMeta": {
+      "pitch-black": {
+        "role": "neutral",
+        "displayName": "Negro Cancha",
+        "canonical": "oklch(18% 0.012 145)",
+        "tonalRamp": ["#101512", "#171D19", "#202822", "#2B352E", "#465249", "#6B786E", "#9BA79E", "#F2F5EF"]
+      },
+      "pitch-lime": {
+        "role": "primary",
+        "displayName": "Verde Cancha",
+        "canonical": "oklch(88% 0.19 125)",
+        "tonalRamp": ["#14200B", "#2C4516", "#4F7421", "#73A42D", "#98D63A", "#B7F34A", "#D4FA8B", "#EEFDCB"]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Títulos de pantalla y marcador principal."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Contenido, formularios y navegación."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-control",
+        "value": "0 12px 32px rgb(0 0 0 / 28%)",
+        "purpose": "Overlays y controles flotantes."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px rgb(183 243 74 / 24%)",
+        "purpose": "Foco visible accesible."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state",
+        "value": "180ms cubic-bezier(0.25, 1, 0.5, 1)",
+        "purpose": "Cambios de estado sin decorar."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Única acción dominante de la vista.",
+      "html": "<button class=\"ds-button-primary\">Cerrar partido</button>",
+      "css": ".ds-button-primary { min-height: 44px; border: 0; border-radius: 8px; padding: 12px 16px; background: #B7F34A; color: #14200B; font: 650 13px/1.25 system-ui, sans-serif; transition: filter 180ms cubic-bezier(0.25, 1, 0.5, 1); } .ds-button-primary:hover { filter: brightness(1.05); } .ds-button-primary:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgb(183 243 74 / 24%); }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Entrada táctil sobria sobre la superficie principal.",
+      "html": "<input class=\"ds-field\" value=\"La Canchita\" aria-label=\"Cancha\">",
+      "css": ".ds-field { min-height: 44px; border: 1px solid #2B352E; border-radius: 8px; padding: 10px 12px; background: #171D19; color: #F2F5EF; font: 450 16px/1.5 system-ui, sans-serif; } .ds-field:focus-visible { outline: 0; border-color: #B7F34A; box-shadow: 0 0 0 3px rgb(183 243 74 / 24%); }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "description": "Estado compacto con texto y no solo color.",
+      "html": "<span class=\"ds-status-chip\">Partido abierto</span>",
+      "css": ".ds-status-chip { display: inline-flex; min-height: 28px; align-items: center; border: 1px solid #2B352E; border-radius: 999px; padding: 4px 10px; background: #202822; color: #F2F5EF; font: 650 13px/1.25 system-ui, sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La pizarra después del partido",
+    "overview": "Una herramienta oscura, directa y precisa que el grupo puede usar al costado de la cancha. Moderna por claridad, no por decoración.",
+    "keyCharacteristics": [
+      "Tema oscuro principal",
+      "Una acción dominante por vista",
+      "Verde cancha reservado",
+      "Mobile-first",
+      "Números tabulares"
+    ],
+    "rules": [
+      {
+        "name": "One Whistle",
+        "body": "Solo una acción primaria usa Verde Cancha dentro de una vista.",
+        "section": "colors"
+      },
+      {
+        "name": "Floor Markings",
+        "body": "Primero usar espacio, tono y divisores; la sombra es el último recurso.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Usar objetivos táctiles de 44 px.",
+      "Mostrar estados con texto además de color.",
+      "Mantener el orden mental móvil en escritorio."
+    ],
+    "donts": [
+      "No parecer una casa de apuestas ni un videojuego con neón.",
+      "No usar gradientes púrpura, glassmorphism ni adornos de IA.",
+      "No exponer muchos controles a la vez.",
+      "No anidar tarjetas."
+    ]
+  }
+}
