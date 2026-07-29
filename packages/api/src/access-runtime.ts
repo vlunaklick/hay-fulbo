@@ -1,5 +1,6 @@
 import { auth, invitationDeliveryMode } from "@hay-fulbo/auth";
 import { db } from "@hay-fulbo/db";
+import { createStatsQueries, StatsReadError } from "@hay-fulbo/db/stats";
 import {
   groupSharedLink,
   groupSharedLinkEvent,
@@ -107,6 +108,8 @@ export const groupAccess = createGroupAccess({
   organizations: organizationGateway,
   repository: groupAccessRepository,
 });
+
+const statsQueries = createStatsQueries(db);
 
 const sharedAccessRepository: SharedAccessRepository = {
   async replaceLink({ actorUserId, groupId, mode, tokenHash }) {
@@ -333,7 +336,39 @@ const sharedAccessRepository: SharedAccessRepository = {
       };
     });
   },
+
+  async readDashboard({ generation, groupId, tokenHash }, filters) {
+    return readSharedStats(() =>
+      statsQueries.dashboard({ kind: "shared", generation, groupId, tokenHash }, filters),
+    );
+  },
+
+  async readPlayer({ generation, groupId, tokenHash }, playerId, filters) {
+    return readSharedStats(() =>
+      statsQueries.player({ kind: "shared", generation, groupId, tokenHash }, playerId, filters),
+    );
+  },
+
+  async readMatch({ generation, groupId, tokenHash }, matchId) {
+    return readSharedStats(() =>
+      statsQueries.match({ kind: "shared", generation, groupId, tokenHash }, matchId),
+    );
+  },
 };
+
+async function readSharedStats<T>(operation: () => Promise<T>) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (
+      error instanceof StatsReadError &&
+      (error.code === "invalid_shared_access" || error.code === "group_not_found")
+    ) {
+      throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
+    }
+    throw error;
+  }
+}
 
 export const sharedAccess = createSharedAccess({
   appBaseUrl: env.BETTER_AUTH_URL,
