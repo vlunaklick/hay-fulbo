@@ -79,7 +79,12 @@ export function createCoolifyClient({
     }
     if (response.status === 204) return undefined;
     const text = await response.text();
-    return text ? JSON.parse(text) : undefined;
+    if (!text) return undefined;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text.trim();
+    }
   }
 
   return {

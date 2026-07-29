@@ -39,6 +39,20 @@ test("does not leak authorization or body secrets in request errors", async () =
   });
 });
 
+test("accepts Coolify endpoints that return plain text", async () => {
+  const client = createCoolifyClient({
+    baseUrl: "https://coolify.example",
+    token: "super-secret",
+    fetchImpl: async () =>
+      new Response("4.1.2\n", {
+        status: 200,
+        headers: { "content-type": "text/plain; charset=utf-8" },
+      }),
+  });
+
+  assert.equal(await client.get("/version"), "4.1.2");
+});
+
 test("constructs the runtime URL through URL encoding", () => {
   assert.equal(
     buildRuntimeDatabaseUrl(
