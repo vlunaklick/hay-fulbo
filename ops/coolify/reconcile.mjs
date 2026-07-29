@@ -421,7 +421,11 @@ export async function reconcileCoolify({
   if (!ownerUrl) {
     throw new Error("Database internal URL is unavailable; grant read:sensitive permission");
   }
-  const currentEnvs = asArray(await client.get(`/applications/${application.uuid}/envs`), "envs");
+  const allCurrentEnvs = asArray(
+    await client.get(`/applications/${application.uuid}/envs`),
+    "envs",
+  );
+  const currentEnvs = allCurrentEnvs.filter((item) => item.is_preview !== true);
   const currentByKey = new Map(
     currentEnvs.map((item) => [item.key, item.real_value ?? item.value]),
   );

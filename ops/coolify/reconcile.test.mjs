@@ -108,7 +108,10 @@ function createFakeCoolify() {
     if (envMatch && method === "GET") return json(state.envs.get(envMatch[1]) ?? []);
     const envBulkMatch = path.match(/^\/applications\/([^/]+)\/envs\/bulk$/);
     if (envBulkMatch && method === "PATCH") {
-      state.envs.set(envBulkMatch[1], body.data);
+      state.envs.set(envBulkMatch[1], [
+        ...body.data,
+        ...body.data.map((item) => ({ ...item, is_preview: true })),
+      ]);
       return json({ message: "updated" });
     }
 
