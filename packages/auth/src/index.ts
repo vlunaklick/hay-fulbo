@@ -75,8 +75,8 @@ export function createAuth() {
           },
         },
       }),
-      nextCookies(),
       expo(),
+      nextCookies(),
     ],
   });
 }
