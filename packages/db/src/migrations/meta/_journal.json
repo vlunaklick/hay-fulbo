@@ -8,6 +8,13 @@
       "when": 1785352883096,
       "tag": "0000_damp_lightspeed",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785364224942,
+      "tag": "0001_parallel_fat_cobra",
+      "breakpoints": true
     }
   ]
 }

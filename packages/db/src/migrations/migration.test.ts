@@ -27,6 +27,7 @@ describe("database enforcement migration", () => {
       "match_organizer_transfer",
       "group_shared_link",
       "group_shared_link_event",
+      "history_import",
     ]) {
       expect(migrationSql).toContain(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY`);
       expect(migrationSql).toContain(`CREATE POLICY "${table}_group_scope"`);
@@ -48,6 +49,13 @@ describe("database enforcement migration", () => {
   test("keeps audit tables append-only", () => {
     expect(migrationSql).toContain("hay_fulbo_reject_audit_mutation");
     expect(migrationSql).toContain("audit rows are append-only");
+    expect(migrationSql).toContain("history_import_append_only");
+  });
+
+  test("scopes historical idempotency to a group, source and external key", () => {
+    expect(migrationSql).toContain(
+      'CONSTRAINT "history_import_pk" PRIMARY KEY("group_id","source","external_key")',
+    );
   });
 
   test("resolves shared access from a hash without exposing secrets", () => {

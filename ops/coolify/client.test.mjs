@@ -53,6 +53,27 @@ test("accepts Coolify endpoints that return plain text", async () => {
   assert.equal(await client.get("/version"), "4.1.2");
 });
 
+test("sends guarded DELETE requests", async () => {
+  const requests = [];
+  const client = createCoolifyClient({
+    baseUrl: "https://coolify.example",
+    token: "super-secret",
+    fetchImpl: async (url, init) => {
+      requests.push({ url: String(url), method: init.method });
+      return new Response(null, { status: 204 });
+    },
+  });
+
+  await client.delete("/applications/hay-fulbo/envs/temporary");
+
+  assert.deepEqual(requests, [
+    {
+      url: "https://coolify.example/api/v1/applications/hay-fulbo/envs/temporary",
+      method: "DELETE",
+    },
+  ]);
+});
+
 test("constructs the runtime URL through URL encoding", () => {
   assert.equal(
     buildRuntimeDatabaseUrl(

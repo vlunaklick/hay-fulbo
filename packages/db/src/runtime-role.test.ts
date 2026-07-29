@@ -44,6 +44,9 @@ describe("provisionRuntimeRole", () => {
     expect(calls.map(({ text }) => text).join("\n")).toContain(
       "grant execute on function public.hay_fulbo_resolve_shared_group(bytea)",
     );
+    expect(calls.map(({ text }) => text).join("\n")).toContain(
+      "revoke all on table public.history_import",
+    );
   });
 
   test("rejects weak runtime credentials before querying PostgreSQL", async () => {

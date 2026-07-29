@@ -59,6 +59,7 @@ export async function grantRuntimeRolePrivileges(client: PoolClient) {
   await client.query(
     "grant execute on function public.hay_fulbo_resolve_shared_group(bytea) to hay_fulbo_runtime",
   );
+  await client.query("revoke all on table public.history_import from hay_fulbo_runtime");
 }
 
 async function executeFormatted(client: PoolClient, query: string, values?: unknown[]) {

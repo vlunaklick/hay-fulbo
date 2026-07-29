@@ -15,7 +15,8 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
-    "db:migrate": "bun src/migrate.ts"
+    "db:migrate": "bun src/migrate.ts",
+    "history:import": "bun src/history-import-cli.ts"
   },
   "dependencies": {
     "@hay-fulbo/env": "workspace:*",

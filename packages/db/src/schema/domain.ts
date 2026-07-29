@@ -353,3 +353,30 @@ export const groupSharedLinkEvent = pgTable(
     ),
   ],
 );
+
+export const historyImport = pgTable(
+  "history_import",
+  {
+    source: text("source").notNull(),
+    externalKey: text("external_key").notNull(),
+    payloadHash: bytea("payload_hash").notNull(),
+    groupId: text("group_id").notNull(),
+    matchId: uuid("match_id").notNull(),
+    importedAt: instant("imported_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "history_import_pk",
+      columns: [table.groupId, table.source, table.externalKey],
+    }),
+    foreignKey({
+      name: "history_import_group_match_fk",
+      columns: [table.groupId, table.matchId],
+      foreignColumns: [match.groupId, match.id],
+    }).onDelete("restrict"),
+    unique("history_import_group_match_unique").on(table.groupId, table.matchId),
+    check("history_import_source_nonempty", sql`btrim(${table.source}) <> ''`),
+    check("history_import_external_key_nonempty", sql`btrim(${table.externalKey}) <> ''`),
+    check("history_import_payload_hash_32_bytes", sql`octet_length(${table.payloadHash}) = 32`),
+  ],
+);

@@ -100,6 +100,9 @@ export function createCoolifyClient({
     patch(path, body) {
       return request("PATCH", path, body, { mutation: true });
     },
+    delete(path) {
+      return request("DELETE", path, undefined, { mutation: true });
+    },
     mutateGet(path) {
       return request("GET", path, undefined, { mutation: true });
     },

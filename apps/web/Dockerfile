@@ -14,6 +14,10 @@ RUN bun build packages/db/src/migrate.ts \
   --target=node \
   --format=esm \
   --outfile=packages/db/migrate.js
+RUN bun build packages/db/src/history-import-cli.ts \
+  --target=node \
+  --format=esm \
+  --outfile=packages/db/history-import.js
 # standalone output excludes public/; ensure it exists so the runner copy never fails
 RUN mkdir -p apps/web/public
 
@@ -28,6 +32,7 @@ COPY --from=builder --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=node:node /app/apps/web/public ./apps/web/public
 COPY --from=builder --chown=node:node /app/packages/db/migrate.js ./packages/db/migrate.js
+COPY --from=builder --chown=node:node /app/packages/db/history-import.js ./packages/db/history-import.js
 COPY --from=builder --chown=node:node /app/packages/db/src/migrations ./packages/db/migrations
 COPY --chown=node:node apps/web/docker-entrypoint.sh ./apps/web/docker-entrypoint.sh
 
