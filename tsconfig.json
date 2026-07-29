@@ -1,0 +1,3 @@
+{
+  "extends": "@hay-fulbo/config/tsconfig.base.json"
+}

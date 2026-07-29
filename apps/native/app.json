@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "scheme": "hay-fulbo",
+    "userInterfaceStyle": "automatic",
+    "orientation": "default",
+    "web": {
+      "bundler": "metro"
+    },
+    "name": "hay-fulbo",
+    "slug": "hay-fulbo",
+    "plugins": ["expo-font"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
