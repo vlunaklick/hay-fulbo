@@ -196,20 +196,16 @@ function environmentItem(key, value, secret = false) {
   };
 }
 
+function environmentValue(item) {
+  return item.value ?? item.real_value;
+}
+
 function envComparable(item) {
-  const {
-    key,
-    value,
-    is_runtime,
-    is_buildtime,
-    is_preview,
-    is_literal,
-    is_multiline,
-    is_shown_once,
-  } = item;
+  const { key, is_runtime, is_buildtime, is_preview, is_literal, is_multiline, is_shown_once } =
+    item;
   return {
     key,
-    value: item.real_value ?? value,
+    value: environmentValue(item),
     is_runtime,
     is_buildtime,
     is_preview,
@@ -217,6 +213,14 @@ function envComparable(item) {
     is_multiline,
     is_shown_once,
   };
+}
+
+function normalizeGeneratedSecret(value) {
+  let normalized = value;
+  while (normalized?.startsWith("'") && normalized.endsWith("'")) {
+    normalized = normalized.slice(1, -1);
+  }
+  return normalized;
 }
 
 function sameEnvironment(actual, desired) {
@@ -426,16 +430,16 @@ export async function reconcileCoolify({
     "envs",
   );
   const currentEnvs = allCurrentEnvs.filter((item) => item.is_preview !== true);
-  const currentByKey = new Map(
-    currentEnvs.map((item) => [item.key, item.real_value ?? item.value]),
+  const currentByKey = new Map(currentEnvs.map((item) => [item.key, environmentValue(item)]));
+  const existingRuntimePassword = normalizeGeneratedSecret(
+    currentByKey.get("RUNTIME_DATABASE_PASSWORD"),
   );
-  const existingRuntimePassword = currentByKey.get("RUNTIME_DATABASE_PASSWORD");
-  const existingAuthSecret = currentByKey.get("BETTER_AUTH_SECRET");
+  const existingAuthSecret = normalizeGeneratedSecret(currentByKey.get("BETTER_AUTH_SECRET"));
   if (
     currentEnvs.some(
       (item) =>
         ["RUNTIME_DATABASE_PASSWORD", "BETTER_AUTH_SECRET"].includes(item.key) &&
-        !(item.real_value ?? item.value),
+        !environmentValue(item),
     )
   ) {
     throw new Error("Secret environment values are hidden; grant read:sensitive permission");
@@ -465,10 +469,13 @@ export async function reconcileCoolify({
     throw new Error("Expected at most one scheduled database backup");
   }
   const backup = backups[0];
+  const comparableBackup = Object.fromEntries(
+    Object.entries(BACKUP).filter(([key]) => key !== "backup_now"),
+  );
   if (!backup) {
     actions.push("create daily local backup");
     await client.post(`/databases/${database.uuid}/backups`, BACKUP);
-  } else if (differs(backup, BACKUP)) {
+  } else if (differs(backup, comparableBackup)) {
     actions.push("update daily local backup");
     await client.patch(`/databases/${database.uuid}/backups/${backup.uuid}`, BACKUP);
   }

@@ -109,8 +109,12 @@ function createFakeCoolify() {
     const envBulkMatch = path.match(/^\/applications\/([^/]+)\/envs\/bulk$/);
     if (envBulkMatch && method === "PATCH") {
       state.envs.set(envBulkMatch[1], [
-        ...body.data,
-        ...body.data.map((item) => ({ ...item, is_preview: true })),
+        ...body.data.map((item) => ({ ...item, real_value: `'${item.value}'` })),
+        ...body.data.map((item) => ({
+          ...item,
+          is_preview: true,
+          real_value: `'${item.value}'`,
+        })),
       ]);
       return json({ message: "updated" });
     }
@@ -120,6 +124,7 @@ function createFakeCoolify() {
       return json(state.backups.get(backupCollection[1]) ?? []);
     if (backupCollection && method === "POST") {
       const backup = { uuid: "backup-1", ...body };
+      delete backup.backup_now;
       state.backups.set(backupCollection[1], [backup]);
       return json(backup, 201);
     }
