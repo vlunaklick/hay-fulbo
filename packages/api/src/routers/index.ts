@@ -5,6 +5,7 @@ import type { GroupActor } from "../group-access";
 import { GroupAccessError } from "../group-access";
 import { SharedAccessError } from "../shared-access";
 import { protectedProcedure, publicProcedure, router } from "../index";
+import { matchesRouter } from "./matches";
 
 function actorFromContext(ctx: {
   requestHeaders: Headers;
@@ -110,6 +111,7 @@ const groupRouter = router({
 
 export const appRouter = router({
   group: groupRouter,
+  matches: matchesRouter,
   healthCheck: publicProcedure.query(() => {
     return "OK";
   }),
