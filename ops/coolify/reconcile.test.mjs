@@ -24,6 +24,7 @@ function createFakeCoolify() {
     environments: new Map(),
     envs: new Map(),
     backups: new Map(),
+    generatedFqdn: "http://hay-fulbo.example.test",
   };
 
   const fetchImpl = async (input, init = {}) => {
@@ -86,7 +87,7 @@ function createFakeCoolify() {
       const app = {
         uuid: "hay-app",
         ...body,
-        fqdn: "https://hay-fulbo.example.test",
+        fqdn: state.generatedFqdn,
         status: "running:healthy",
       };
       state.apps.push(app);
@@ -98,6 +99,7 @@ function createFakeCoolify() {
     if (appMatch && method === "PATCH") {
       const app = state.apps.find(({ uuid }) => uuid === appMatch[1]);
       Object.assign(app, body);
+      if (body.domains) app.fqdn = body.domains;
       return json(app);
     }
 
@@ -171,6 +173,7 @@ test("apply is idempotent and never sends Crecenly in a mutation", async () => {
   const second = await reconcileCoolify(options);
 
   assert.equal(first.mode, "apply");
+  assert.ok(first.actions.includes("set application HTTPS domain"));
   assert.equal(second.actions.length, 0);
   assert.equal(fake.state.mutations.filter(({ method }) => method === "POST").length, createCount);
   assert.equal(fake.state.projects.filter(({ name }) => name === "hay-fulbo").length, 1);

@@ -66,6 +66,17 @@ function canonicalUrl(application) {
   return url.origin;
 }
 
+function httpsDomain(application) {
+  const candidate = (application.fqdn ?? application.domains ?? "").split(",")[0].trim();
+  if (!candidate) throw new Error("Coolify did not assign an application URL");
+  const url = new URL(candidate);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("Coolify application URL must use HTTP or HTTPS");
+  }
+  url.protocol = "https:";
+  return url.origin;
+}
+
 function destinationUuid(application) {
   return application.destination_uuid ?? application.destination?.uuid;
 }
@@ -392,6 +403,17 @@ export async function reconcileCoolify({
       await client.patch(`/applications/${application.uuid}`, applicationUpdate);
       application = { ...application, ...applicationUpdate };
     }
+  }
+
+  const secureDomain = httpsDomain(application);
+  const observedDomain = (application.fqdn ?? application.domains ?? "").split(",")[0].trim();
+  if (new URL(observedDomain).protocol !== "https:") {
+    actions.push("set application HTTPS domain");
+    await client.patch(`/applications/${application.uuid}`, {
+      domains: secureDomain,
+      is_force_https_enabled: true,
+    });
+    application = await client.get(`/applications/${application.uuid}`);
   }
 
   const ownerUrl = database.internal_db_url ?? database.internal_url ?? database.connection_string;
