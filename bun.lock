@@ -76,6 +76,7 @@
       "dependencies": {
         "@hay-fulbo/api": "workspace:*",
         "@hay-fulbo/auth": "workspace:*",
+        "@hay-fulbo/db": "workspace:*",
         "@hay-fulbo/env": "workspace:*",
         "@hay-fulbo/ui": "workspace:*",
         "@swc/helpers": "^0.5.23",
@@ -99,6 +100,7 @@
         "@hay-fulbo/config": "workspace:*",
         "@tailwindcss/postcss": "catalog:",
         "@tanstack/react-query-devtools": "^5.101.4",
+        "@types/bun": "^1.3.3",
         "@types/node": "^20.19.43",
         "@types/react": "^19.2.17",
         "@types/react-dom": "catalog:",
