@@ -94,8 +94,11 @@ If you want to add app-specific blocks instead of shared primitives, run the sha
 Copy `.env.example` to `.env` to override the local ports and PostgreSQL
 passwords. Compose uses a schema-owner connection for idempotent migrations and
 a separate `NOSUPERUSER NOBYPASSRLS` connection for the web process. Production
-must provide the same split through `MIGRATION_DATABASE_URL` and `DATABASE_URL`;
-neither connection is baked into the image.
+must provide the same split through `MIGRATION_DATABASE_URL`, `DATABASE_URL` and
+`RUNTIME_DATABASE_PASSWORD`. Startup creates or rotates the restricted role,
+serializes migrations, grants only the required privileges and removes the two
+elevated bootstrap values before starting Next.js. No connection is baked into
+the image.
 
 For more details, see the guide on [Deploying with Docker Compose](https://www.better-t-stack.dev/docs/guides/docker).
 

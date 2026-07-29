@@ -9,6 +9,7 @@ services:
     entrypoint: ["node", "/app/packages/db/migrate.js"]
     environment:
       MIGRATION_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/hay-fulbo
+      RUNTIME_DATABASE_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:-runtime-password-at-least-32-characters}
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,8 +50,9 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-development-secret-at-least-32-characters}
       BETTER_AUTH_URL: http://localhost:${WEB_PORT:-3001}
       CORS_ORIGIN: http://localhost:${WEB_PORT:-3001}
-      DATABASE_URL: postgresql://hay_fulbo_runtime:${POSTGRES_RUNTIME_PASSWORD:-runtime-password}@postgres:5432/hay-fulbo
+      DATABASE_URL: postgresql://hay_fulbo_runtime:${POSTGRES_RUNTIME_PASSWORD:-runtime-password-at-least-32-characters}@postgres:5432/hay-fulbo
       MIGRATION_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/hay-fulbo
+      RUNTIME_DATABASE_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:-runtime-password-at-least-32-characters}
     depends_on:
       runtime-grants:
         condition: service_completed_successfully
@@ -74,7 +76,7 @@ services:
       POSTGRES_DB: hay-fulbo
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_RUNTIME_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:-runtime-password}
+      POSTGRES_RUNTIME_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:-runtime-password-at-least-32-characters}
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
