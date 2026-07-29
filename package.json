@@ -45,6 +45,11 @@
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
+    "coolify:test": "node --test ops/coolify/*.test.mjs",
+    "coolify:plan": "node ops/coolify/reconcile.mjs --dry-run",
+    "coolify:apply": "node ops/coolify/reconcile.mjs --apply",
+    "coolify:deploy": "node ops/coolify/deploy.mjs",
+    "coolify:smoke": "node ops/coolify/smoke.mjs",
     "check": "oxlint && oxfmt --write"
   },
   "dependencies": {
