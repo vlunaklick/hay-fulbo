@@ -18,6 +18,9 @@ RUN bun build packages/db/src/migrate.ts \
 RUN mkdir -p apps/web/public
 
 FROM node:24-slim AS runner
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 
