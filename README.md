@@ -48,6 +48,12 @@ bun run dev
 Open [http://localhost:3001](http://localhost:3001) in your browser to see the fullstack application.
 Use the Expo Go app to run the mobile application.
 
+### Email delivery
+
+Set both `RESEND_API_KEY` and `EMAIL_FROM` to deliver verification and group invitation
+emails through Resend. Without them, invitations remain pending and the owner-facing API
+returns a shareable invitation link without claiming that an email was sent.
+
 ## UI Customization
 
 React web apps in this stack share shadcn/ui primitives through `packages/ui`.

@@ -9,7 +9,10 @@
       "default": "./src/*.ts"
     }
   },
-  "scripts": {},
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "bun test"
+  },
   "dependencies": {
     "@hay-fulbo/auth": "workspace:*",
     "@hay-fulbo/db": "workspace:*",
@@ -17,11 +20,13 @@
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.2",
     "next": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@hay-fulbo/config": "workspace:*",
+    "@types/bun": "^1.3.3",
     "typescript": "^6.0.3"
   }
 }
