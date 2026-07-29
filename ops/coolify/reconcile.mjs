@@ -400,6 +400,8 @@ export async function reconcileCoolify({
             "destination_uuid",
             "instant_deploy",
             "autogenerate_domain",
+            "is_auto_deploy_enabled",
+            "is_force_https_enabled",
           ].includes(key),
       ),
     );

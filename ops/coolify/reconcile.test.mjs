@@ -91,6 +91,8 @@ function createFakeCoolify() {
         status: "running:healthy",
       };
       delete app.autogenerate_domain;
+      delete app.is_auto_deploy_enabled;
+      delete app.is_force_https_enabled;
       state.apps.push(app);
       return json(app, 201);
     }
