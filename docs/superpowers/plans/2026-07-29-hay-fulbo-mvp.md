@@ -123,8 +123,8 @@ Núcleo #18 (hecho)
 - Create: `ops/coolify/reconcile.mjs` — reconciliar proyecto, ambiente, PostgreSQL, roles, app, variables y backups sin imprimir secretos.
 - Create: `ops/coolify/deploy.mjs` — fijar SHA, disparar una vez, esperar terminal y smoke/rollback.
 - Create: `ops/coolify/smoke.mjs` — health ×3, HTTPS, sesión anónima y commit.
-- Create: `ops/coolify/README.md` — precondiciones, comandos, restore drill, evidencias y rollback.
-- Create: `docs/releases/production.md` — FQDN, SHA, UUID, migración, backup/restore y smoke; nunca secretos.
+- Create: `ops/coolify/README.md` — precondiciones, comandos, backup local, evidencias y rollback.
+- Create: `docs/releases/production.md` — FQDN, SHA, UUID, migración, backup local y smoke; nunca secretos.
 
 ## Tracer bullets TDD
 
@@ -714,7 +714,7 @@ Run:
 node ops/coolify/reconcile.mjs --dry-run
 ```
 
-Expected: lista proyecto/ambiente/app/DB/backup a crear o actualizar, sin token, password, URL con credenciales o S3 secret.
+Expected: lista proyecto/ambiente/app/DB/backup a crear o actualizar, sin token, password ni URL con credenciales.
 
 - [ ] **Step 2: Reconciliar recursos**
 
@@ -739,17 +739,17 @@ Expected: primera ejecución completa; segunda dice “sin cambios”.
 
 - [ ] **Step 3: Configurar y verificar backups**
 
-Backups diarios: 7 locales y 30 S3-compatible. Si no existe storage S3 utilizable, esta es la única precondición externa que se reporta; no sustituirlo por un bucket inventado.
+Backups diarios locales con retención de 7 copias. S3 y el almacenamiento externo quedan fuera del MVP por decisión explícita del usuario.
 
-Forzar backup, restaurar en DB temporal, comprobar journal/tablas, y eliminar solo la DB temporal.
+Forzar un backup y confirmar que Coolify lo completa y conserva en el volumen persistente.
 
 Run:
 
 ```bash
-node ops/coolify/reconcile.mjs --verify-backup-restore
+node ops/coolify/reconcile.mjs --verify-local-backup
 ```
 
-Expected: backup `completed`, restore abre, tabla de migraciones y esquema esperado presentes, DB temporal retirada.
+Expected: backup `completed`, archivo local presente y política de retención configurada en 7 copias.
 
 - [ ] **Step 4: Fijar y desplegar exactamente `origin/main`**
 
@@ -780,7 +780,7 @@ Ante fallo, `deploy.mjs` vuelve al último SHA healthy y repite smoke; nunca res
 
 - [ ] **Step 6: Registrar evidencia sin secretos**
 
-Completar `docs/releases/production.md` con fecha, FQDN, SHA, deployment UUID, migración, builds, health, smoke, backup UUID/fecha, restore y SHA anterior healthy.
+Completar `docs/releases/production.md` con fecha, FQDN, SHA, deployment UUID, migración, builds, health, smoke, backup local UUID/fecha y SHA anterior healthy.
 
 - [ ] **Step 7: Commit boundary G**
 
@@ -824,7 +824,7 @@ Expected: automatización reproducible y evidencia final en `main`; el deploy ya
 | Ops | Build, tipos, tests, Next build y Docker build pasan desde checkout limpio | release battery | 5, 6 |
 | Ops | Migración versionada corre dos veces; runtime inicia solo si migra | container smoke | 6 |
 | Ops | `/api/health` verifica DB, 200/503, no-store; Docker/Coolify health gate | integration + external smoke | 6, 7 |
-| Ops | PostgreSQL privado, persistente, backup 7 local/30 S3 y restore probado | Coolify reconciliation/evidence | 7 |
+| Ops | PostgreSQL privado, persistente y backup diario con 7 copias locales | Coolify reconciliation/evidence | 7 |
 | Ops | Deploy único fija SHA de `origin/main`, conserva tres releases y rollback vuelve al healthy | deploy script/evidence | 7 |
 
 ## Batería final y definición de terminado
@@ -843,7 +843,7 @@ docker build -f apps/web/Dockerfile -t hay-fulbo:release .
 git diff --exit-code
 ```
 
-Expected: todo exit 0, ningún archivo generado sin trackear y ninguna prueba skipped. Luego Coolify debe desplegar exactamente ese SHA, pasar health/smoke, completar backup+restore y registrar evidencia.
+Expected: todo exit 0, ningún archivo generado sin trackear y ninguna prueba skipped. Luego Coolify debe desplegar exactamente ese SHA, pasar health/smoke, completar un backup local y registrar evidencia.
 
 El MVP está terminado únicamente cuando:
 
@@ -851,7 +851,7 @@ El MVP está terminado únicamente cuando:
 2. `main` y `origin/main` coinciden;
 3. Coolify sirve el SHA esperado por HTTPS;
 4. el enlace compartido funciona sin login y no escribe;
-5. hay un backup restaurado y verificado;
+5. hay un backup local programado y al menos una ejecución completada;
 6. el documento de release contiene evidencia y cero secretos.
 
 ## Tickets ejecutables a crear
