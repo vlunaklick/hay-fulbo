@@ -21,10 +21,9 @@ export function ModeToggle() {
       <DropdownMenuTrigger
         aria-label="Tema"
         title="Cambiar tema"
-        render={<Button variant="outline" size="icon" className="sm:w-auto sm:px-3" />}
+        render={<Button variant="ghost" size="icon" />}
       >
-        <SunMoonIcon data-icon="inline-start" aria-hidden="true" />
-        <span className="hidden sm:inline">Tema</span>
+        <SunMoonIcon aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>

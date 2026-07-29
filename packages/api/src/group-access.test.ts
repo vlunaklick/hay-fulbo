@@ -15,20 +15,24 @@ const actor = {
 };
 
 function setup(
-  role: "owner" | "member" | null = "owner",
+  role: "owner" | "leader" | "member" | null = "owner",
   invitationEmailDelivery: "email" | "link" = "link",
 ) {
   const links: Array<{ groupId: string; playerId: string; linkedUserId: string | null }> = [];
   const invitations: Array<{ email: string; groupId: string; playerId: string }> = [];
+  const removals: string[] = [];
+  const roleUpdates: Array<{ membershipId: string; role: "leader" | "member" }> = [];
   const selections: string[] = [];
 
   const repository: GroupAccessRepository = {
     assertPlayerInGroup: async () => {},
     findMembership: async () => (role ? { role } : null),
+    findMembershipById: async () => ({ role: "member", userId: "user-member" }),
     linkPlayer: async (input) => {
       links.push(input);
       return { playerId: input.playerId, linkedUserId: input.linkedUserId };
     },
+    unlinkMemberPlayer: async () => {},
   };
   const organizations: OrganizationGateway = {
     create: async ({ name, slug }) => ({ id: "group-new", name, slug }),
@@ -40,6 +44,12 @@ function setup(
     invite: async ({ email, groupId, playerId }) => {
       invitations.push({ email, groupId, playerId });
       return { id: "inv-1", email, expiresAt: new Date("2026-07-31T12:00:00Z") };
+    },
+    removeMember: async ({ membershipId }) => {
+      removals.push(membershipId);
+    },
+    updateMemberRole: async ({ membershipId, role: nextRole }) => {
+      roleUpdates.push({ membershipId, role: nextRole });
     },
   };
 
@@ -53,6 +63,8 @@ function setup(
     }),
     invitations,
     links,
+    removals,
+    roleUpdates,
     selections,
   };
 }
@@ -136,6 +148,45 @@ describe("groupAccess public interface", () => {
     ).rejects.toBeInstanceOf(GroupAccessError);
   });
 
+  test("leaders can edit group data but cannot manage memberships", async () => {
+    const { access } = setup("leader");
+
+    await expect(
+      access.linkPlayer(actor, {
+        groupId: "group-1",
+        playerId: "1059f2b1-1473-4637-badb-f3bace830c62",
+        linkedUserId: null,
+      }),
+    ).resolves.toEqual({
+      playerId: "1059f2b1-1473-4637-badb-f3bace830c62",
+      linkedUserId: null,
+    });
+    await expect(
+      access.updateMemberRole(actor, {
+        groupId: "group-1",
+        membershipId: "membership-member",
+        role: "leader",
+      }),
+    ).rejects.toMatchObject({ code: "OWNER_REQUIRED" });
+  });
+
+  test("owners can assign leaders and remove a membership without deleting history", async () => {
+    const { access, removals, roleUpdates } = setup("owner");
+
+    await access.updateMemberRole(actor, {
+      groupId: "group-1",
+      membershipId: "membership-member",
+      role: "leader",
+    });
+    await access.removeMember(actor, {
+      groupId: "group-1",
+      membershipId: "membership-member",
+    });
+
+    expect(roleUpdates).toEqual([{ membershipId: "membership-member", role: "leader" }]);
+    expect(removals).toEqual(["membership-member"]);
+  });
+
   test("preserves repository link conflicts as a stable API error", async () => {
     const conflict = new GroupAccessError(
       "PLAYER_ACCOUNT_ALREADY_LINKED",
@@ -152,14 +203,18 @@ describe("groupAccess public interface", () => {
           id: "unused",
         }),
         list: async () => [],
+        removeMember: async () => {},
         select: async () => ({ id: "unused", name: "Unused", slug: "unused" }),
+        updateMemberRole: async () => {},
       },
       repository: {
         assertPlayerInGroup: async () => {},
         findMembership: async () => ({ role: "owner" }),
+        findMembershipById: async () => ({ role: "member", userId: "user-member" }),
         linkPlayer: async () => {
           throw conflict;
         },
+        unlinkMemberPlayer: async () => {},
       },
       requireVerifiedEmailForGroupCreation: false,
     });

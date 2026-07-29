@@ -55,25 +55,29 @@ export function createMatchCommands(
     ): Promise<MatchCommandResultFor<TCommand>> {
       const result = await database.transaction(async (transaction) => {
         const access = await establishScope(transaction, scope);
+        scope = {
+          ...scope,
+          role: access.role === "owner" || access.role === "leader" ? access.role : "member",
+        };
 
         if (command.type === "createMatch") {
-          requireOwner(access);
+          requireManager(access);
           return createMatch(transaction, scope, command);
         }
         if (command.type === "upsertPlayer") {
-          requireOwner(access);
+          requireManager(access);
           return upsertPlayer(transaction, scope, command);
         }
         if (command.type === "archivePlayer") {
-          requireOwner(access);
+          requireManager(access);
           return archivePlayer(transaction, scope, command);
         }
         if (command.type === "upsertCourt") {
-          requireOwner(access);
+          requireManager(access);
           return upsertCourt(transaction, scope, command);
         }
         if (command.type === "archiveCourt") {
-          requireOwner(access);
+          requireManager(access);
           return archiveCourt(transaction, scope, command);
         }
 
@@ -759,7 +763,11 @@ async function transferOrganizer(
 ) {
   assertReason(command.reason);
   const actorMembership = await requireMember(transaction, scope.groupId, scope.actorUserId);
-  if (locked.organizerUserId !== scope.actorUserId && actorMembership.role !== "owner") {
+  if (
+    locked.organizerUserId !== scope.actorUserId &&
+    actorMembership.role !== "owner" &&
+    actorMembership.role !== "leader"
+  ) {
     throw new MatchCommandError("forbidden");
   }
   if (locked.organizerUserId === command.nextOrganizerUserId) {
@@ -985,19 +993,28 @@ async function requireMember(transaction: MatchTransaction, groupId: string, use
 }
 
 function requireOrganizer(locked: LockedMatch, scope: MatchScope) {
-  if (locked.organizerUserId !== scope.actorUserId) {
+  if (
+    locked.organizerUserId !== scope.actorUserId &&
+    scope.role !== "owner" &&
+    scope.role !== "leader"
+  ) {
     throw new MatchCommandError("forbidden");
   }
 }
 
-function requireOwner(access: { role: string }) {
-  if (access.role !== "owner") {
+function requireManager(access: { role: string }) {
+  if (access.role !== "owner" && access.role !== "leader") {
     throw new MatchCommandError("owner_required");
   }
 }
 
 function requireTeamAuthority(locked: LockedMatch, team: TeamRow, scope: MatchScope) {
-  if (locked.organizerUserId !== scope.actorUserId && team.captainUserId !== scope.actorUserId) {
+  if (
+    locked.organizerUserId !== scope.actorUserId &&
+    team.captainUserId !== scope.actorUserId &&
+    scope.role !== "owner" &&
+    scope.role !== "leader"
+  ) {
     throw new MatchCommandError("forbidden");
   }
 }

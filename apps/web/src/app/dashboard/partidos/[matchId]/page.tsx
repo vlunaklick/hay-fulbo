@@ -123,8 +123,8 @@ export default function MatchPage() {
 }
 
 function MatchControl({ detail, directory }: { detail: Detail; directory: Directory }) {
-  const { user } = useAppContext();
-  const isOrganizer = detail.organizerUserId === user.id;
+  const { role, user } = useAppContext();
+  const isOrganizer = detail.organizerUserId === user.id || role !== "member";
   const isOpen = detail.status === "open";
   const issues = closureIssues(detail);
   const execute = useMutation(
@@ -222,16 +222,29 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
             <Squads
               detail={detail}
               directory={directory}
+              manager={isOrganizer}
               userId={user.id}
               pending={execute.isPending}
               run={run}
             />
           </TabsContent>
           <TabsContent value="payments">
-            <Payments detail={detail} userId={user.id} pending={execute.isPending} run={run} />
+            <Payments
+              detail={detail}
+              manager={isOrganizer}
+              userId={user.id}
+              pending={execute.isPending}
+              run={run}
+            />
           </TabsContent>
           <TabsContent value="game">
-            <Game detail={detail} userId={user.id} pending={execute.isPending} run={run} />
+            <Game
+              detail={detail}
+              manager={isOrganizer}
+              userId={user.id}
+              pending={execute.isPending}
+              run={run}
+            />
           </TabsContent>
           <TabsContent value="closure" className="lg:hidden">
             <ClosurePanel
@@ -534,12 +547,14 @@ function TeamName({
 function Squads({
   detail,
   directory,
+  manager,
   userId,
   pending,
   run,
 }: {
   detail: Detail;
   directory: Directory;
+  manager: boolean;
   userId: string;
   pending: boolean;
   run: (command: ExecuteInput) => void;
@@ -550,7 +565,7 @@ function Squads({
   const available = directory.players.filter(
     (player) => !player.archivedAt && !assigned.has(player.id),
   );
-  const isOrganizer = detail.organizerUserId === userId;
+  const isOrganizer = manager || detail.organizerUserId === userId;
 
   return (
     <div className="grid gap-4 xl:grid-cols-2">
@@ -765,11 +780,13 @@ function TeamSquad({
 
 function Payments({
   detail,
+  manager,
   userId,
   pending,
   run,
 }: {
   detail: Detail;
+  manager: boolean;
   userId: string;
   pending: boolean;
   run: (command: ExecuteInput) => void;
@@ -780,7 +797,7 @@ function Payments({
       teamName: team.displayName,
       editable:
         detail.status !== "cancelled" &&
-        (detail.organizerUserId === userId || team.captainUserId === userId),
+        (manager || detail.organizerUserId === userId || team.captainUserId === userId),
     })),
   );
   if (!rows.length) {
@@ -907,11 +924,13 @@ function PaymentRow({
 
 function Game({
   detail,
+  manager,
   userId,
   pending,
   run,
 }: {
   detail: Detail;
+  manager: boolean;
   userId: string;
   pending: boolean;
   run: (command: ExecuteInput) => void;
@@ -925,7 +944,7 @@ function Game({
           team={team}
           editable={
             detail.status === "open" &&
-            (detail.organizerUserId === userId || team.captainUserId === userId)
+            (manager || detail.organizerUserId === userId || team.captainUserId === userId)
           }
           pending={pending}
           run={run}

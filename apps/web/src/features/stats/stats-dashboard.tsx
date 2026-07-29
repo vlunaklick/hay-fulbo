@@ -56,6 +56,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
 import { trpc } from "@/utils/trpc";
+import { cn } from "@hay-fulbo/ui/lib/utils";
 
 import { sharedStatsClient } from "./stats-client";
 import { StatsError } from "./stats-error";
@@ -157,9 +158,14 @@ function StatsDashboardContent({
   filters: ReturnType<typeof useStatsFilters>;
   mode: DashboardMode;
 }) {
-  const detailBase = mode === "shared" ? "/compartido" : "/estadisticas";
+  const detailBase = mode === "shared" ? "/compartido" : "/dashboard/estadisticas";
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+    <main
+      className={cn(
+        "w-full",
+        mode === "shared" ? "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12" : "",
+      )}
+    >
       <header className="mb-8 space-y-3">
         <Badge variant="outline">
           <LockKeyholeIcon data-icon="inline-start" />

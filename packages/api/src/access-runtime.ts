@@ -50,8 +50,29 @@ const groupAccessRepository: GroupAccessRepository = {
       .limit(1);
 
     if (!membership) return null;
-    if (membership.role !== "owner" && membership.role !== "member") return null;
+    if (
+      membership.role !== "owner" &&
+      membership.role !== "leader" &&
+      membership.role !== "member"
+    ) {
+      return null;
+    }
     return { role: membership.role };
+  },
+
+  async findMembershipById({ groupId, membershipId }) {
+    const [membership] = await db
+      .select({ role: member.role, userId: member.userId })
+      .from(member)
+      .where(and(eq(member.organizationId, groupId), eq(member.id, membershipId)))
+      .limit(1);
+    if (
+      !membership ||
+      (membership.role !== "owner" && membership.role !== "leader" && membership.role !== "member")
+    ) {
+      return null;
+    }
+    return { role: membership.role, userId: membership.userId };
   },
 
   async linkPlayer({ groupId, playerId, linkedUserId }) {
@@ -103,6 +124,16 @@ const groupAccessRepository: GroupAccessRepository = {
       }
       throw error;
     }
+  },
+
+  async unlinkMemberPlayer({ groupId, userId }) {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
+      await tx
+        .update(player)
+        .set({ linkedUserId: null, updatedAt: new Date() })
+        .where(and(eq(player.groupId, groupId), eq(player.linkedUserId, userId)));
+    });
   },
 };
 
@@ -167,6 +198,20 @@ const organizationGateway: OrganizationGateway = {
       expiresAt: created.expiresAt,
       id: created.id,
     };
+  },
+
+  async removeMember({ groupId, headers, membershipId }) {
+    await auth.api.removeMember({
+      body: { memberIdOrEmail: membershipId, organizationId: groupId },
+      headers,
+    });
+  },
+
+  async updateMemberRole({ groupId, headers, membershipId, role }) {
+    await auth.api.updateMemberRole({
+      body: { memberId: membershipId, organizationId: groupId, role },
+      headers,
+    });
   },
 };
 

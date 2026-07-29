@@ -19,7 +19,7 @@ import {
 } from "@hay-fulbo/ui/components/dropdown-menu";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
-import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
+import { CheckIcon, ChevronsUpDownIcon, PlusIcon, SettingsIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -36,11 +36,11 @@ type GroupSummary = {
 export function GroupSwitcher({
   activeGroup,
   groups,
-  userName,
+  role,
 }: {
   activeGroup: GroupSummary;
   groups: readonly GroupSummary[];
-  userName: string;
+  role: "leader" | "member" | "owner";
 }) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
@@ -57,7 +57,7 @@ export function GroupSwitcher({
 
   return (
     <>
-      <div className="flex min-w-0 flex-col">
+      <div className="min-w-0">
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={`Cambiar grupo, actual: ${activeGroup.name}`}
@@ -91,6 +91,12 @@ export function GroupSwitcher({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              {role === "owner" ? (
+                <DropdownMenuItem onClick={() => router.push("/dashboard/grupo")}>
+                  <SettingsIcon aria-hidden="true" />
+                  Administrar grupo
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem onClick={() => setCreateOpen(true)}>
                 <PlusIcon aria-hidden="true" />
                 Crear grupo
@@ -98,7 +104,6 @@ export function GroupSwitcher({
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        <span className="truncate px-1 text-xs text-muted-foreground">{userName}</span>
       </div>
       <GroupCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
     </>

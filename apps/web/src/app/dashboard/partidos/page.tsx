@@ -42,7 +42,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Partidos</h1>
           <p className="text-sm text-muted-foreground">Lo próximo y lo que ya quedó cerrado.</p>
         </div>
-        {role === "owner" ? (
+        {role !== "member" ? (
           <Button render={<Link href="/dashboard/partidos/nuevo" />} nativeButton={false}>
             <PlusIcon data-icon="inline-start" aria-hidden="true" />
             <span className="hidden sm:inline">Nuevo partido</span>
@@ -84,7 +84,7 @@ export default function DashboardPage() {
               Cargá la fecha, la cancha y los dos equipos para arrancar.
             </EmptyDescription>
           </EmptyHeader>
-          {role === "owner" ? (
+          {role !== "member" ? (
             <EmptyContent>
               <Button render={<Link href="/dashboard/partidos/nuevo" />} nativeButton={false}>
                 Crear el primero

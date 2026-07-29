@@ -12,6 +12,7 @@ export type MatchTransaction = NodePgTransaction<
 export type MatchScope = {
   groupId: string;
   actorUserId: string;
+  role?: "leader" | "member" | "owner";
 };
 
 export type MatchCommandErrorCode =
@@ -267,9 +268,10 @@ export type MatchDirectory = {
   }[];
   members: {
     id: string;
+    membershipId: string;
     name: string;
     email: string;
-    role: "owner" | "member";
+    role: "owner" | "leader" | "member";
     linkedPlayerId: string | null;
   }[];
 };

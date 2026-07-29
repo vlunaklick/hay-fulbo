@@ -71,11 +71,11 @@ export default function NewMatchPage() {
     }),
   );
 
-  if (role !== "owner") {
+  if (role === "member") {
     return (
       <Alert>
         <CircleAlertIcon aria-hidden="true" />
-        <AlertTitle>Acción reservada al organizador</AlertTitle>
+        <AlertTitle>Acción reservada al organizador y líderes</AlertTitle>
         <AlertDescription>Podés volver a la lista y consultar los partidos.</AlertDescription>
       </Alert>
     );

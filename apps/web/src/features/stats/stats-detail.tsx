@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@hay-fulbo/ui/components/card";
 import { Separator } from "@hay-fulbo/ui/components/separator";
+import { cn } from "@hay-fulbo/ui/lib/utils";
 import {
   Table,
   TableBody,
@@ -104,9 +105,14 @@ export function SharedMatchStats({ matchId }: { matchId: string }) {
 }
 
 function PlayerStatsContent({ data, mode }: { data: SerializedPlayerStats; mode: Mode }) {
-  const base = mode === "shared" ? "/compartido" : "/estadisticas";
+  const base = mode === "shared" ? "/compartido" : "/dashboard/estadisticas";
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+    <main
+      className={cn(
+        "mx-auto w-full max-w-5xl",
+        mode === "shared" ? "px-4 py-8 sm:px-6 lg:px-8 lg:py-12" : "",
+      )}
+    >
       <Link
         className={buttonVariants({
           variant: "ghost",
@@ -233,9 +239,14 @@ function PlayerStatsContent({ data, mode }: { data: SerializedPlayerStats; mode:
 }
 
 function MatchStatsContent({ data, mode }: { data: SerializedMatchDetail; mode: Mode }) {
-  const base = mode === "shared" ? "/compartido" : "/estadisticas";
+  const base = mode === "shared" ? "/compartido" : "/dashboard/estadisticas";
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+    <main
+      className={cn(
+        "mx-auto w-full max-w-5xl",
+        mode === "shared" ? "px-4 py-8 sm:px-6 lg:px-8 lg:py-12" : "",
+      )}
+    >
       <div className="mb-8 flex items-center justify-between gap-4">
         <Link
           className={buttonVariants({

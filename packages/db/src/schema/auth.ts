@@ -123,7 +123,7 @@ export const member = pgTable(
   },
   (table) => [
     unique("member_organization_user_unique").on(table.organizationId, table.userId),
-    check("member_role_allowed", sql`${table.role} in ('owner', 'member')`),
+    check("member_role_allowed", sql`${table.role} in ('owner', 'leader', 'member')`),
     index("member_user_id_idx").on(table.userId),
     index("member_organization_id_idx").on(table.organizationId),
   ],
@@ -147,7 +147,7 @@ export const invitation = pgTable(
     createdAt: instant("created_at").defaultNow().notNull(),
   },
   (table) => [
-    check("invitation_role_allowed", sql`${table.role} in ('owner', 'member')`),
+    check("invitation_role_allowed", sql`${table.role} in ('owner', 'leader', 'member')`),
     check(
       "invitation_status_allowed",
       sql`${table.status} in ('pending', 'accepted', 'rejected', 'canceled')`,

@@ -34,7 +34,9 @@ async function translateAccessError<T>(operation: () => Promise<T>) {
       throw new TRPCError({
         cause: error,
         code:
-          error.code === "MEMBERSHIP_REQUIRED" || error.code === "OWNER_REQUIRED"
+          error.code === "MEMBERSHIP_REQUIRED" ||
+          error.code === "OWNER_REQUIRED" ||
+          error.code === "LEADER_REQUIRED"
             ? "FORBIDDEN"
             : error.code === "PLAYER_ACCOUNT_ALREADY_LINKED"
               ? "CONFLICT"
@@ -84,6 +86,22 @@ const groupRouter = router({
     )
     .mutation(({ ctx, input }) =>
       translateAccessError(() => ctx.groupAccess.linkPlayer(actorFromContext(ctx), input)),
+    ),
+  removeMember: protectedProcedure
+    .input(z.object({ groupId: z.string().min(1), membershipId: z.string().min(1) }))
+    .mutation(({ ctx, input }) =>
+      translateAccessError(() => ctx.groupAccess.removeMember(actorFromContext(ctx), input)),
+    ),
+  updateMemberRole: protectedProcedure
+    .input(
+      z.object({
+        groupId: z.string().min(1),
+        membershipId: z.string().min(1),
+        role: z.enum(["leader", "member"]),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      translateAccessError(() => ctx.groupAccess.updateMemberRole(actorFromContext(ctx), input)),
     ),
   list: protectedProcedure.query(({ ctx }) =>
     translateAccessError(() => ctx.groupAccess.listGroups(actorFromContext(ctx))),

@@ -80,7 +80,7 @@ export function HomeDashboard() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Resumen del grupo</h1>
           <p className="text-sm text-muted-foreground">La fecha y los números que importan.</p>
         </div>
-        {role === "owner" ? (
+        {role !== "member" ? (
           <Button render={<Link href="/dashboard/partidos/nuevo" />} nativeButton={false}>
             <PlusIcon data-icon="inline-start" aria-hidden="true" />
             <span className="hidden sm:inline">Nuevo partido</span>
@@ -104,7 +104,7 @@ export function HomeDashboard() {
               <Button
                 variant="ghost"
                 size="sm"
-                render={<Link href="/estadisticas" />}
+                render={<Link href="/dashboard/estadisticas" />}
                 nativeButton={false}
               >
                 Ver estadísticas

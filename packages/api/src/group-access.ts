@@ -1,4 +1,4 @@
-export type GroupRole = "member" | "owner";
+export type GroupRole = "member" | "leader" | "owner";
 
 export type GroupActor = {
   userId: string;
@@ -21,12 +21,17 @@ export type GroupSummary = {
 
 export interface GroupAccessRepository {
   findMembership(input: { groupId: string; userId: string }): Promise<{ role: GroupRole } | null>;
+  findMembershipById(input: {
+    groupId: string;
+    membershipId: string;
+  }): Promise<{ role: GroupRole; userId: string } | null>;
   assertPlayerInGroup(input: { groupId: string; playerId: string }): Promise<void>;
   linkPlayer(input: {
     groupId: string;
     playerId: string;
     linkedUserId: string | null;
   }): Promise<{ playerId: string; linkedUserId: string | null }>;
+  unlinkMemberPlayer(input: { groupId: string; userId: string }): Promise<void>;
 }
 
 export interface OrganizationGateway {
@@ -39,11 +44,19 @@ export interface OrganizationGateway {
     headers: Headers;
     playerId: string;
   }): Promise<{ id: string; email: string; expiresAt: Date }>;
+  removeMember(input: { groupId: string; headers: Headers; membershipId: string }): Promise<void>;
+  updateMemberRole(input: {
+    groupId: string;
+    headers: Headers;
+    membershipId: string;
+    role: "leader" | "member";
+  }): Promise<void>;
 }
 
 export type GroupAccessErrorCode =
   | "EMAIL_NOT_VERIFIED"
   | "INVALID_GROUP_INPUT"
+  | "LEADER_REQUIRED"
   | "MEMBERSHIP_REQUIRED"
   | "OWNER_REQUIRED"
   | "PLAYER_ACCOUNT_ALREADY_LINKED"
@@ -83,6 +96,12 @@ function cleanSlug(value: string) {
   return slug;
 }
 
+const roleRank: Record<GroupRole, number> = {
+  member: 0,
+  leader: 1,
+  owner: 2,
+};
+
 export function createGroupAccess({
   repository,
   organizations,
@@ -102,8 +121,13 @@ export function createGroupAccess({
     if (!membership) {
       throw new GroupAccessError("MEMBERSHIP_REQUIRED", "Group membership is required");
     }
-    if (requiredRole === "owner" && membership.role !== "owner") {
-      throw new GroupAccessError("OWNER_REQUIRED", "Group owner access is required");
+    if (roleRank[membership.role] < roleRank[requiredRole]) {
+      throw new GroupAccessError(
+        requiredRole === "owner" ? "OWNER_REQUIRED" : "LEADER_REQUIRED",
+        requiredRole === "owner"
+          ? "Group owner access is required"
+          : "Group leader access is required",
+      );
     }
     return { groupId, role: membership.role, userId: actor.userId };
   };
@@ -141,7 +165,7 @@ export function createGroupAccess({
       actor: GroupActor,
       input: { email: string; groupId: string; playerId: string },
     ) {
-      await authorize(actor, input.groupId, "owner");
+      await authorize(actor, input.groupId, "leader");
       await repository.assertPlayerInGroup({
         groupId: input.groupId,
         playerId: input.playerId,
@@ -170,8 +194,41 @@ export function createGroupAccess({
       actor: GroupActor,
       input: { groupId: string; playerId: string; linkedUserId: string | null },
     ) {
-      await authorize(actor, input.groupId, "owner");
+      await authorize(actor, input.groupId, "leader");
       return repository.linkPlayer(input);
+    },
+
+    async updateMemberRole(
+      actor: GroupActor,
+      input: { groupId: string; membershipId: string; role: "leader" | "member" },
+    ) {
+      await authorize(actor, input.groupId, "owner");
+      const target = await repository.findMembershipById(input);
+      if (!target || target.role === "owner") {
+        throw new GroupAccessError("INVALID_GROUP_INPUT", "La membresía no se puede modificar");
+      }
+      await organizations.updateMemberRole({
+        ...input,
+        headers: actor.headers,
+      });
+      return { membershipId: input.membershipId, role: input.role };
+    },
+
+    async removeMember(actor: GroupActor, input: { groupId: string; membershipId: string }) {
+      await authorize(actor, input.groupId, "owner");
+      const target = await repository.findMembershipById(input);
+      if (!target || target.role === "owner" || target.userId === actor.userId) {
+        throw new GroupAccessError("INVALID_GROUP_INPUT", "La membresía no se puede eliminar");
+      }
+      await organizations.removeMember({
+        ...input,
+        headers: actor.headers,
+      });
+      await repository.unlinkMemberPlayer({
+        groupId: input.groupId,
+        userId: target.userId,
+      });
+      return { membershipId: input.membershipId };
     },
   };
 }

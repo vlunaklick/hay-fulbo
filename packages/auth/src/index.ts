@@ -9,7 +9,7 @@ import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins";
-import { memberAc, ownerAc } from "better-auth/plugins/organization/access";
+import { defaultAc, memberAc, ownerAc } from "better-auth/plugins/organization/access";
 
 import {
   emailDeliveryConfigured,
@@ -22,6 +22,13 @@ import { createVerificationPolicy } from "./verification-policy";
 export function createAuth() {
   const db = createDb();
   const verificationPolicy = createVerificationPolicy(emailDeliveryConfigured);
+  const leaderAc = defaultAc.newRole({
+    organization: [],
+    member: [],
+    invitation: ["create", "cancel"],
+    team: [],
+    ac: ["read"],
+  });
 
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -51,6 +58,7 @@ export function createAuth() {
         invitationExpiresIn: 60 * 60 * 48,
         requireEmailVerificationOnInvitation: verificationPolicy.requireVerifiedEmailForInvitation,
         roles: {
+          leader: leaderAc,
           member: memberAc,
           owner: ownerAc,
         },

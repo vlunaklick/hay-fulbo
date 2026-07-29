@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
+import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
 import {
@@ -22,6 +23,7 @@ import {
 } from "@hay-fulbo/ui/components/dialog";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -29,6 +31,12 @@ import {
 } from "@hay-fulbo/ui/components/empty";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@hay-fulbo/ui/components/input-group";
 import {
   Select,
   SelectContent,
@@ -39,6 +47,7 @@ import {
 } from "@hay-fulbo/ui/components/select";
 import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CircleAlertIcon,
@@ -47,12 +56,16 @@ import {
   MailPlusIcon,
   MapPinIcon,
   PlusIcon,
+  SearchIcon,
+  SearchXIcon,
   UserRoundIcon,
+  XIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { useAppContext } from "@/components/app-shell";
+import { initials } from "@/lib/initials";
 import {
   accountLinkOptions,
   accountPresentationLabel,
@@ -108,6 +121,9 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [playerFilter, setPlayerFilter] = useState<"active" | "all" | "archived">("active");
+  const canManage = role !== "member";
 
   const execute = useMutation(
     trpc.matches.execute.mutationOptions({
@@ -130,6 +146,16 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
 
   const players: PlayerRow[] = directory.data?.players ?? [];
   const courts: CourtRow[] = directory.data?.courts ?? [];
+  const normalizedSearch = normalizeSearch(search);
+  const statusPlayers = players.filter((player) => {
+    if (playerFilter === "all") return true;
+    return playerFilter === "archived" ? Boolean(player.archivedAt) : !player.archivedAt;
+  });
+  const visiblePlayers = normalizedSearch
+    ? statusPlayers.filter((player) =>
+        normalizeSearch(player.displayName).includes(normalizedSearch),
+      )
+    : statusPlayers;
   const members: PlayerAccountMember[] = directory.data?.members ?? [];
   const rankingByPlayer = new Map(
     (stats.data?.ranking ?? []).map((aggregate) => [aggregate.playerId, aggregate]),
@@ -169,7 +195,7 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
               : "Entrá a una tarjeta para consultar o actualizar sus datos."}
           </p>
         </div>
-        {role === "owner" ? (
+        {canManage ? (
           <CreateDirectoryDialog
             key={`${kind}-${createOpen ? "open" : "closed"}`}
             error={error}
@@ -188,12 +214,55 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
         ) : null}
       </header>
 
-      {role === "member" ? (
+      {!canManage ? (
         <Alert>
           <CircleAlertIcon aria-hidden="true" />
           <AlertTitle>Vista de consulta</AlertTitle>
           <AlertDescription>El organizador administra este directorio.</AlertDescription>
         </Alert>
+      ) : null}
+
+      {isPlayers ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <InputGroup className="max-w-md">
+            <InputGroupAddon>
+              <SearchIcon aria-hidden="true" />
+            </InputGroupAddon>
+            <InputGroupInput
+              aria-label="Buscar jugadores"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por nombre"
+              type="search"
+              value={search}
+            />
+            {search ? (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  aria-label="Limpiar búsqueda"
+                  onClick={() => setSearch("")}
+                  size="icon-xs"
+                >
+                  <XIcon aria-hidden="true" />
+                </InputGroupButton>
+              </InputGroupAddon>
+            ) : null}
+          </InputGroup>
+          {!directory.isPending ? (
+            <span className="text-xs text-muted-foreground">
+              {visiblePlayers.length} de {players.length}
+            </span>
+          ) : null}
+          <Tabs
+            value={playerFilter}
+            onValueChange={(value) => setPlayerFilter(value as "active" | "all" | "archived")}
+          >
+            <TabsList>
+              <TabsTrigger value="active">Activos</TabsTrigger>
+              <TabsTrigger value="all">Todos</TabsTrigger>
+              <TabsTrigger value="archived">Archivados</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       ) : null}
 
       {directory.isPending || (isPlayers && stats.isPending) ? (
@@ -216,15 +285,32 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
             </EmptyMedia>
             <EmptyTitle>{isPlayers ? "No hay jugadores" : "No hay canchas guardadas"}</EmptyTitle>
             <EmptyDescription>
-              {role === "owner"
+              {canManage
                 ? "Usá el botón Agregar para cargar el primero."
                 : "El organizador todavía no cargó información."}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
+      ) : isPlayers && visiblePlayers.length === 0 ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SearchXIcon aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyTitle>No encontramos jugadores</EmptyTitle>
+            <EmptyDescription>
+              Probá con otro nombre, cambiá el filtro o limpiá la búsqueda.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button variant="outline" onClick={() => setSearch("")}>
+              Limpiar búsqueda
+            </Button>
+          </EmptyContent>
+        </Empty>
       ) : isPlayers ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {players.map((player) => (
+          {visiblePlayers.map((player) => (
             <Button
               key={player.id}
               aria-label={`Ver detalle de ${player.displayName}`}
@@ -319,19 +405,31 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
 function PlayerCard({ player, stats }: { player: PlayerRow; stats: PlayerAggregate }) {
   return (
     <Card className="w-full transition-colors group-hover/button:bg-accent/50" size="sm">
-      <CardHeader>
-        <CardTitle className="text-base">{player.displayName}</CardTitle>
-        <CardDescription>Ver detalle y estadísticas</CardDescription>
-        <CardAction>
-          <Badge variant={player.archivedAt ? "secondary" : "outline"}>
-            {player.archivedAt ? "Archivado" : "Activo"}
-          </Badge>
-        </CardAction>
+      <CardHeader className="flex flex-row items-center gap-3">
+        <Avatar size="lg">
+          <AvatarFallback>{initials(player.displayName)}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <CardTitle className="truncate text-base">{player.displayName}</CardTitle>
+          <CardDescription>
+            {stats.played} {stats.played === 1 ? "partido" : "partidos"}
+          </CardDescription>
+        </div>
+        {player.archivedAt ? (
+          <Badge variant={player.archivedAt ? "secondary" : "outline"}>Archivado</Badge>
+        ) : null}
       </CardHeader>
-      <CardContent className="grid grid-cols-3 gap-3 text-xs text-muted-foreground">
-        <span>{stats.played} partidos</span>
-        <span>{stats.goals} goles</span>
-        <span>{stats.assists} asistencias</span>
+      <CardContent>
+        <dl className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+          <div className="flex items-baseline justify-between gap-2">
+            <dt>Goles</dt>
+            <dd className="font-semibold tabular-nums text-foreground">{stats.goals}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <dt>Asistencias</dt>
+            <dd className="font-semibold tabular-nums text-foreground">{stats.assists}</dd>
+          </div>
+        </dl>
       </CardContent>
     </Card>
   );
@@ -377,7 +475,7 @@ function PlayerDialog({
   onOpenChange: (open: boolean) => void;
   onSave: (input: { displayName: string; linkedUserId: string | null }) => void;
   player: PlayerRow;
-  role: "member" | "owner";
+  role: "member" | "leader" | "owner";
   stats: PlayerAggregate;
 }) {
   const [editing, setEditing] = useState(false);
@@ -454,7 +552,7 @@ function PlayerDialog({
 
         <Separator />
 
-        {role === "owner" && editing ? (
+        {role !== "member" && editing ? (
           <form onSubmit={submit}>
             <FieldGroup>
               <Field data-invalid={!displayName.trim()}>
@@ -528,7 +626,7 @@ function PlayerDialog({
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             ) : null}
-            {role === "owner" ? (
+            {role !== "member" ? (
               <DialogFooter>
                 <Button type="button" variant="outline" disabled={isPending} onClick={onArchive}>
                   {player.archivedAt ? "Reactivar jugador" : "Archivar jugador"}
@@ -541,7 +639,7 @@ function PlayerDialog({
           </div>
         )}
 
-        {role === "owner" ? (
+        {role !== "member" ? (
           <>
             <Separator />
             <section className="flex flex-col gap-3" aria-labelledby="invite-player-title">
@@ -620,7 +718,7 @@ function CourtDialog({
   onArchive: () => void;
   onOpenChange: (open: boolean) => void;
   onSave: (input: { address: string; mapsUrl: string; name: string }) => void;
-  role: "member" | "owner";
+  role: "member" | "leader" | "owner";
 }) {
   const [name, setName] = useState(court.name);
   const [address, setAddress] = useState(court.address);
@@ -644,7 +742,7 @@ function CourtDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {role === "owner" ? (
+        {role !== "member" ? (
           <form onSubmit={submit}>
             <FieldGroup>
               <CourtFields
@@ -849,4 +947,12 @@ function isHttpUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+function normalizeSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase("es-AR");
 }

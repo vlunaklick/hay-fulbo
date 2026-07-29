@@ -1,9 +1,10 @@
 export type PlayerAccountMember = {
   email: string;
   id: string;
+  membershipId: string;
   linkedPlayerId: string | null;
   name: string;
-  role: "member" | "owner";
+  role: "member" | "leader" | "owner";
 };
 
 export function accountLinkOptions(members: readonly PlayerAccountMember[], playerId: string) {

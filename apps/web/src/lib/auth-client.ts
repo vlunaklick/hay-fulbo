@@ -1,11 +1,20 @@
 import { createAuthClient } from "better-auth/react";
 import { organizationClient } from "better-auth/client/plugins";
-import { memberAc, ownerAc } from "better-auth/plugins/organization/access";
+import { defaultAc, memberAc, ownerAc } from "better-auth/plugins/organization/access";
+
+const leaderAc = defaultAc.newRole({
+  organization: [],
+  member: [],
+  invitation: ["create", "cancel"],
+  team: [],
+  ac: ["read"],
+});
 
 export const authClient = createAuthClient({
   plugins: [
     organizationClient({
       roles: {
+        leader: leaderAc,
         member: memberAc,
         owner: ownerAc,
       },
