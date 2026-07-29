@@ -655,3 +655,6 @@ AS $$
 $$;
 --> statement-breakpoint
 REVOKE ALL ON FUNCTION "hay_fulbo_resolve_shared_group"(bytea) FROM PUBLIC;
+--> statement-breakpoint
+COMMENT ON FUNCTION "hay_fulbo_resolve_shared_group"(bytea) IS
+	'Provisioning must grant EXECUTE only to the non-owner, non-BYPASSRLS runtime role';
