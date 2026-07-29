@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import {
   accountLinkOptions,
+  accountPresentationLabel,
   linkedAccount,
-  UNLINKED_ACCOUNT_VALUE,
   type PlayerAccountMember,
 } from "./player-account-link";
 
@@ -36,9 +36,18 @@ describe("player account link UI state", () => {
     ]);
   });
 
-  test("resolves the visible current link and exposes the unlink sentinel", () => {
+  test("resolves the visible current link", () => {
     expect(linkedAccount(members, "member")).toEqual(members[1]);
     expect(linkedAccount(members, null)).toBeNull();
-    expect(UNLINKED_ACCOUNT_VALUE).not.toBe("owner");
+  });
+
+  test("uses a human presentation label for linked and unlinked accounts", () => {
+    expect(accountPresentationLabel(members, "member")).toBe("Miembro · member@example.com");
+    expect(accountPresentationLabel(members, null)).toBe("Sin cuenta vinculada");
+  });
+
+  test("never exposes technical values as a presentation label", () => {
+    expect(accountPresentationLabel(members, "__unlinked__")).toBe("Sin cuenta vinculada");
+    expect(accountPresentationLabel(members, "unknown-user-id")).toBe("Sin cuenta vinculada");
   });
 });

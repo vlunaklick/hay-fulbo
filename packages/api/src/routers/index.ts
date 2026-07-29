@@ -70,7 +70,7 @@ const groupRouter = router({
       translateAccessError(() => ctx.groupAccess.createGroup(actorFromContext(ctx), input)),
     ),
   inviteMember: protectedProcedure
-    .input(z.object({ email: z.email(), groupId: z.string().min(1) }))
+    .input(z.object({ email: z.email(), groupId: z.string().min(1), playerId: z.uuid() }))
     .mutation(({ ctx, input }) =>
       translateAccessError(() => ctx.groupAccess.inviteMember(actorFromContext(ctx), input)),
     ),

@@ -10,6 +10,14 @@ export const authClient = createAuthClient({
         owner: ownerAc,
       },
       schema: {
+        invitation: {
+          additionalFields: {
+            playerId: {
+              type: "string",
+              required: false,
+            },
+          },
+        },
         organization: {
           additionalFields: {
             archivedAt: {

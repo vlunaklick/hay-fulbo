@@ -53,6 +53,12 @@ export default function NewMatchPage() {
   const [teamOne, setTeamOne] = useState("Oscuros");
   const [teamTwo, setTeamTwo] = useState("Claros");
   const [error, setError] = useState<string | null>(null);
+  const courtOptions = [
+    { label: "A definir", value: null },
+    ...(directory.data?.courts
+      .filter((court) => !court.archivedAt)
+      .map((court) => ({ label: court.name, value: court.id })) ?? []),
+  ];
   const create = useMutation(
     trpc.matches.execute.mutationOptions({
       onSuccess: (result) => {
@@ -98,7 +104,7 @@ export default function NewMatchPage() {
         <Button
           variant="ghost"
           size="sm"
-          render={<Link href="/dashboard" />}
+          render={<Link href="/dashboard/partidos" />}
           nativeButton={false}
           className="self-start"
         >
@@ -137,27 +143,23 @@ export default function NewMatchPage() {
                 <Field>
                   <FieldLabel htmlFor="court">Cancha guardada</FieldLabel>
                   <Select
-                    value={courtId ?? "none"}
-                    onValueChange={(value) => setCourtId(value === "none" ? null : value)}
+                    items={courtOptions}
+                    value={courtId}
+                    onValueChange={(value) => setCourtId(value === null ? null : String(value))}
                   >
                     <SelectTrigger id="court" className="w-full">
                       <SelectValue>
-                        {courtId === null
-                          ? "A definir"
-                          : (directory.data?.courts.find((court) => court.id === courtId)?.name ??
-                            "A definir")}
+                        {courtOptions.find((option) => option.value === courtId)?.label ??
+                          "A definir"}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="none">A definir</SelectItem>
-                        {directory.data?.courts
-                          .filter((court) => !court.archivedAt)
-                          .map((court) => (
-                            <SelectItem key={court.id} value={court.id}>
-                              {court.name}
-                            </SelectItem>
-                          ))}
+                        {courtOptions.map((option) => (
+                          <SelectItem key={option.value ?? "no-court"} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectGroup>
                     </SelectContent>
                   </Select>

@@ -1,5 +1,3 @@
-export const UNLINKED_ACCOUNT_VALUE = "__unlinked__";
-
 export type PlayerAccountMember = {
   email: string;
   id: string;
@@ -21,4 +19,12 @@ export function linkedAccount(
 ) {
   if (!linkedUserId) return null;
   return members.find((member) => member.id === linkedUserId) ?? null;
+}
+
+export function accountPresentationLabel(
+  members: readonly PlayerAccountMember[],
+  linkedUserId: string | null,
+) {
+  const account = linkedAccount(members, linkedUserId);
+  return account ? `${account.name} · ${account.email}` : "Sin cuenta vinculada";
 }

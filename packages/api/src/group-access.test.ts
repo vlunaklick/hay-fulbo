@@ -19,10 +19,11 @@ function setup(
   invitationEmailDelivery: "email" | "link" = "link",
 ) {
   const links: Array<{ groupId: string; playerId: string; linkedUserId: string | null }> = [];
-  const invitations: Array<{ email: string; groupId: string }> = [];
+  const invitations: Array<{ email: string; groupId: string; playerId: string }> = [];
   const selections: string[] = [];
 
   const repository: GroupAccessRepository = {
+    assertPlayerInGroup: async () => {},
     findMembership: async () => (role ? { role } : null),
     linkPlayer: async (input) => {
       links.push(input);
@@ -36,8 +37,8 @@ function setup(
       selections.push(groupId);
       return { id: groupId, name: "Los Pibes", slug: "los-pibes" };
     },
-    invite: async ({ email, groupId }) => {
-      invitations.push({ email, groupId });
+    invite: async ({ email, groupId, playerId }) => {
+      invitations.push({ email, groupId, playerId });
       return { id: "inv-1", email, expiresAt: new Date("2026-07-31T12:00:00Z") };
     },
   };
@@ -154,6 +155,7 @@ describe("groupAccess public interface", () => {
         select: async () => ({ id: "unused", name: "Unused", slug: "unused" }),
       },
       repository: {
+        assertPlayerInGroup: async () => {},
         findMembership: async () => ({ role: "owner" }),
         linkPlayer: async () => {
           throw conflict;
@@ -178,6 +180,7 @@ describe("groupAccess public interface", () => {
       access.inviteMember(actor, {
         email: "  PLAYER@Example.COM ",
         groupId: "group-1",
+        playerId: "1059f2b1-1473-4637-badb-f3bace830c62",
       }),
     ).resolves.toEqual({
       delivery: "link",
@@ -187,6 +190,12 @@ describe("groupAccess public interface", () => {
       inviteUrl: "https://fulbo.example/invitaciones/inv-1",
       status: "pending",
     });
-    expect(invitations).toEqual([{ email: "player@example.com", groupId: "group-1" }]);
+    expect(invitations).toEqual([
+      {
+        email: "player@example.com",
+        groupId: "group-1",
+        playerId: "1059f2b1-1473-4637-badb-f3bace830c62",
+      },
+    ]);
   });
 });

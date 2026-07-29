@@ -20,10 +20,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
-import { Label } from "@hay-fulbo/ui/components/label";
+import { Field, FieldLabel } from "@hay-fulbo/ui/components/field";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -518,21 +519,29 @@ function FilterSelect({
   value: string;
 }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Select onValueChange={(nextValue) => onChange(String(nextValue))} value={value}>
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Select
+        items={options}
+        onValueChange={(nextValue) => {
+          if (nextValue !== null) onChange(String(nextValue));
+        }}
+        value={value}
+      >
         <SelectTrigger className="min-h-11 w-full" id={id}>
           <SelectValue>{options.find((option) => option.value === value)?.label}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {options.map((option) => (
-            <SelectItem className="min-h-11" key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
-    </div>
+    </Field>
   );
 }
 

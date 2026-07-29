@@ -15,6 +15,13 @@
       "when": 1785364224942,
       "tag": "0001_parallel_fat_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785367288008,
+      "tag": "0002_living_lenny_balinger",
+      "breakpoints": true
     }
   ]
 }

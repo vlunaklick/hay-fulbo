@@ -38,9 +38,21 @@ test("an organizer can create a group and its first match", async ({ page }, tes
   await page.getByLabel("Nombre").fill(groupName);
   await page.getByRole("button", { name: "Crear y entrar" }).click();
 
+  await expect(page.getByRole("heading", { name: "Resumen del grupo" })).toBeVisible();
+  await expectWcagAA(page);
+
+  const dashboardUrl = page.url();
+  await page.getByRole("button", { name: "Tema" }).click();
+  await expect(page).toHaveURL(dashboardUrl);
+  await expect(page.getByRole("menuitemradio", { name: "Oscuro" })).toBeVisible();
+  await page.getByRole("menuitemradio", { name: "Oscuro" }).click();
+  await expect(page).toHaveURL(dashboardUrl);
+  await expect(page.getByRole("heading", { name: "Resumen del grupo" })).toBeVisible();
+
+  await page.locator('a[href="/dashboard/partidos"]').first().click();
+  await expect(page).toHaveURL(/\/dashboard\/partidos$/);
   await expect(page.getByRole("heading", { name: "Partidos" })).toBeVisible();
   await expect(page.getByText("Todavía no hay partidos")).toBeVisible();
-  await expectWcagAA(page);
   await page.locator('a[href="/dashboard/partidos/nuevo"]').first().click();
 
   await expect(page).toHaveURL(/\/dashboard\/partidos\/nuevo$/);

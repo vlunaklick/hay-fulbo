@@ -10,14 +10,6 @@ import {
   CardTitle,
 } from "@hay-fulbo/ui/components/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@hay-fulbo/ui/components/dialog";
-import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -25,8 +17,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
-import { Input } from "@hay-fulbo/ui/components/input";
+import { Field, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import {
   Select,
   SelectContent,
@@ -38,6 +29,7 @@ import {
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  HouseIcon,
   CalendarDaysIcon,
   CircleUserRoundIcon,
   LogOutIcon,
@@ -48,12 +40,12 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useState } from "react";
-import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { queryClient, trpc } from "@/utils/trpc";
 
 import { LogoMark } from "./logo-mark";
+import { GroupCreateDialog, GroupSwitcher } from "./group-switcher";
 import { ModeToggle } from "./mode-toggle";
 
 type AppContextValue = {
@@ -72,7 +64,8 @@ export function useAppContext() {
 }
 
 const navigation = [
-  { href: "/dashboard", label: "Partidos", icon: CalendarDaysIcon },
+  { href: "/dashboard", label: "Inicio", icon: HouseIcon },
+  { href: "/dashboard/partidos", label: "Partidos", icon: CalendarDaysIcon },
   { href: "/dashboard/jugadores", label: "Jugadores", icon: UsersRoundIcon },
   { href: "/dashboard/canchas", label: "Canchas", icon: MapPinIcon },
 ] as const;
@@ -134,6 +127,10 @@ export function AppShell({
               <Field>
                 <FieldLabel htmlFor="group">Grupo</FieldLabel>
                 <Select
+                  items={groups.data.map((group) => ({
+                    label: group.name,
+                    value: group.id,
+                  }))}
                   onValueChange={(value) => {
                     if (typeof value === "string") selectGroup.mutate({ groupId: value });
                   }}
@@ -178,7 +175,7 @@ export function AppShell({
             {navigation.map((item) => (
               <Button
                 key={item.href}
-                variant={pathname === item.href ? "secondary" : "ghost"}
+                variant={isActivePath(pathname, item.href) ? "secondary" : "ghost"}
                 render={<Link href={item.href} />}
                 nativeButton={false}
                 className="justify-start"
@@ -189,6 +186,15 @@ export function AppShell({
             ))}
           </nav>
           <div className="mt-auto flex flex-col gap-3">
+            <Button
+              variant={pathname === "/dashboard/perfil" ? "secondary" : "ghost"}
+              render={<Link href="/dashboard/perfil" />}
+              nativeButton={false}
+              className="justify-start"
+            >
+              <CircleUserRoundIcon data-icon="inline-start" aria-hidden="true" />
+              Mi perfil
+            </Button>
             <Badge variant="outline">{context.role === "owner" ? "Organizador" : "Miembro"}</Badge>
             <Button
               variant="ghost"
@@ -206,17 +212,22 @@ export function AppShell({
         </aside>
 
         <div className="md:col-start-2">
-          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:px-8">
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate text-sm font-semibold">{group.name}</span>
-              <span className="truncate text-xs text-muted-foreground">{user.name}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ModeToggle />
-              <Badge variant="outline">
-                <CircleUserRoundIcon aria-hidden="true" />
-                {context.role === "owner" ? "Organizador" : "Miembro"}
-              </Badge>
+          <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
+            <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8">
+              <GroupSwitcher activeGroup={group} groups={groups.data} userName={user.name} />
+              <div className="flex shrink-0 items-center gap-2">
+                <ModeToggle />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  render={<Link href="/dashboard/perfil" />}
+                  nativeButton={false}
+                  aria-label="Abrir mi perfil"
+                >
+                  <CircleUserRoundIcon aria-hidden="true" />
+                  <span className="hidden sm:inline">Mi perfil</span>
+                </Button>
+              </div>
             </div>
           </header>
           <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 md:px-8 md:py-8">
@@ -225,13 +236,13 @@ export function AppShell({
         </div>
 
         <nav
-          className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t bg-sidebar px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden"
+          className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t bg-sidebar px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden"
           aria-label="Principal"
         >
           {navigation.map((item) => (
             <Button
               key={item.href}
-              variant={pathname === item.href ? "secondary" : "ghost"}
+              variant={isActivePath(pathname, item.href) ? "secondary" : "ghost"}
               render={<Link href={item.href} />}
               nativeButton={false}
               className="h-14 flex-col gap-1"
@@ -256,29 +267,7 @@ function Brand() {
 }
 
 function CreateGroupGate() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const create = useMutation(
-    trpc.group.create.mutationOptions({
-      onSuccess: async (group) => {
-        await select.mutateAsync({ groupId: group.id });
-        toast.success("Grupo creado");
-        queryClient.clear();
-        router.refresh();
-      },
-      onError: (cause) => setError(cause.message),
-    }),
-  );
-  const select = useMutation(trpc.group.select.mutationOptions());
-  const slug = name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 
   return (
     <main className="grid min-h-svh place-items-center px-4">
@@ -291,41 +280,11 @@ function CreateGroupGate() {
           <EmptyDescription>Ahí se guardan jugadores, canchas, partidos y pagos.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger render={<Button />}>
-              <PlusIcon data-icon="inline-start" aria-hidden="true" />
-              Crear grupo
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Nuevo grupo</DialogTitle>
-                <DialogDescription>Usá un nombre que todos reconozcan.</DialogDescription>
-              </DialogHeader>
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (!slug) return setError("Ingresá un nombre.");
-                  create.mutate({ name, slug });
-                }}
-              >
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="group-name">Nombre</FieldLabel>
-                    <Input
-                      id="group-name"
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      placeholder="Fulbo de los jueves"
-                    />
-                  </Field>
-                  <FieldError>{error}</FieldError>
-                  <Button type="submit" disabled={create.isPending || select.isPending}>
-                    Crear y entrar
-                  </Button>
-                </FieldGroup>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setOpen(true)}>
+            <PlusIcon data-icon="inline-start" aria-hidden="true" />
+            Crear grupo
+          </Button>
+          <GroupCreateDialog open={open} onOpenChange={setOpen} />
         </EmptyContent>
       </Empty>
     </main>
@@ -340,4 +299,8 @@ function ShellSkeleton() {
       <Skeleton className="h-72 w-full" />
     </div>
   );
+}
+
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
 }

@@ -4,6 +4,7 @@ import { Button } from "@hay-fulbo/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -18,29 +19,31 @@ export function ModeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label="Cambiar tema"
+        aria-label="Tema"
         title="Cambiar tema"
-        render={<Button variant="outline" />}
+        render={<Button variant="outline" size="icon" className="sm:w-auto sm:px-3" />}
       >
         <SunMoonIcon data-icon="inline-start" aria-hidden="true" />
-        Tema
+        <span className="hidden sm:inline">Tema</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Tema</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={theme ?? "dark"} onValueChange={setTheme}>
-          <DropdownMenuRadioItem value="light">
-            <SunIcon aria-hidden="true" />
-            Claro
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">
-            <MoonIcon aria-hidden="true" />
-            Oscuro
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system">
-            <MonitorIcon aria-hidden="true" />
-            Sistema
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Tema</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={theme ?? "dark"} onValueChange={setTheme}>
+            <DropdownMenuRadioItem value="light">
+              <SunIcon aria-hidden="true" />
+              Claro
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="dark">
+              <MoonIcon aria-hidden="true" />
+              Oscuro
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="system">
+              <MonitorIcon aria-hidden="true" />
+              Sistema
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

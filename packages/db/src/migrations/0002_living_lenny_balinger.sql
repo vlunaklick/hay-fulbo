@@ -1,0 +1,1 @@
+ALTER TABLE "invitation" ADD COLUMN "player_id" text;

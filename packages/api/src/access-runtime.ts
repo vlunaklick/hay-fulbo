@@ -28,6 +28,20 @@ import {
 } from "./shared-access";
 
 const groupAccessRepository: GroupAccessRepository = {
+  async assertPlayerInGroup({ groupId, playerId }) {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
+      const [target] = await tx
+        .select({ id: player.id })
+        .from(player)
+        .where(and(eq(player.groupId, groupId), eq(player.id, playerId)))
+        .limit(1);
+      if (!target) {
+        throw new GroupAccessError("INVALID_GROUP_INPUT", "El jugador no pertenece a este grupo");
+      }
+    });
+  },
+
   async findMembership({ groupId, userId }) {
     const [membership] = await db
       .select({ role: member.role })
@@ -137,11 +151,12 @@ const organizationGateway: OrganizationGateway = {
     return { id: selected.id, name: selected.name, slug: selected.slug };
   },
 
-  async invite({ email, groupId, headers }) {
+  async invite({ email, groupId, headers, playerId }) {
     const created = await auth.api.createInvitation({
       body: {
         email,
         organizationId: groupId,
+        playerId,
         resend: true,
         role: "member",
       },

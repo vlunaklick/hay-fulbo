@@ -21,6 +21,7 @@ export type GroupSummary = {
 
 export interface GroupAccessRepository {
   findMembership(input: { groupId: string; userId: string }): Promise<{ role: GroupRole } | null>;
+  assertPlayerInGroup(input: { groupId: string; playerId: string }): Promise<void>;
   linkPlayer(input: {
     groupId: string;
     playerId: string;
@@ -36,6 +37,7 @@ export interface OrganizationGateway {
     email: string;
     groupId: string;
     headers: Headers;
+    playerId: string;
   }): Promise<{ id: string; email: string; expiresAt: Date }>;
 }
 
@@ -135,8 +137,15 @@ export function createGroupAccess({
       return organizations.select({ headers: actor.headers, groupId });
     },
 
-    async inviteMember(actor: GroupActor, input: { email: string; groupId: string }) {
+    async inviteMember(
+      actor: GroupActor,
+      input: { email: string; groupId: string; playerId: string },
+    ) {
       await authorize(actor, input.groupId, "owner");
+      await repository.assertPlayerInGroup({
+        groupId: input.groupId,
+        playerId: input.playerId,
+      });
       const email = input.email.trim().toLocaleLowerCase("en-US");
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         throw new GroupAccessError("INVALID_GROUP_INPUT", "Invitation email is invalid");
@@ -145,6 +154,7 @@ export function createGroupAccess({
         email,
         groupId: input.groupId,
         headers: actor.headers,
+        playerId: input.playerId,
       });
       return {
         delivery: invitationEmailDelivery,

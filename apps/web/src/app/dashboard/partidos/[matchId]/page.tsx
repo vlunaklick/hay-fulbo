@@ -42,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import {
   Table,
@@ -145,7 +146,12 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-center justify-between gap-4">
-        <Button variant="ghost" size="sm" render={<Link href="/dashboard" />} nativeButton={false}>
+        <Button
+          variant="ghost"
+          size="sm"
+          render={<Link href="/dashboard/partidos" />}
+          nativeButton={false}
+        >
           <ArrowLeftIcon data-icon="inline-start" aria-hidden="true" />
           Partidos
         </Button>
@@ -359,13 +365,19 @@ function MatchSheet({
     .toISOString()
     .slice(0, 16);
   const [scheduledAt, setScheduledAt] = useState(localDate);
-  const [courtId, setCourtId] = useState(detail.courtId ?? "none");
+  const [courtId, setCourtId] = useState<string | null>(detail.courtId);
   const [cost, setCost] = useState(
     detail.courtCostMinor === null ? "" : String(Number(detail.courtCostMinor) / 100),
   );
   const [teamOne, setTeamOne] = useState(detail.teams[0]?.displayName ?? "");
   const [teamTwo, setTeamTwo] = useState(detail.teams[1]?.displayName ?? "");
   const [error, setError] = useState<string | null>(null);
+  const courtItems = [
+    { label: "A definir", value: null },
+    ...directory.courts
+      .filter((court) => !court.archivedAt || court.id === detail.courtId)
+      .map((court) => ({ label: court.name, value: court.id })),
+  ];
 
   function save() {
     const courtCostMinor = cost.trim() ? toMinor(cost) : null;
@@ -375,7 +387,7 @@ function MatchSheet({
       matchId: detail.id,
       expectedLockVersion: detail.lockVersion,
       scheduledAt: new Date(scheduledAt),
-      courtId: courtId === "none" ? null : courtId,
+      courtId,
       courtCostMinor,
     });
   }
@@ -401,27 +413,23 @@ function MatchSheet({
           <Field>
             <FieldLabel htmlFor="match-court">Cancha</FieldLabel>
             <Select
+              items={courtItems}
               value={courtId}
               disabled={!editable}
-              onValueChange={(value) => value !== null && setCourtId(value)}
+              onValueChange={setCourtId}
             >
               <SelectTrigger id="match-court" className="w-full">
                 <SelectValue>
-                  {courtId === "none"
-                    ? "A definir"
-                    : (directory.courts.find((court) => court.id === courtId)?.name ?? "A definir")}
+                  {courtItems.find((item) => item.value === courtId)?.label ?? "A definir"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="none">A definir</SelectItem>
-                  {directory.courts
-                    .filter((court) => !court.archivedAt || court.id === detail.courtId)
-                    .map((court) => (
-                      <SelectItem key={court.id} value={court.id}>
-                        {court.name}
-                      </SelectItem>
-                    ))}
+                  {courtItems.map((item) => (
+                    <SelectItem key={item.value ?? "no-court"} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -585,8 +593,16 @@ function TeamSquad({
   pending: boolean;
   run: (command: ExecuteInput) => void;
 }) {
-  const [playerId, setPlayerId] = useState("");
+  const [playerId, setPlayerId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
+  const captainItems = [
+    { label: "Sin capitán", value: null },
+    ...directory.members.map((member) => ({ label: member.name, value: member.id })),
+  ];
+  const playerItems = available.map((player) => ({
+    label: player.displayName,
+    value: player.id,
+  }));
 
   return (
     <Card>
@@ -601,7 +617,8 @@ function TeamSquad({
           <Field>
             <FieldLabel htmlFor={`captain-${team.id}`}>Capitán</FieldLabel>
             <Select
-              value={team.captainUserId ?? "none"}
+              items={captainItems}
+              value={team.captainUserId}
               disabled={detail.status !== "open" || pending}
               onValueChange={(captainUserId) =>
                 run({
@@ -609,24 +626,21 @@ function TeamSquad({
                   matchId: detail.id,
                   expectedLockVersion: detail.lockVersion,
                   teamId: team.id,
-                  captainUserId: captainUserId === "none" ? null : captainUserId,
+                  captainUserId,
                 })
               }
             >
               <SelectTrigger id={`captain-${team.id}`} className="w-full">
                 <SelectValue>
-                  {team.captainUserId
-                    ? (directory.members.find((member) => member.id === team.captainUserId)?.name ??
-                      "Capitán")
-                    : "Sin capitán"}
+                  {captainItems.find((item) => item.value === team.captainUserId)?.label ??
+                    "Sin capitán"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="none">Sin capitán</SelectItem>
-                  {directory.members.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
+                  {captainItems.map((item) => (
+                    <SelectItem key={item.value ?? "no-captain"} value={item.value}>
+                      {item.label}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -684,20 +698,17 @@ function TeamSquad({
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor={`existing-${team.id}`}>Jugador existente</FieldLabel>
-              <Select
-                value={playerId}
-                onValueChange={(value) => value !== null && setPlayerId(value)}
-              >
+              <Select items={playerItems} value={playerId} onValueChange={setPlayerId}>
                 <SelectTrigger id={`existing-${team.id}`} className="w-full">
                   <SelectValue placeholder="Elegir jugador">
-                    {available.find((player) => player.id === playerId)?.displayName}
+                    {playerItems.find((item) => item.value === playerId)?.label}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {available.map((player) => (
-                      <SelectItem key={player.id} value={player.id}>
-                        {player.displayName}
+                    {playerItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -706,15 +717,16 @@ function TeamSquad({
               <Button
                 variant="outline"
                 disabled={!playerId || pending}
-                onClick={() =>
+                onClick={() => {
+                  if (!playerId) return;
                   run({
                     type: "addParticipant",
                     matchId: detail.id,
                     expectedLockVersion: detail.lockVersion,
                     teamId: team.id,
                     playerId,
-                  })
-                }
+                  });
+                }}
               >
                 Sumar al equipo
               </Button>
@@ -905,7 +917,7 @@ function Game({
   run: (command: ExecuteInput) => void;
 }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-2">
       {detail.teams.map((team) => (
         <TeamGame
           key={team.id}
@@ -937,6 +949,11 @@ function TeamGame({
   run: (command: ExecuteInput) => void;
 }) {
   const [unattributed, setUnattributed] = useState(String(team.unattributedGoals));
+
+  if (!editable) {
+    return <CompactTeamGame detail={detail} team={team} />;
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -997,6 +1014,67 @@ function TeamGame({
             </Button>
           ) : null}
         </Field>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CompactTeamGame({ detail, team }: { detail: Detail; team: Detail["teams"][number] }) {
+  return (
+    <Card role="region" aria-label={`Resultados de ${team.displayName}`}>
+      <CardHeader className="flex-row items-center justify-between gap-3">
+        <CardTitle>{team.displayName}</CardTitle>
+        <Badge variant="secondary">{scoreFor(detail, team.id)} goles</Badge>
+      </CardHeader>
+      <CardContent>
+        {team.appearances.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <TrophyIcon aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>Sin jugadores</EmptyTitle>
+              <EmptyDescription>Este equipo no tuvo actuaciones cargadas.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <ul className="flex flex-col divide-y">
+            {team.appearances.map((appearance) => (
+              <li
+                key={appearance.playerId}
+                className="grid min-h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2"
+              >
+                <span className="truncate text-sm font-medium">{appearance.playerDisplayName}</span>
+                <dl
+                  className="grid grid-cols-3 gap-3 text-right"
+                  aria-label={`Estadísticas de ${appearance.playerDisplayName}`}
+                >
+                  <div className="flex items-baseline gap-1">
+                    <dt className="text-xs text-muted-foreground">G</dt>
+                    <dd className="font-semibold tabular-nums">{appearance.goals}</dd>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <dt className="text-xs text-muted-foreground">A</dt>
+                    <dd className="font-semibold tabular-nums">{appearance.assists}</dd>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <dt className="text-xs text-muted-foreground">AG</dt>
+                    <dd className="font-semibold tabular-nums">{appearance.ownGoals}</dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+        )}
+        {team.unattributedGoals > 0 ? (
+          <>
+            <Separator />
+            <div className="flex min-h-10 items-center justify-between gap-3 py-2 text-sm">
+              <span className="text-muted-foreground">Goles sin autor</span>
+              <Badge variant="outline">{team.unattributedGoals}</Badge>
+            </div>
+          </>
+        ) : null}
       </CardContent>
     </Card>
   );

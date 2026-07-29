@@ -48,10 +48,19 @@ export default function LoginPage() {
     setMessage(error);
     if (error) return;
     setSubmitting(true);
+    const requestedReturn = new URLSearchParams(window.location.search).get("returnTo");
+    const returnTo =
+      requestedReturn && /^\/invitaciones\/[A-Za-z0-9_-]+$/.test(requestedReturn)
+        ? requestedReturn
+        : "/dashboard";
     const callbacks = {
       onSuccess: () => {
         toast.success(mode === "signin" ? "Sesión iniciada" : "Cuenta creada");
-        router.push("/dashboard");
+        if (returnTo === "/dashboard") {
+          router.push("/dashboard");
+        } else {
+          router.push(returnTo as `/invitaciones/${string}`);
+        }
         router.refresh();
       },
       onError: (result: { error: { message?: string; statusText?: string } }) => {
