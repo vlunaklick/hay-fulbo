@@ -98,6 +98,12 @@ const commandSchema = z.discriminatedUnion("type", [
     playerId: id,
   }),
   z.object({
+    type: z.literal("createAndAddParticipant"),
+    ...versioned,
+    teamId: id,
+    displayName: z.string().trim().min(1),
+  }),
+  z.object({
     type: z.literal("removeParticipant"),
     ...versioned,
     playerId: id,
@@ -177,6 +183,14 @@ export const matchesRouter = router({
     }
   }),
 
+  directory: protectedProcedure.query(async ({ ctx }) => {
+    try {
+      return await queries.directory(scopeFromSession(ctx.session));
+    } catch (error) {
+      throw asTrpcError(error);
+    }
+  }),
+
   list: protectedProcedure
     .input(
       z
@@ -220,7 +234,9 @@ function asTrpcError(error: unknown) {
       ? "NOT_FOUND"
       : error.code === "concurrent_update"
         ? "CONFLICT"
-        : error.code === "forbidden" || error.code === "membership_required"
+        : error.code === "forbidden" ||
+            error.code === "membership_required" ||
+            error.code === "owner_required"
           ? "FORBIDDEN"
           : "BAD_REQUEST";
   return new TRPCError({

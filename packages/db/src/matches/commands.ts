@@ -54,21 +54,26 @@ export function createMatchCommands(
       command: TCommand,
     ): Promise<MatchCommandResultFor<TCommand>> {
       const result = await database.transaction(async (transaction) => {
-        await establishScope(transaction, scope);
+        const access = await establishScope(transaction, scope);
 
         if (command.type === "createMatch") {
+          requireOwner(access);
           return createMatch(transaction, scope, command);
         }
         if (command.type === "upsertPlayer") {
+          requireOwner(access);
           return upsertPlayer(transaction, scope, command);
         }
         if (command.type === "archivePlayer") {
+          requireOwner(access);
           return archivePlayer(transaction, scope, command);
         }
         if (command.type === "upsertCourt") {
+          requireOwner(access);
           return upsertCourt(transaction, scope, command);
         }
         if (command.type === "archiveCourt") {
+          requireOwner(access);
           return archiveCourt(transaction, scope, command);
         }
 
@@ -88,6 +93,8 @@ export function createMatchCommands(
             return setCaptain(transaction, scope, locked, command);
           case "addParticipant":
             return addParticipant(transaction, scope, locked, command);
+          case "createAndAddParticipant":
+            return createAndAddParticipant(transaction, scope, locked, command);
           case "removeParticipant":
             return removeParticipant(transaction, scope, locked, command);
           case "assignParticipantTeam":
@@ -416,6 +423,36 @@ async function addParticipant(
   });
   await recalculateContributions(transaction, scope.groupId, locked.id, locked.courtCostMinor);
   return bumpVersion(transaction, scope.groupId, locked);
+}
+
+async function createAndAddParticipant(
+  transaction: MatchTransaction,
+  scope: MatchScope,
+  locked: LockedMatch,
+  command: Extract<MatchCommand, { type: "createAndAddParticipant" }>,
+) {
+  requireOpen(locked);
+  assertNonempty(command.displayName);
+  const team = await requireTeam(transaction, scope.groupId, locked.id, command.teamId);
+  requireTeamAuthority(locked, team, scope);
+  const [created] = await transaction
+    .insert(player)
+    .values({
+      groupId: scope.groupId,
+      displayName: command.displayName.trim(),
+      normalizedName: normalizeName(command.displayName),
+    })
+    .returning({ playerId: player.id });
+  if (!created) throw new MatchCommandError("invalid_input");
+
+  const mutation = await addParticipant(transaction, scope, locked, {
+    type: "addParticipant",
+    matchId: locked.id,
+    expectedLockVersion: locked.lockVersion,
+    teamId: command.teamId,
+    playerId: created.playerId,
+  });
+  return { ...mutation, playerId: created.playerId };
 }
 
 async function removeParticipant(
@@ -931,6 +968,12 @@ async function requireMember(transaction: MatchTransaction, groupId: string, use
 function requireOrganizer(locked: LockedMatch, scope: MatchScope) {
   if (locked.organizerUserId !== scope.actorUserId) {
     throw new MatchCommandError("forbidden");
+  }
+}
+
+function requireOwner(access: { role: string }) {
+  if (access.role !== "owner") {
+    throw new MatchCommandError("owner_required");
   }
 }
 

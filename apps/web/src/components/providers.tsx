@@ -10,12 +10,17 @@ import { ThemeProvider } from "./theme-provider";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      forcedTheme="dark"
+      disableTransitionOnChange
+    >
       <QueryClientProvider client={queryClient}>
         {children}
-        <ReactQueryDevtools />
+        {process.env.NODE_ENV === "development" ? <ReactQueryDevtools /> : null}
       </QueryClientProvider>
-      <Toaster richColors />
+      <Toaster richColors position="top-center" />
     </ThemeProvider>
   );
 }

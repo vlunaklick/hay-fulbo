@@ -1,12 +1,22 @@
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 
-import { match, matchAppearance, matchTeam, member, organization, player } from "../schema";
+import {
+  court,
+  match,
+  matchAppearance,
+  matchTeam,
+  member,
+  organization,
+  player,
+  user,
+} from "../schema";
 import { calculateScore } from "./rules";
 import {
   MatchCommandError,
   type ContributionStatus,
   type MatchDatabase,
   type MatchDetail,
+  type MatchDirectory,
   type MatchListItem,
   type MatchScope,
   type MatchTransaction,
@@ -20,6 +30,50 @@ export function createMatchQueries(database: MatchDatabase) {
       return database.transaction(async (transaction) => {
         await establishReadScope(transaction, scope);
         return loadDetail(transaction, scope.groupId, matchId);
+      });
+    },
+
+    async directory(scope: MatchScope): Promise<MatchDirectory> {
+      return database.transaction(async (transaction) => {
+        await establishReadScope(transaction, scope);
+        const [players, courts, members] = await Promise.all([
+          transaction
+            .select({
+              archivedAt: player.archivedAt,
+              displayName: player.displayName,
+              id: player.id,
+              linkedUserId: player.linkedUserId,
+            })
+            .from(player)
+            .where(eq(player.groupId, scope.groupId))
+            .orderBy(asc(player.normalizedName), asc(player.id)),
+          transaction
+            .select({
+              address: court.address,
+              archivedAt: court.archivedAt,
+              id: court.id,
+              mapsUrl: court.mapsUrl,
+              name: court.name,
+            })
+            .from(court)
+            .where(eq(court.groupId, scope.groupId))
+            .orderBy(asc(court.normalizedName), asc(court.id)),
+          transaction
+            .select({ id: user.id, name: user.name, role: member.role })
+            .from(member)
+            .innerJoin(user, eq(user.id, member.userId))
+            .where(eq(member.organizationId, scope.groupId))
+            .orderBy(asc(user.name), asc(user.id)),
+        ]);
+        return {
+          players,
+          courts,
+          members: members.flatMap((item) =>
+            item.role === "owner" || item.role === "member"
+              ? [{ id: item.id, name: item.name, role: item.role }]
+              : [],
+          ),
+        };
       });
     },
 

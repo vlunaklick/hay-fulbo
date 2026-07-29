@@ -114,6 +114,77 @@ integration("MatchCommands public seam", () => {
     ).rejects.toMatchObject({ code: "membership_required" } satisfies Partial<MatchCommandError>);
   });
 
+  test("keeps global setup owner-only while a captain can create a player into their team", async () => {
+    const organizer = { groupId, actorUserId: organizerId };
+    const captain = { groupId, actorUserId: captainId };
+
+    await expect(
+      commands.execute(captain, {
+        type: "createMatch",
+        scheduledAt: new Date("2026-07-29T22:00:00.000Z"),
+        teams: [{ displayName: "Oscuros" }, { displayName: "Claros" }],
+      }),
+    ).rejects.toMatchObject({ code: "owner_required" } satisfies Partial<MatchCommandError>);
+    await expect(
+      commands.execute(captain, {
+        type: "upsertPlayer",
+        displayName: "No autorizado",
+      }),
+    ).rejects.toMatchObject({ code: "owner_required" } satisfies Partial<MatchCommandError>);
+    await expect(
+      commands.execute(captain, {
+        type: "upsertCourt",
+        name: "Cancha ajena",
+        address: "Sin permiso 123",
+        mapsUrl: "https://maps.example/sin-permiso",
+      }),
+    ).rejects.toMatchObject({ code: "owner_required" } satisfies Partial<MatchCommandError>);
+
+    const created = await commands.execute(organizer, {
+      type: "createMatch",
+      scheduledAt: new Date("2026-07-29T22:00:00.000Z"),
+      courtCostMinor: 1_000n,
+      teams: [{ displayName: "Oscuros" }, { displayName: "Claros" }],
+    });
+    const [captainTeamId, rivalTeamId] = created.teamIds;
+    const captainAssignment = await commands.execute(organizer, {
+      type: "setCaptain",
+      matchId: created.matchId,
+      expectedLockVersion: created.lockVersion,
+      teamId: captainTeamId,
+      captainUserId: captainId,
+    });
+    const added = await commands.execute(captain, {
+      type: "createAndAddParticipant",
+      matchId: created.matchId,
+      expectedLockVersion: captainAssignment.lockVersion,
+      teamId: captainTeamId,
+      displayName: "Jugador invitado",
+    });
+
+    expect(added).toMatchObject({
+      matchId: created.matchId,
+      lockVersion: captainAssignment.lockVersion + 1,
+    });
+    expect(typeof added.playerId).toBe("string");
+    await expect(
+      commands.execute(captain, {
+        type: "createAndAddParticipant",
+        matchId: created.matchId,
+        expectedLockVersion: added.lockVersion,
+        teamId: rivalTeamId,
+        displayName: "No entra",
+      }),
+    ).rejects.toMatchObject({ code: "forbidden" } satisfies Partial<MatchCommandError>);
+
+    const directory = await queries.directory(captain);
+    expect(directory.players.map(({ displayName }) => displayName)).toEqual(["Jugador invitado"]);
+    expect(directory.members).toEqual([
+      { id: captainId, name: "Capitán", role: "member" },
+      { id: organizerId, name: "Organizador", role: "owner" },
+    ]);
+  });
+
   test("prorates exact minor units and confines a captain to their team", async () => {
     const organizer = { groupId, actorUserId: organizerId };
     const captain = { groupId, actorUserId: captainId };

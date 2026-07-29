@@ -85,6 +85,13 @@ const groupRouter = router({
   list: protectedProcedure.query(({ ctx }) =>
     translateAccessError(() => ctx.groupAccess.listGroups(actorFromContext(ctx))),
   ),
+  membership: protectedProcedure
+    .input(z.object({ groupId: z.string().min(1) }))
+    .query(({ ctx, input }) =>
+      translateAccessError(() =>
+        ctx.groupAccess.authorize(actorFromContext(ctx), input.groupId, "member"),
+      ),
+    ),
   select: protectedProcedure
     .input(z.object({ groupId: z.string().min(1) }))
     .mutation(({ ctx, input }) =>
