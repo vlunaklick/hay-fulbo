@@ -20,7 +20,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         {children}
         {process.env.NODE_ENV === "development" ? <ReactQueryDevtools /> : null}
       </QueryClientProvider>
-      <Toaster richColors position="top-center" />
+      <Toaster position="top-center" />
     </ThemeProvider>
   );
 }

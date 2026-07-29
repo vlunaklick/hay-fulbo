@@ -46,8 +46,7 @@ export function createAuth() {
         creatorRole: "owner",
         disableOrganizationDeletion: true,
         invitationExpiresIn: 60 * 60 * 48,
-        requireEmailVerificationOnInvitation:
-          verificationPolicy.requireVerifiedEmailForInvitation,
+        requireEmailVerificationOnInvitation: verificationPolicy.requireVerifiedEmailForInvitation,
         roles: {
           member: memberAc,
           owner: ownerAc,

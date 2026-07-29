@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: hay_fulbo_ci
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hay_fulbo_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      BETTER_AUTH_SECRET: ci-only-secret-at-least-32-characters
+      BETTER_AUTH_URL: http://127.0.0.1:3013
+      CORS_ORIGIN: http://127.0.0.1:3013
+      DATABASE_URL: postgresql://hay_fulbo_runtime:ci-runtime-password-at-least-32-characters@127.0.0.1:5432/hay_fulbo_ci
+      MIGRATION_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/hay_fulbo_ci
+      RUNTIME_DATABASE_PASSWORD: ci-runtime-password-at-least-32-characters
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.3
+      - run: bun install --frozen-lockfile
+      - name: Static checks do not mutate the checkout
+        run: |
+          bun run check
+          git diff --exit-code
+      - name: Prepare PostgreSQL
+        run: bun run db:migrate
+      - name: Unit and integration tests
+        run: |
+          bun run test
+          MATCH_TEST_DATABASE_URL="$MIGRATION_DATABASE_URL" bun run test:integration
+      - run: bun run build
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

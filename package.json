@@ -31,6 +31,13 @@
     "dev": "turbo run dev",
     "build": "BETTER_AUTH_SECRET=build-time-placeholder-secret-not-used-at-runtime SKIP_ENV_VALIDATION=1 turbo run build",
     "check-types": "turbo run check-types",
+    "lint": "oxlint",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check",
+    "test": "bun test",
+    "test:integration": "bun -e 'if (!process.env.MATCH_TEST_DATABASE_URL) throw new Error(\"MATCH_TEST_DATABASE_URL is required\")' && bun test packages/db/src/matches/commands.integration.test.ts && bun test packages/db/src/stats/queries.integration.test.ts",
+    "test:e2e": "playwright test",
+    "ci": "bun run check && bun run test && bun run build",
     "dev:native": "turbo run dev -F native",
     "dev:web": "turbo run dev -F web",
     "db:push": "turbo run db:push -F @hay-fulbo/db",
@@ -50,7 +57,7 @@
     "coolify:apply": "node ops/coolify/reconcile.mjs --apply",
     "coolify:deploy": "node ops/coolify/deploy.mjs",
     "coolify:smoke": "node ops/coolify/smoke.mjs",
-    "check": "oxlint && oxfmt --write"
+    "check": "bun run lint && bun run format:check && bun run check-types"
   },
   "dependencies": {
     "@hay-fulbo/env": "workspace:*",
@@ -58,7 +65,9 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@hay-fulbo/config": "workspace:*",
+    "@playwright/test": "^1.62.0",
     "@types/node": "^22.20.1",
     "oxfmt": "^0.61.0",
     "oxlint": "^1.76.0",

@@ -1,7 +1,16 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
-  "globalPassThroughEnv": ["BETTER_AUTH_SECRET", "SKIP_ENV_VALIDATION"],
+  "globalPassThroughEnv": [
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "CORS_ORIGIN",
+    "DATABASE_URL",
+    "MATCH_TEST_DATABASE_URL",
+    "MIGRATION_DATABASE_URL",
+    "RUNTIME_DATABASE_PASSWORD",
+    "SKIP_ENV_VALIDATION"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
