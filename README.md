@@ -91,7 +91,11 @@ If you want to add app-specific blocks instead of shared primitives, run the sha
 - Logs: bun run docker:logs
 - Stop: bun run docker:down
 
-Environment variables are read from each app's `.env` file (baked into web builds for public variables) and overridden in `docker-compose.yml` for container networking.
+Copy `.env.example` to `.env` to override the local ports and PostgreSQL
+passwords. Compose uses a schema-owner connection for idempotent migrations and
+a separate `NOSUPERUSER NOBYPASSRLS` connection for the web process. Production
+must provide the same split through `MIGRATION_DATABASE_URL` and `DATABASE_URL`;
+neither connection is baked into the image.
 
 For more details, see the guide on [Deploying with Docker Compose](https://www.better-t-stack.dev/docs/guides/docker).
 
@@ -122,7 +126,7 @@ hay-fulbo/
 - `bun run dev:native`: Start the React Native/Expo development server
 - `bun run db:push`: Push schema changes to database
 - `bun run db:generate`: Generate database client/types
-- `bun run db:migrate`: Run database migrations
+- `bun run db:migrate`: Run versioned migrations with `MIGRATION_DATABASE_URL`
 - `bun run db:studio`: Open database studio UI
 - `bun run check`: Run Oxlint and Oxfmt
 - `cd apps/web && bun run generate-pwa-assets`: Generate PWA assets

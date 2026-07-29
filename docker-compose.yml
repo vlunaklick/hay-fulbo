@@ -1,50 +1,87 @@
 name: hay-fulbo
 
 services:
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: hay-fulbo:local
+    entrypoint: ["node", "/app/packages/db/migrate.js"]
+    environment:
+      MIGRATION_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/hay-fulbo
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  runtime-grants:
+    image: postgres:18
+    entrypoint: ["psql"]
+    command:
+      [
+        "-h",
+        "postgres",
+        "-U",
+        "postgres",
+        "-d",
+        "hay-fulbo",
+        "--set",
+        "ON_ERROR_STOP=1",
+        "--command",
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hay_fulbo_runtime; GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO hay_fulbo_runtime; GRANT EXECUTE ON FUNCTION public.hay_fulbo_resolve_shared_group(bytea) TO hay_fulbo_runtime;",
+      ]
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-password}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    image: hay-fulbo:local
     init: true
     ports:
-      - "3001:3001"
-    env_file:
-      - path: apps/web/.env
-        required: false
+      - "127.0.0.1:${WEB_PORT:-3001}:3001"
     environment:
-      BETTER_AUTH_URL: http://localhost:3001
-      CORS_ORIGIN: http://localhost:3001
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/hay-fulbo
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-development-secret-at-least-32-characters}
+      BETTER_AUTH_URL: http://localhost:${WEB_PORT:-3001}
+      CORS_ORIGIN: http://localhost:${WEB_PORT:-3001}
+      DATABASE_URL: postgresql://hay_fulbo_runtime:${POSTGRES_RUNTIME_PASSWORD:-runtime-password}@postgres:5432/hay-fulbo
+      MIGRATION_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/hay-fulbo
     depends_on:
-      postgres:
-        condition: service_healthy
+      runtime-grants:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
           "CMD",
           "node",
           "-e",
-          "fetch('http://localhost:3001/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+          "fetch('http://127.0.0.1:3001/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 60s
     restart: unless-stopped
 
   postgres:
     image: postgres:18
-    container_name: hay-fulbo-postgres
     environment:
       POSTGRES_DB: hay-fulbo
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_RUNTIME_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:-runtime-password}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - hay-fulbo_postgres_data:/var/lib/postgresql
+      - ./ops/postgres/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-runtime-role.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hay-fulbo"]
       interval: 10s
       timeout: 5s
       retries: 5

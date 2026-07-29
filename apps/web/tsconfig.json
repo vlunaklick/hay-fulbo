@@ -12,6 +12,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
+    "types": ["node", "bun"],
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [

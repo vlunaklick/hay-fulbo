@@ -29,7 +29,7 @@
   "type": "module",
   "scripts": {
     "dev": "turbo run dev",
-    "build": "turbo run build",
+    "build": "BETTER_AUTH_SECRET=build-time-placeholder-secret-not-used-at-runtime SKIP_ENV_VALIDATION=1 turbo run build",
     "check-types": "turbo run check-types",
     "dev:native": "turbo run dev -F native",
     "dev:web": "turbo run dev -F web",
