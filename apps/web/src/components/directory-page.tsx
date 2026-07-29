@@ -20,6 +20,14 @@ import {
 } from "@hay-fulbo/ui/components/empty";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@hay-fulbo/ui/components/select";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import {
   Table,
@@ -30,21 +38,28 @@ import {
   TableRow,
 } from "@hay-fulbo/ui/components/table";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CircleAlertIcon, MapPinIcon, PlusIcon, UserRoundIcon } from "lucide-react";
+import { CircleAlertIcon, LinkIcon, MapPinIcon, PlusIcon, UserRoundIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { useAppContext } from "@/components/app-shell";
+import {
+  accountLinkOptions,
+  linkedAccount,
+  UNLINKED_ACCOUNT_VALUE,
+  type PlayerAccountMember,
+} from "@/lib/player-account-link";
 import { queryClient, trpc } from "@/utils/trpc";
 
 export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
-  const { role } = useAppContext();
+  const { activeGroupId, role } = useAppContext();
   const directory = useQuery(trpc.matches.directory.queryOptions());
   const [open, setOpen] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [address, setAddress] = useState("");
   const [mapsUrl, setMapsUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
   const execute = useMutation(
     trpc.matches.execute.mutationOptions({
       onSuccess: () => {
@@ -58,9 +73,25 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
       onError: (cause) => setError(cause.message),
     }),
   );
+  const linkPlayer = useMutation(
+    trpc.group.linkPlayer.mutationOptions({
+      onSuccess: async ({ linkedUserId }) => {
+        setLinkError(null);
+        toast.success(linkedUserId ? "Cuenta vinculada" : "Cuenta desvinculada");
+        await queryClient.invalidateQueries({
+          queryKey: trpc.matches.directory.queryKey(),
+        });
+      },
+      onError: (cause) => {
+        setLinkError(cause.message);
+        toast.error("No pudimos actualizar el vínculo", { description: cause.message });
+      },
+    }),
+  );
 
   const isPlayers = kind === "players";
   const rows = directory.data?.[kind] ?? [];
+  const members = directory.data?.members ?? [];
 
   function create(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -169,6 +200,25 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
         </Alert>
       ) : null}
 
+      {isPlayers && role === "owner" ? (
+        <Alert>
+          <LinkIcon aria-hidden="true" />
+          <AlertTitle>Vínculos con cuentas</AlertTitle>
+          <AlertDescription>
+            Cada cuenta del grupo puede representar a un solo jugador. Elegí Sin vincular para
+            quitar una relación.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {linkError ? (
+        <Alert variant="destructive">
+          <CircleAlertIcon aria-hidden="true" />
+          <AlertTitle>No pudimos actualizar el vínculo</AlertTitle>
+          <AlertDescription>{linkError}</AlertDescription>
+        </Alert>
+      ) : null}
+
       {directory.isPending ? (
         <Skeleton className="h-72 w-full" />
       ) : directory.isError ? (
@@ -192,12 +242,13 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="overflow-hidden rounded-lg border bg-card">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
                 {!isPlayers ? <TableHead>Dirección</TableHead> : null}
+                {isPlayers ? <TableHead>Cuenta vinculada</TableHead> : null}
                 <TableHead>Estado</TableHead>
                 {role === "owner" ? <TableHead className="text-right">Acción</TableHead> : null}
               </TableRow>
@@ -211,6 +262,25 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
                   {!isPlayers ? (
                     <TableCell className="max-w-64 truncate">
                       {"address" in row ? row.address : ""}
+                    </TableCell>
+                  ) : null}
+                  {isPlayers && "linkedUserId" in row ? (
+                    <TableCell>
+                      <PlayerAccountLink
+                        disabled={linkPlayer.isPending}
+                        linkedUserId={row.linkedUserId}
+                        members={members}
+                        onChange={(linkedUserId) => {
+                          setLinkError(null);
+                          linkPlayer.mutate({
+                            groupId: activeGroupId,
+                            linkedUserId,
+                            playerId: row.id,
+                          });
+                        }}
+                        playerId={row.id}
+                        playerName={row.displayName}
+                      />
                     </TableCell>
                   ) : null}
                   <TableCell>
@@ -237,5 +307,66 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
         </div>
       )}
     </div>
+  );
+}
+
+function PlayerAccountLink({
+  disabled,
+  linkedUserId,
+  members,
+  onChange,
+  playerId,
+  playerName,
+}: {
+  disabled: boolean;
+  linkedUserId: string | null;
+  members: readonly PlayerAccountMember[];
+  onChange: (linkedUserId: string | null) => void;
+  playerId: string;
+  playerName: string;
+}) {
+  const { role } = useAppContext();
+  const current = linkedAccount(members, linkedUserId);
+
+  if (role !== "owner") {
+    return current ? (
+      <div className="flex flex-col gap-1">
+        <Badge variant="outline">{current.name}</Badge>
+        <span className="text-xs text-muted-foreground">{current.email}</span>
+      </div>
+    ) : (
+      <Badge variant="secondary">Sin vincular</Badge>
+    );
+  }
+
+  const options = accountLinkOptions(members, playerId);
+
+  return (
+    <Select
+      value={linkedUserId ?? UNLINKED_ACCOUNT_VALUE}
+      disabled={disabled}
+      onValueChange={(value) => {
+        if (typeof value !== "string") return;
+        onChange(value === UNLINKED_ACCOUNT_VALUE ? null : value);
+      }}
+    >
+      <SelectTrigger className="w-full min-w-64" aria-label={`Cuenta vinculada a ${playerName}`}>
+        <SelectValue placeholder="Sin vincular" />
+      </SelectTrigger>
+      <SelectContent align="start" alignItemWithTrigger={false}>
+        <SelectGroup>
+          <SelectItem value={UNLINKED_ACCOUNT_VALUE}>Sin vincular</SelectItem>
+          {options.map((member) => (
+            <SelectItem key={member.id} value={member.id} disabled={member.disabled}>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate">{member.name}</span>
+                <span className="truncate text-muted-foreground">{member.email}</span>
+              </span>
+              {member.disabled ? <Badge variant="secondary">Ya vinculada</Badge> : null}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 }

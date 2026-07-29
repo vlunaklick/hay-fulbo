@@ -28,7 +28,8 @@ export type MatchCommandErrorCode =
   | "invalid_transition"
   | "closure_invalid"
   | "player_archived"
-  | "court_archived";
+  | "court_archived"
+  | "player_account_already_linked";
 
 export class MatchCommandError extends Error {
   constructor(
@@ -267,6 +268,8 @@ export type MatchDirectory = {
   members: {
     id: string;
     name: string;
+    email: string;
     role: "owner" | "member";
+    linkedPlayerId: string | null;
   }[];
 };

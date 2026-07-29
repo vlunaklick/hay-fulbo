@@ -217,6 +217,17 @@ async function upsertPlayer(
   assertNonempty(command.displayName);
   if (command.linkedUserId) {
     await requireMember(transaction, scope.groupId, command.linkedUserId);
+    const [existingLink] = await transaction
+      .select({ playerId: player.id })
+      .from(player)
+      .where(and(eq(player.groupId, scope.groupId), eq(player.linkedUserId, command.linkedUserId)))
+      .limit(1);
+    if (existingLink && existingLink.playerId !== command.playerId) {
+      throw new MatchCommandError(
+        "player_account_already_linked",
+        "Esta cuenta ya está vinculada a otro jugador",
+      );
+    }
   }
   const values = {
     displayName: command.displayName.trim(),
@@ -225,20 +236,28 @@ async function upsertPlayer(
     archivedAt: null,
   };
   if (!command.playerId) {
-    const [created] = await transaction
-      .insert(player)
-      .values({ groupId: scope.groupId, ...values })
-      .returning({ playerId: player.id });
-    if (!created) throw new MatchCommandError("invalid_input");
-    return created;
+    try {
+      const [created] = await transaction
+        .insert(player)
+        .values({ groupId: scope.groupId, ...values })
+        .returning({ playerId: player.id });
+      if (!created) throw new MatchCommandError("invalid_input");
+      return created;
+    } catch (error) {
+      throwPlayerAccountConflict(error);
+    }
   }
-  const [updated] = await transaction
-    .update(player)
-    .set(values)
-    .where(and(eq(player.groupId, scope.groupId), eq(player.id, command.playerId)))
-    .returning({ playerId: player.id });
-  if (!updated) throw new MatchCommandError("not_found");
-  return updated;
+  try {
+    const [updated] = await transaction
+      .update(player)
+      .set(values)
+      .where(and(eq(player.groupId, scope.groupId), eq(player.id, command.playerId)))
+      .returning({ playerId: player.id });
+    if (!updated) throw new MatchCommandError("not_found");
+    return updated;
+  } catch (error) {
+    throwPlayerAccountConflict(error);
+  }
 }
 
 async function archivePlayer(
@@ -1027,4 +1046,31 @@ function normalizeName(value: string) {
     .replace(/\p{Diacritic}/gu, "")
     .replace(/\s+/g, " ")
     .toLocaleLowerCase("es");
+}
+
+function isPlayerAccountUniqueViolation(error: unknown) {
+  let candidate = error;
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (typeof candidate !== "object" || candidate === null) return false;
+    if (
+      "code" in candidate &&
+      candidate.code === "23505" &&
+      "constraint" in candidate &&
+      candidate.constraint === "player_group_linked_user_unique"
+    ) {
+      return true;
+    }
+    candidate = "cause" in candidate ? candidate.cause : null;
+  }
+  return false;
+}
+
+function throwPlayerAccountConflict(error: unknown): never {
+  if (isPlayerAccountUniqueViolation(error)) {
+    throw new MatchCommandError(
+      "player_account_already_linked",
+      "Esta cuenta ya está vinculada a otro jugador",
+    );
+  }
+  throw error;
 }

@@ -135,6 +135,42 @@ describe("groupAccess public interface", () => {
     ).rejects.toBeInstanceOf(GroupAccessError);
   });
 
+  test("preserves repository link conflicts as a stable API error", async () => {
+    const conflict = new GroupAccessError(
+      "PLAYER_ACCOUNT_ALREADY_LINKED",
+      "La cuenta seleccionada ya está vinculada a otro jugador",
+    );
+    const repositoryAccess = createGroupAccess({
+      appBaseUrl: "https://fulbo.example",
+      invitationEmailDelivery: "link",
+      organizations: {
+        create: async () => ({ id: "unused", name: "Unused", slug: "unused" }),
+        invite: async () => ({
+          email: "unused@example.com",
+          expiresAt: new Date(),
+          id: "unused",
+        }),
+        list: async () => [],
+        select: async () => ({ id: "unused", name: "Unused", slug: "unused" }),
+      },
+      repository: {
+        findMembership: async () => ({ role: "owner" }),
+        linkPlayer: async () => {
+          throw conflict;
+        },
+      },
+      requireVerifiedEmailForGroupCreation: false,
+    });
+
+    await expect(
+      repositoryAccess.linkPlayer(actor, {
+        groupId: "group-1",
+        linkedUserId: "user-player",
+        playerId: "1059f2b1-1473-4637-badb-f3bace830c62",
+      }),
+    ).rejects.toBe(conflict);
+  });
+
   test("normalizes invitations and returns an honest pending link when email is unavailable", async () => {
     const { access, invitations } = setup("owner");
 

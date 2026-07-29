@@ -41,20 +41,73 @@ const groupAccessRepository: GroupAccessRepository = {
   },
 
   async linkPlayer({ groupId, playerId, linkedUserId }) {
-    return db.transaction(async (tx) => {
-      await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
-      const [updated] = await tx
-        .update(player)
-        .set({ linkedUserId, updatedAt: new Date() })
-        .where(and(eq(player.groupId, groupId), eq(player.id, playerId)))
-        .returning({ linkedUserId: player.linkedUserId, playerId: player.id });
-      if (!updated) {
-        throw new GroupAccessError("INVALID_GROUP_INPUT", "Player was not found in the group");
+    try {
+      return await db.transaction(async (tx) => {
+        await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
+        if (linkedUserId) {
+          const [targetMembership] = await tx
+            .select({ userId: member.userId })
+            .from(member)
+            .where(and(eq(member.organizationId, groupId), eq(member.userId, linkedUserId)))
+            .limit(1);
+          if (!targetMembership) {
+            throw new GroupAccessError(
+              "PLAYER_LINK_TARGET_NOT_MEMBER",
+              "La cuenta seleccionada no pertenece a este grupo",
+            );
+          }
+
+          const [existingLink] = await tx
+            .select({ playerId: player.id })
+            .from(player)
+            .where(and(eq(player.groupId, groupId), eq(player.linkedUserId, linkedUserId)))
+            .limit(1);
+          if (existingLink && existingLink.playerId !== playerId) {
+            throw new GroupAccessError(
+              "PLAYER_ACCOUNT_ALREADY_LINKED",
+              "La cuenta seleccionada ya está vinculada a otro jugador",
+            );
+          }
+        }
+
+        const [updated] = await tx
+          .update(player)
+          .set({ linkedUserId, updatedAt: new Date() })
+          .where(and(eq(player.groupId, groupId), eq(player.id, playerId)))
+          .returning({ linkedUserId: player.linkedUserId, playerId: player.id });
+        if (!updated) {
+          throw new GroupAccessError("INVALID_GROUP_INPUT", "Player was not found in the group");
+        }
+        return updated;
+      });
+    } catch (error) {
+      if (isPlayerAccountUniqueViolation(error)) {
+        throw new GroupAccessError(
+          "PLAYER_ACCOUNT_ALREADY_LINKED",
+          "La cuenta seleccionada ya está vinculada a otro jugador",
+        );
       }
-      return updated;
-    });
+      throw error;
+    }
   },
 };
+
+function isPlayerAccountUniqueViolation(error: unknown) {
+  let candidate = error;
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (typeof candidate !== "object" || candidate === null) return false;
+    if (
+      "code" in candidate &&
+      candidate.code === "23505" &&
+      "constraint" in candidate &&
+      candidate.constraint === "player_group_linked_user_unique"
+    ) {
+      return true;
+    }
+    candidate = "cause" in candidate ? candidate.cause : null;
+  }
+  return false;
+}
 
 const organizationGateway: OrganizationGateway = {
   async create({ headers, name, slug }) {

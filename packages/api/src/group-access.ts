@@ -43,7 +43,9 @@ export type GroupAccessErrorCode =
   | "EMAIL_NOT_VERIFIED"
   | "INVALID_GROUP_INPUT"
   | "MEMBERSHIP_REQUIRED"
-  | "OWNER_REQUIRED";
+  | "OWNER_REQUIRED"
+  | "PLAYER_ACCOUNT_ALREADY_LINKED"
+  | "PLAYER_LINK_TARGET_NOT_MEMBER";
 
 export class GroupAccessError extends Error {
   readonly code: GroupAccessErrorCode;

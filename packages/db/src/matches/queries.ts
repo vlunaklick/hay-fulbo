@@ -59,7 +59,7 @@ export function createMatchQueries(database: MatchDatabase) {
             .where(eq(court.groupId, scope.groupId))
             .orderBy(asc(court.normalizedName), asc(court.id)),
           transaction
-            .select({ id: user.id, name: user.name, role: member.role })
+            .select({ email: user.email, id: user.id, name: user.name, role: member.role })
             .from(member)
             .innerJoin(user, eq(user.id, member.userId))
             .where(eq(member.organizationId, scope.groupId))
@@ -70,7 +70,16 @@ export function createMatchQueries(database: MatchDatabase) {
           courts,
           members: members.flatMap((item) =>
             item.role === "owner" || item.role === "member"
-              ? [{ id: item.id, name: item.name, role: item.role }]
+              ? [
+                  {
+                    email: item.email,
+                    id: item.id,
+                    linkedPlayerId:
+                      players.find((candidate) => candidate.linkedUserId === item.id)?.id ?? null,
+                    name: item.name,
+                    role: item.role,
+                  },
+                ]
               : [],
           ),
         };

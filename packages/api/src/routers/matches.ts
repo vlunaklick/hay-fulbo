@@ -234,11 +234,13 @@ function asTrpcError(error: unknown) {
       ? "NOT_FOUND"
       : error.code === "concurrent_update"
         ? "CONFLICT"
-        : error.code === "forbidden" ||
-            error.code === "membership_required" ||
-            error.code === "owner_required"
-          ? "FORBIDDEN"
-          : "BAD_REQUEST";
+        : error.code === "player_account_already_linked"
+          ? "CONFLICT"
+          : error.code === "forbidden" ||
+              error.code === "membership_required" ||
+              error.code === "owner_required"
+            ? "FORBIDDEN"
+            : "BAD_REQUEST";
   return new TRPCError({
     code,
     message: error.message,

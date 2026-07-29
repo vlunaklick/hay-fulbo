@@ -180,9 +180,77 @@ integration("MatchCommands public seam", () => {
     const directory = await queries.directory(captain);
     expect(directory.players.map(({ displayName }) => displayName)).toEqual(["Jugador invitado"]);
     expect(directory.members).toEqual([
-      { id: captainId, name: "Capitán", role: "member" },
-      { id: organizerId, name: "Organizador", role: "owner" },
+      {
+        email: "captain@example.com",
+        id: captainId,
+        linkedPlayerId: null,
+        name: "Capitán",
+        role: "member",
+      },
+      {
+        email: "organizer@example.com",
+        id: organizerId,
+        linkedPlayerId: null,
+        name: "Organizador",
+        role: "owner",
+      },
     ]);
+  });
+
+  test("links each group account to at most one player and exposes the current link", async () => {
+    const organizer = { groupId, actorUserId: organizerId };
+    const captain = { groupId, actorUserId: captainId };
+    const first = await commands.execute(organizer, {
+      type: "upsertPlayer",
+      displayName: "Beto",
+      linkedUserId: captainId,
+    });
+
+    await expect(
+      commands.execute(organizer, {
+        type: "upsertPlayer",
+        displayName: "Betito",
+        linkedUserId: captainId,
+      }),
+    ).rejects.toMatchObject({
+      code: "player_account_already_linked",
+    } satisfies Partial<MatchCommandError>);
+    await expect(
+      commands.execute(organizer, {
+        type: "upsertPlayer",
+        displayName: "Afuera",
+        linkedUserId: outsiderId,
+      }),
+    ).rejects.toMatchObject({ code: "membership_required" } satisfies Partial<MatchCommandError>);
+    await expect(
+      commands.execute(captain, {
+        type: "upsertPlayer",
+        playerId: first.playerId,
+        displayName: "Beto",
+        linkedUserId: null,
+      }),
+    ).rejects.toMatchObject({ code: "owner_required" } satisfies Partial<MatchCommandError>);
+
+    const linkedDirectory = await queries.directory(organizer);
+    expect(linkedDirectory.members.find(({ id }) => id === captainId)).toMatchObject({
+      email: "captain@example.com",
+      linkedPlayerId: first.playerId,
+    });
+
+    await commands.execute(organizer, {
+      type: "upsertPlayer",
+      playerId: first.playerId,
+      displayName: "Beto",
+      linkedUserId: null,
+    });
+    const second = await commands.execute(organizer, {
+      type: "upsertPlayer",
+      displayName: "Betito",
+      linkedUserId: captainId,
+    });
+    expect(
+      (await queries.directory(organizer)).members.find(({ id }) => id === captainId),
+    ).toMatchObject({ linkedPlayerId: second.playerId });
   });
 
   test("prorates exact minor units and confines a captain to their team", async () => {

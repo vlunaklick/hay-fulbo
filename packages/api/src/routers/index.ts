@@ -36,7 +36,9 @@ async function translateAccessError<T>(operation: () => Promise<T>) {
         code:
           error.code === "MEMBERSHIP_REQUIRED" || error.code === "OWNER_REQUIRED"
             ? "FORBIDDEN"
-            : "BAD_REQUEST",
+            : error.code === "PLAYER_ACCOUNT_ALREADY_LINKED"
+              ? "CONFLICT"
+              : "BAD_REQUEST",
         message: error.message,
       });
     }
