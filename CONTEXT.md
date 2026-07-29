@@ -25,8 +25,12 @@ Usuario designado para armar uno de los equipos y cargar la participación, los 
 _Avoid_: Organizador, entrenador
 
 **Aporte**:
-Importe esperado y efectivamente pagado por un jugador para un partido. El esperado surge del prorrateo del costo entre participantes, admite ajustes, y su estado —pendiente, parcial o pagado— se deriva de ambos importes.
+Importe esperado y efectivamente pagado por un jugador para un partido. El esperado surge del prorrateo exacto del costo entre participantes, admite ajustes y queda congelado al cerrar el partido.
 _Avoid_: Checkbox de pago, cuota
+
+**Estado del aporte**:
+Situación derivada de comparar el importe esperado con el pagado: exento, pendiente, parcial, pagado o excedido. Un aporte puede actualizarse después del cierre sin alterar el resultado deportivo.
+_Avoid_: Estado de pago manual, saldo entre partidos
 
 **Actuación**:
 Participación de un jugador en un partido, con sus totales de goles y asistencias. No representa una cronología de jugadas.
