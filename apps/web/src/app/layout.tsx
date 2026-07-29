@@ -1,23 +1,23 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Manrope } from "next/font/google";
 
 import "../index.css";
-import Header from "@/components/header";
 import Providers from "@/components/providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "hay-fulbo",
-  description: "hay-fulbo",
+  title: { default: "Hay Fulbo", template: "%s · Hay Fulbo" },
+  description: "Partidos, equipos, cuentas y estadísticas del grupo.",
+};
+
+export const viewport: Viewport = {
+  colorScheme: "dark",
+  themeColor: "#101512",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -26,14 +26,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <Providers>
-          <div className="grid grid-rows-[auto_1fr] h-svh">
-            <Header />
-            {children}
-          </div>
-        </Providers>
+    <html lang="es" className="dark" suppressHydrationWarning>
+      <body className={`${manrope.variable} antialiased`}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

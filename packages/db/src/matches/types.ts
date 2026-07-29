@@ -16,6 +16,7 @@ export type MatchScope = {
 
 export type MatchCommandErrorCode =
   | "membership_required"
+  | "owner_required"
   | "group_archived"
   | "not_found"
   | "forbidden"
@@ -102,6 +103,13 @@ export type MatchCommand =
       playerId: string;
     }
   | {
+      type: "createAndAddParticipant";
+      matchId: string;
+      expectedLockVersion: number;
+      teamId: string;
+      displayName: string;
+    }
+  | {
       type: "removeParticipant";
       matchId: string;
       expectedLockVersion: number;
@@ -178,6 +186,7 @@ export type MatchCommand =
 
 export type MatchCommandResult =
   | (MatchMutationResult & { teamIds: [string, string] })
+  | (MatchMutationResult & { playerId: string })
   | MatchMutationResult
   | { playerId: string }
   | { courtId: string };
@@ -188,9 +197,11 @@ export type MatchCommandResultFor<TCommand extends MatchCommand> = TCommand exte
   ? MatchMutationResult & { teamIds: [string, string] }
   : TCommand extends { type: "upsertPlayer" | "archivePlayer" }
     ? { playerId: string }
-    : TCommand extends { type: "upsertCourt" | "archiveCourt" }
-      ? { courtId: string }
-      : MatchMutationResult;
+    : TCommand extends { type: "createAndAddParticipant" }
+      ? MatchMutationResult & { playerId: string }
+      : TCommand extends { type: "upsertCourt" | "archiveCourt" }
+        ? { courtId: string }
+        : MatchMutationResult;
 
 export type ContributionStatus = "exempt" | "pending" | "partial" | "paid" | "overpaid";
 
@@ -236,5 +247,26 @@ export type MatchListItem = Omit<MatchDetail, "teams"> & {
     displayName: string;
     color: string | null;
     goals: number;
+  }[];
+};
+
+export type MatchDirectory = {
+  players: {
+    id: string;
+    displayName: string;
+    archivedAt: Date | null;
+    linkedUserId: string | null;
+  }[];
+  courts: {
+    id: string;
+    name: string;
+    address: string;
+    mapsUrl: string;
+    archivedAt: Date | null;
+  }[];
+  members: {
+    id: string;
+    name: string;
+    role: "owner" | "member";
   }[];
 };

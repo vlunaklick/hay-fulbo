@@ -16,6 +16,7 @@ export type {
   MatchCommandResult,
   MatchCommandResultFor,
   MatchDetail,
+  MatchDirectory,
   MatchListItem,
   MatchMutationResult,
   MatchScope,
