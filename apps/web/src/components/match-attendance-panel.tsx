@@ -41,16 +41,7 @@ type AttendanceDetail = {
   status: "open" | "closed" | "cancelled";
 };
 
-export function MatchAttendancePanel({
-  canEdit,
-  court,
-  currency,
-  detail,
-  groupName,
-  onCapacityChange,
-  pending,
-  timeZone,
-}: {
+type MatchAttendancePanelProps = {
   canEdit: boolean;
   court: { address: string; mapsUrl: string; name: string } | null;
   currency: string;
@@ -59,7 +50,23 @@ export function MatchAttendancePanel({
   onCapacityChange: (capacity: number) => void;
   pending: boolean;
   timeZone: string;
-}) {
+};
+
+export function MatchAttendancePanel(props: MatchAttendancePanelProps) {
+  if (props.detail.status !== "open") return null;
+  return <OpenMatchAttendancePanel {...props} />;
+}
+
+function OpenMatchAttendancePanel({
+  canEdit,
+  court,
+  currency,
+  detail,
+  groupName,
+  onCapacityChange,
+  pending,
+  timeZone,
+}: MatchAttendancePanelProps) {
   const invite = useQuery(trpc.matches.inviteLink.queryOptions({ matchId: detail.id }));
   const [capacity, setCapacity] = useState(String(detail.capacity));
   const summary = summarize(detail.rsvps, detail.capacity);
