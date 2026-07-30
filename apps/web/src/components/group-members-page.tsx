@@ -154,7 +154,7 @@ export function GroupMembersPage() {
         </p>
       </header>
 
-      <Card>
+      <Card id="invitar" className="scroll-mt-24">
         <CardHeader>
           <div className="flex items-center gap-2">
             <LinkIcon aria-hidden="true" />

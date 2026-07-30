@@ -19,7 +19,7 @@ import {
 } from "@hay-fulbo/ui/components/dropdown-menu";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
-import { CheckIcon, ChevronsUpDownIcon, PlusIcon, SettingsIcon } from "lucide-react";
+import { CheckIcon, ChevronsUpDownIcon, PlusIcon, SettingsIcon, UserPlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -71,7 +71,7 @@ export function GroupSwitcher({
             <span className="truncate text-sm font-semibold">{activeGroup.name}</span>
             <ChevronsUpDownIcon aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-64">
+          <DropdownMenuContent align="start" className="min-w-56">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Tus grupos</DropdownMenuLabel>
               {groups.map((group) => (
@@ -92,10 +92,16 @@ export function GroupSwitcher({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               {role === "owner" ? (
-                <DropdownMenuItem onClick={() => router.push("/dashboard/grupo")}>
-                  <SettingsIcon aria-hidden="true" />
-                  Administrar grupo
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem onClick={() => router.push("/dashboard/grupo#invitar")}>
+                    <UserPlusIcon aria-hidden="true" />
+                    Invitar amigos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/dashboard/grupo")}>
+                    <SettingsIcon aria-hidden="true" />
+                    Administrar grupo
+                  </DropdownMenuItem>
+                </>
               ) : null}
               <DropdownMenuItem onClick={() => setCreateOpen(true)}>
                 <PlusIcon aria-hidden="true" />

@@ -6,8 +6,10 @@ import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@hay-fulbo/ui/components/card";
@@ -144,7 +146,7 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
   const court = directory.courts.find((item) => item.id === detail.courtId);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <header className="flex items-center justify-between gap-4">
         <Button
           variant="ghost"
@@ -172,35 +174,43 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
         </Badge>
       </header>
 
-      <Card className="sticky top-20 z-10 bg-card/95 backdrop-blur">
-        <CardHeader>
+      <Card size="sm">
+        <CardHeader className="items-center">
           <CardTitle>{formatDate(detail.scheduledAt)}</CardTitle>
           <CardDescription className="flex flex-wrap items-center gap-2">
             <span>{court?.name ?? "Cancha a definir"}</span>
             <span aria-hidden="true">·</span>
             <span>{formatMoney(detail.courtCostMinor)}</span>
           </CardDescription>
+          <CardAction className="flex items-center gap-3 self-center">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="hidden max-w-24 truncate text-xs font-medium sm:block">
+                {detail.teams[0]?.displayName}
+              </span>
+              <strong className="text-3xl font-bold tabular-nums">
+                {scoreFor(detail, detail.teams[0]?.id)}
+              </strong>
+            </div>
+            <span className="text-muted-foreground">—</span>
+            <div className="flex min-w-0 items-center gap-2">
+              <strong className="text-3xl font-bold tabular-nums">
+                {scoreFor(detail, detail.teams[1]?.id)}
+              </strong>
+              <span className="hidden max-w-24 truncate text-xs font-medium sm:block">
+                {detail.teams[1]?.displayName}
+              </span>
+            </div>
+          </CardAction>
         </CardHeader>
-        <CardContent className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
-          <div className="flex min-w-0 flex-col gap-2">
-            <span className="truncate text-sm font-semibold">{detail.teams[0]?.displayName}</span>
-            <strong className="text-6xl font-bold tabular-nums">
-              {scoreFor(detail, detail.teams[0]?.id)}
-            </strong>
-          </div>
-          <span className="text-2xl text-muted-foreground">—</span>
-          <div className="flex min-w-0 flex-col gap-2">
-            <span className="truncate text-sm font-semibold">{detail.teams[1]?.displayName}</span>
-            <strong className="text-6xl font-bold tabular-nums">
-              {scoreFor(detail, detail.teams[1]?.id)}
-            </strong>
-          </div>
-        </CardContent>
+        <div className="sr-only">
+          {detail.teams[0]?.displayName} <span>{scoreFor(detail, detail.teams[0]?.id)}</span> a{" "}
+          <span>{scoreFor(detail, detail.teams[1]?.id)}</span> {detail.teams[1]?.displayName}
+        </div>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
+      <div className="grid gap-4 lg:grid-cols-[1fr_17rem]">
         <Tabs defaultValue="sheet">
-          <TabsList className="grid h-12 w-full grid-cols-5 lg:grid-cols-4">
+          <TabsList className="grid h-10 w-full grid-cols-5 lg:grid-cols-4">
             <TabsTrigger value="sheet">Ficha</TabsTrigger>
             <TabsTrigger value="squad">Plantel</TabsTrigger>
             <TabsTrigger value="payments">Caja</TabsTrigger>
@@ -286,14 +296,14 @@ function ClosurePanel({
 }) {
   const ready = issues.length === 0;
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader>
         <CardTitle>{ready ? "Listo para cerrar" : "Antes de cerrar"}</CardTitle>
         <CardDescription>
           {ready ? "La ficha está completa." : "Falta completar estos puntos."}
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-col gap-2">
         {ready ? (
           <div className="flex items-start gap-2 text-sm">
             <CheckCircle2Icon className="text-primary" aria-hidden="true" />
@@ -301,7 +311,7 @@ function ClosurePanel({
           </div>
         ) : (
           issues.map((issue) => (
-            <div key={issue} className="flex items-start gap-2 text-sm text-muted-foreground">
+            <div key={issue} className="flex items-start gap-2 text-xs text-muted-foreground">
               <CircleIcon aria-hidden="true" />
               {closureText[issue]}
             </div>
@@ -406,58 +416,60 @@ function MatchSheet({
   }
 
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader>
         <CardTitle>Ficha del partido</CardTitle>
         <CardDescription>Fecha, cancha, precio y nombres temporales.</CardDescription>
       </CardHeader>
       <CardContent>
-        <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="match-date">Fecha y hora</FieldLabel>
-            <Input
-              id="match-date"
-              type="datetime-local"
-              value={scheduledAt}
-              disabled={!editable}
-              onChange={(event) => setScheduledAt(event.target.value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="match-court">Cancha</FieldLabel>
-            <Select
-              items={courtItems}
-              value={courtId}
-              disabled={!editable}
-              onValueChange={setCourtId}
-            >
-              <SelectTrigger id="match-court" className="w-full">
-                <SelectValue>
-                  {courtItems.find((item) => item.value === courtId)?.label ?? "A definir"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {courtItems.map((item) => (
-                    <SelectItem key={item.value ?? "no-court"} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="match-cost">Precio total</FieldLabel>
-            <Input
-              id="match-cost"
-              inputMode="decimal"
-              value={cost}
-              disabled={!editable}
-              onChange={(event) => setCost(event.target.value)}
-            />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
+        <FieldGroup className="gap-4">
+          <FieldGroup className="grid gap-4 md:grid-cols-3">
+            <Field>
+              <FieldLabel htmlFor="match-date">Fecha y hora</FieldLabel>
+              <Input
+                id="match-date"
+                type="datetime-local"
+                value={scheduledAt}
+                disabled={!editable}
+                onChange={(event) => setScheduledAt(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="match-court">Cancha</FieldLabel>
+              <Select
+                items={courtItems}
+                value={courtId}
+                disabled={!editable}
+                onValueChange={setCourtId}
+              >
+                <SelectTrigger id="match-court" className="w-full">
+                  <SelectValue>
+                    {courtItems.find((item) => item.value === courtId)?.label ?? "A definir"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {courtItems.map((item) => (
+                      <SelectItem key={item.value ?? "no-court"} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="match-cost">Precio total</FieldLabel>
+              <Input
+                id="match-cost"
+                inputMode="decimal"
+                value={cost}
+                disabled={!editable}
+                onChange={(event) => setCost(event.target.value)}
+              />
+            </Field>
+          </FieldGroup>
+          <FieldGroup className="grid gap-4 sm:grid-cols-2">
             <TeamName
               id="team-one-name"
               team={detail.teams[0]}
@@ -478,17 +490,20 @@ function MatchSheet({
               detail={detail}
               run={run}
             />
-          </div>
+          </FieldGroup>
           <FieldError>{error}</FieldError>
-          {editable ? (
-            <Button variant="outline" disabled={pending} onClick={save}>
-              Guardar ficha
-            </Button>
-          ) : (
+          {!editable ? (
             <FieldDescription>La ficha está disponible en modo consulta.</FieldDescription>
-          )}
+          ) : null}
         </FieldGroup>
       </CardContent>
+      {editable ? (
+        <CardFooter className="justify-end">
+          <Button variant="outline" disabled={pending} onClick={save}>
+            Guardar ficha
+          </Button>
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }

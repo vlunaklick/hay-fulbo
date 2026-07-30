@@ -9,6 +9,7 @@ import {
   CardAction,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@hay-fulbo/ui/components/card";
@@ -29,6 +30,7 @@ import {
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
 import { Separator } from "@hay-fulbo/ui/components/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
 import {
   Table,
   TableBody,
@@ -45,7 +47,6 @@ import {
   CrosshairIcon,
   FlameIcon,
   LockKeyholeIcon,
-  MedalIcon,
   SparklesIcon,
   TrophyIcon,
 } from "lucide-react";
@@ -170,235 +171,237 @@ function StatsDashboardContent({
         mode === "shared" ? "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12" : "",
       )}
     >
-      <header className="mb-8 flex flex-col gap-3">
-        <Badge variant="outline">
-          <LockKeyholeIcon data-icon="inline-start" />
-          {mode === "shared" ? "Enlace privado · solo lectura" : "Tu grupo"}
-        </Badge>
-        <div>
-          <p className="mb-1 text-sm font-medium text-primary">Estadísticas</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            Los números de {dashboard.group.name}
-          </h1>
+      <header className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1">
+          {mode === "shared" ? (
+            <Badge className="mb-1 w-fit" variant="outline">
+              <LockKeyholeIcon data-icon="inline-start" />
+              Enlace privado · solo lectura
+            </Badge>
+          ) : null}
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Estadísticas</h1>
+          <p className="text-sm text-muted-foreground">
+            {dashboard.group.name} · solo partidos cerrados
+          </p>
         </div>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          Rendimiento, goles y protagonistas. Solo cuentan los partidos cerrados.
-        </p>
+        <Badge className="w-fit" variant="secondary">
+          {dashboard.summary.matchesPlayed} PJ · {dashboard.summary.totalGoals} goles
+        </Badge>
       </header>
 
       <StatsFiltersBar dashboard={dashboard} filters={filters} />
 
-      <section aria-labelledby="spotlight-title" className="mt-8">
-        {figure ? (
-          <Card>
-            <CardHeader className="border-b">
-              <div className="flex items-center gap-2 text-primary">
-                <SparklesIcon aria-hidden="true" />
-                <span className="text-xs font-semibold uppercase tracking-wider">
-                  El vestuario habla
-                </span>
-              </div>
-              <CardTitle className="text-xl" id="spotlight-title">
-                La carrera del grupo
-              </CardTitle>
-              <CardDescription>
-                El ranking combina goles y asistencias del período elegido.
-              </CardDescription>
-              <CardAction>
-                <Badge variant="secondary">{dashboard.summary.matchesPlayed} PJ cerrados</Badge>
-              </CardAction>
-            </CardHeader>
-            <CardContent className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="flex flex-col justify-between gap-8">
-                <div className="flex items-center gap-4">
-                  <Avatar className="size-16">
-                    <AvatarFallback className="bg-primary text-lg font-bold text-primary-foreground">
-                      {initials(figure.displayName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <Badge className="mb-2">Figura del grupo</Badge>
-                    <h2 className="truncate text-2xl font-bold tracking-tight">
-                      {figure.displayName}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      {figure.contributions} participaciones de gol
-                    </p>
-                  </div>
-                </div>
+      <Tabs className="mt-5" defaultValue="resumen">
+        <TabsList aria-label="Secciones de estadísticas" variant="line">
+          <TabsTrigger value="resumen">Resumen</TabsTrigger>
+          <TabsTrigger value="ranking">Ranking</TabsTrigger>
+          <TabsTrigger value="partidos">Partidos</TabsTrigger>
+        </TabsList>
 
-                <dl className="grid grid-cols-3 gap-3 border-y py-4">
-                  <SpotlightMetric label="Goles" value={figure.goals} />
-                  <SpotlightMetric label="Asist." value={figure.assists} />
-                  <SpotlightMetric label="Prom." value={formatRate(figure.contributionsPerMatch)} />
-                </dl>
-
-                <Link
-                  className={buttonVariants({
-                    variant: "outline",
-                    className: "w-full sm:w-fit",
-                  })}
-                  href={playerHref(detailBase, figure.playerId, filters.query)}
-                >
-                  Ver ficha de {figure.displayName}
-                  <ArrowRightIcon data-icon="inline-end" />
-                </Link>
-              </div>
-
-              <div className="border-t pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-                <div className="mb-5 flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold">Carrera G+A</p>
-                    <p className="text-xs text-muted-foreground">Los cinco más determinantes</p>
-                  </div>
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {dashboard.summary.totalGoals} goles totales
-                  </span>
-                </div>
-                <ContributionRace
-                  detailBase={detailBase}
-                  players={dashboard.ranking.slice(0, 5)}
-                  query={filters.query}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <TrophyIcon />
-              </EmptyMedia>
-              <EmptyTitle>El salón todavía está vacío</EmptyTitle>
-              <EmptyDescription>
-                Cerrá el primer partido para descubrir al goleador y empezar el ranking.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
-      </section>
-
-      {figure ? (
-        <section aria-labelledby="hall-title" className="mt-10">
-          <SectionHeading
-            eyebrow={`${dashboard.summary.totalGoals} goles en ${dashboard.summary.matchesPlayed} partidos`}
-            icon={<MedalIcon />}
-            id="hall-title"
-            title="Salón de la fama"
-          />
-          <Card className="mt-4">
-            <CardContent className="grid gap-6 md:grid-cols-3">
-              <HallLeader
-                icon={<CrosshairIcon />}
-                label="Goleador"
-                player={scorer}
-                suffix="goles"
-                value={scorer?.goals ?? 0}
-              />
-              <HallLeader
-                icon={<SparklesIcon />}
-                label="El que reparte"
-                player={assister}
-                suffix="asistencias"
-                value={assister?.assists ?? 0}
-              />
-              <HallLeader
-                icon={<FlameIcon />}
-                label="Más ganador"
-                player={winner}
-                suffix="% victorias"
-                value={winner ? Math.round(winner.winPercentage) : 0}
-              />
-            </CardContent>
-          </Card>
-        </section>
-      ) : null}
-
-      <section aria-labelledby="ranking-title" className="mt-10">
-        <SectionHeading
-          eyebrow={`${dashboard.summary.matchesPlayed} partidos cerrados`}
-          icon={<TrophyIcon />}
-          id="ranking-title"
-          title="Ranking"
-        />
-        <div className="mt-4">
-          {dashboard.ranking.length === 0 ? (
-            <Empty className="border">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <TrophyIcon />
-                </EmptyMedia>
-                <EmptyTitle>Todavía no hay tabla</EmptyTitle>
-                <EmptyDescription>
-                  Cerrá el primer partido para que aparezcan PJ, goles, asistencias y resultados.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <Ranking dashboard={dashboard} detailBase={detailBase} query={filters.query} />
-          )}
-        </div>
-      </section>
-
-      <Separator className="my-10" />
-      <section aria-labelledby="history-title">
-        <SectionHeading
-          eyebrow={`${dashboard.summary.totalGoals} goles · ${formatRate(
-            dashboard.summary.goalsPerMatch,
-          )} por partido`}
-          icon={<Clock3Icon />}
-          id="history-title"
-          title="Historial"
-        />
-        <div className="mt-4">
-          {dashboard.history.length === 0 ? (
-            <Empty className="border">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <CalendarDaysIcon />
-                </EmptyMedia>
-                <EmptyTitle>No hay resultados para estos filtros</EmptyTitle>
-                <EmptyDescription>
-                  Probá otro período o Cancha. Los partidos abiertos todavía no suman.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="border">
-              {dashboard.history.map((match, index) => (
-                <div key={match.matchId}>
-                  {index > 0 ? <Separator /> : null}
-                  <Link
-                    className={buttonVariants({
-                      variant: "ghost",
-                      className:
-                        "h-auto min-h-16 w-full justify-between rounded-none px-4 py-3 text-left",
-                    })}
-                    href={matchHref(detailBase, match.matchId)}
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">
-                        {match.teams[0]?.displayName} {match.teams[0]?.goals} –{" "}
-                        {match.teams[1]?.goals} {match.teams[1]?.displayName}
-                      </span>
-                      <span className="mt-1 flex items-center gap-2 truncate text-xs text-muted-foreground">
-                        {match.status === "cancelled" ? (
-                          <Badge variant="outline">Cancelado</Badge>
-                        ) : null}
-                        <span>
-                          {formatDate(match.scheduledAt, dashboard.group.timeZone)}
-                          {match.court ? ` · ${match.court.name}` : ""}
-                        </span>
-                      </span>
+        <TabsContent value="resumen">
+          <section aria-labelledby="spotlight-title" className="pt-3">
+            {figure ? (
+              <Card>
+                <CardHeader className="border-b py-4">
+                  <div className="flex items-center gap-2 text-primary">
+                    <SparklesIcon aria-hidden="true" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">
+                      El vestuario habla
                     </span>
-                    <ArrowRightIcon className="size-4 text-muted-foreground" />
-                  </Link>
-                </div>
-              ))}
+                  </div>
+                  <CardTitle id="spotlight-title">La carrera del grupo</CardTitle>
+                  <CardDescription>Goles y asistencias del período elegido.</CardDescription>
+                  <CardAction>
+                    <Badge>Figura: {figure.displayName}</Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardContent className="grid gap-6 py-5 lg:grid-cols-[0.85fr_1.15fr]">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-12">
+                        <AvatarFallback className="bg-primary font-bold text-primary-foreground">
+                          {initials(figure.displayName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <h2 className="truncate text-xl font-bold tracking-tight">
+                          {figure.displayName}
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          {figure.contributions} participaciones de gol
+                        </p>
+                      </div>
+                    </div>
+
+                    <dl className="grid grid-cols-3 gap-3 border-y py-3">
+                      <SpotlightMetric label="Goles" value={figure.goals} />
+                      <SpotlightMetric label="Asist." value={figure.assists} />
+                      <SpotlightMetric
+                        label="Prom."
+                        value={formatRate(figure.contributionsPerMatch)}
+                      />
+                    </dl>
+
+                    <Link
+                      className={buttonVariants({
+                        variant: "outline",
+                        size: "sm",
+                        className: "w-full sm:w-fit",
+                      })}
+                      href={playerHref(detailBase, figure.playerId, filters.query)}
+                    >
+                      Ver ficha
+                      <ArrowRightIcon data-icon="inline-end" />
+                    </Link>
+                  </div>
+
+                  <div className="border-t pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                    <div className="mb-3 flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">Carrera G+A</p>
+                        <p className="text-xs text-muted-foreground">El podio del grupo</p>
+                      </div>
+                      <span className="text-xs tabular-nums text-muted-foreground">
+                        {dashboard.summary.totalGoals} goles
+                      </span>
+                    </div>
+                    <ContributionRace
+                      detailBase={detailBase}
+                      players={dashboard.ranking.slice(0, 3)}
+                      query={filters.query}
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter className="grid gap-4 border-t py-4 md:grid-cols-3">
+                  <HallLeader
+                    icon={<CrosshairIcon />}
+                    label="Goleador"
+                    player={scorer}
+                    suffix="goles"
+                    value={scorer?.goals ?? 0}
+                  />
+                  <HallLeader
+                    icon={<SparklesIcon />}
+                    label="El que reparte"
+                    player={assister}
+                    suffix="asistencias"
+                    value={assister?.assists ?? 0}
+                  />
+                  <HallLeader
+                    icon={<FlameIcon />}
+                    label="Más ganador"
+                    player={winner}
+                    suffix="% victorias"
+                    value={winner ? Math.round(winner.winPercentage) : 0}
+                  />
+                </CardFooter>
+              </Card>
+            ) : (
+              <Empty className="border">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <TrophyIcon />
+                  </EmptyMedia>
+                  <EmptyTitle>El salón todavía está vacío</EmptyTitle>
+                  <EmptyDescription>
+                    Cerrá el primer partido para descubrir al goleador y empezar el ranking.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+          </section>
+        </TabsContent>
+
+        <TabsContent value="ranking">
+          <section aria-labelledby="ranking-title" className="pt-3">
+            <SectionHeading
+              eyebrow={`${dashboard.summary.matchesPlayed} partidos cerrados`}
+              icon={<TrophyIcon />}
+              id="ranking-title"
+              title="Ranking"
+            />
+            <div className="mt-3">
+              {dashboard.ranking.length === 0 ? (
+                <Empty className="border">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <TrophyIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>Todavía no hay tabla</EmptyTitle>
+                    <EmptyDescription>
+                      Cerrá el primer partido para que aparezcan PJ, goles, asistencias y
+                      resultados.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              ) : (
+                <Ranking dashboard={dashboard} detailBase={detailBase} query={filters.query} />
+              )}
             </div>
-          )}
-        </div>
-      </section>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="partidos">
+          <section aria-labelledby="history-title" className="pt-3">
+            <SectionHeading
+              eyebrow={`${dashboard.summary.totalGoals} goles · ${formatRate(
+                dashboard.summary.goalsPerMatch,
+              )} por partido`}
+              icon={<Clock3Icon />}
+              id="history-title"
+              title="Partidos"
+            />
+            <div className="mt-3">
+              {dashboard.history.length === 0 ? (
+                <Empty className="border">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <CalendarDaysIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>No hay resultados para estos filtros</EmptyTitle>
+                    <EmptyDescription>
+                      Probá otro período o cancha. Los partidos abiertos todavía no suman.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              ) : (
+                <div className="border">
+                  {dashboard.history.map((match, index) => (
+                    <div key={match.matchId}>
+                      {index > 0 ? <Separator /> : null}
+                      <Link
+                        className={buttonVariants({
+                          variant: "ghost",
+                          className:
+                            "h-auto min-h-16 w-full justify-between rounded-none px-4 py-3 text-left",
+                        })}
+                        href={matchHref(detailBase, match.matchId)}
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium">
+                            {match.teams[0]?.displayName} {match.teams[0]?.goals} –{" "}
+                            {match.teams[1]?.goals} {match.teams[1]?.displayName}
+                          </span>
+                          <span className="mt-1 flex items-center gap-2 truncate text-xs text-muted-foreground">
+                            {match.status === "cancelled" ? (
+                              <Badge variant="outline">Cancelado</Badge>
+                            ) : null}
+                            <span>
+                              {formatDate(match.scheduledAt, dashboard.group.timeZone)}
+                              {match.court ? ` · ${match.court.name}` : ""}
+                            </span>
+                          </span>
+                        </span>
+                        <ArrowRightIcon className="size-4 text-muted-foreground" />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </TabsContent>
+      </Tabs>
     </main>
   );
 }
@@ -411,23 +414,8 @@ function StatsFiltersBar({
   filters: ReturnType<typeof useStatsFilters>;
 }) {
   return (
-    <section aria-labelledby="filters-title">
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Ajustá la tabla
-          </p>
-          <h2 className="mt-1 text-xl font-semibold" id="filters-title">
-            Filtros
-          </h2>
-        </div>
-        {filters.active ? (
-          <Button className="min-h-11" onClick={filters.reset} variant="ghost">
-            Limpiar
-          </Button>
-        ) : null}
-      </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+    <section aria-label="Filtros de estadísticas">
+      <div className="grid items-end gap-3 sm:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
         <FilterSelect
           id="stats-period"
           label="Período"
@@ -460,6 +448,11 @@ function StatsFiltersBar({
           ]}
           value={filters.result}
         />
+        {filters.active ? (
+          <Button className="min-h-11" onClick={filters.reset} variant="ghost">
+            Limpiar
+          </Button>
+        ) : null}
       </div>
     </section>
   );

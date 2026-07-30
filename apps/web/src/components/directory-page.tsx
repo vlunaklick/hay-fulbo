@@ -61,6 +61,7 @@ import {
   UserRoundIcon,
   XIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -183,7 +184,7 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">
           <p className="text-sm font-semibold text-primary">Directorio</p>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -196,21 +197,34 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
           </p>
         </div>
         {canManage ? (
-          <CreateDirectoryDialog
-            key={`${kind}-${createOpen ? "open" : "closed"}`}
-            error={error}
-            isPending={execute.isPending}
-            kind={kind}
-            onOpenChange={(open) => {
-              setCreateOpen(open);
-              setError(null);
-            }}
-            onSave={(input) => {
-              setError(null);
-              execute.mutate(input);
-            }}
-            open={createOpen}
-          />
+          <div className="flex shrink-0 gap-2">
+            {isPlayers && role === "owner" ? (
+              <Button
+                nativeButton={false}
+                render={<Link href="/dashboard/grupo#invitar" />}
+                variant="outline"
+              >
+                <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
+                <span className="hidden sm:inline">Invitar amigos</span>
+                <span className="sm:hidden">Invitar</span>
+              </Button>
+            ) : null}
+            <CreateDirectoryDialog
+              key={`${kind}-${createOpen ? "open" : "closed"}`}
+              error={error}
+              isPending={execute.isPending}
+              kind={kind}
+              onOpenChange={(open) => {
+                setCreateOpen(open);
+                setError(null);
+              }}
+              onSave={(input) => {
+                setError(null);
+                execute.mutate(input);
+              }}
+              open={createOpen}
+            />
+          </div>
         ) : null}
       </header>
 
