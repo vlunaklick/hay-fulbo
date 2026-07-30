@@ -4,15 +4,7 @@ import type { StatsAggregate, StatsDashboard, StatsFilters } from "@hay-fulbo/db
 import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button, buttonVariants } from "@hay-fulbo/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@hay-fulbo/ui/components/card";
 import {
   Empty,
   EmptyDescription,
@@ -47,6 +39,7 @@ import {
   CrosshairIcon,
   FlameIcon,
   LockKeyholeIcon,
+  SlidersHorizontalIcon,
   SparklesIcon,
   TrophyIcon,
 } from "lucide-react";
@@ -171,7 +164,7 @@ function StatsDashboardContent({
         mode === "shared" ? "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12" : "",
       )}
     >
-      <header className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1">
           {mode === "shared" ? (
             <Badge className="mb-1 w-fit" variant="outline">
@@ -179,91 +172,120 @@ function StatsDashboardContent({
               Enlace privado · solo lectura
             </Badge>
           ) : null}
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Estadísticas</h1>
+          <h1 className="text-2xl font-bold tracking-[-0.03em] sm:text-3xl">Estadísticas</h1>
           <p className="text-sm text-muted-foreground">
             {dashboard.group.name} · solo partidos cerrados
           </p>
         </div>
-        <Badge className="w-fit" variant="secondary">
-          {dashboard.summary.matchesPlayed} PJ · {dashboard.summary.totalGoals} goles
-        </Badge>
+        <div className="flex h-11 w-fit items-center gap-3 rounded-md border bg-card px-3 text-sm">
+          <span className="relative flex size-2" aria-hidden="true">
+            <span className="absolute inline-flex size-full rounded-full bg-primary/35" />
+            <span className="relative inline-flex size-2 rounded-full bg-primary" />
+          </span>
+          <span className="font-semibold tabular-nums">{dashboard.summary.matchesPlayed} PJ</span>
+          <span className="h-4 w-px bg-border" aria-hidden="true" />
+          <span className="tabular-nums text-muted-foreground">
+            {dashboard.summary.totalGoals} goles
+          </span>
+        </div>
       </header>
 
       <StatsFiltersBar dashboard={dashboard} filters={filters} />
 
-      <Tabs className="mt-5" defaultValue="resumen">
-        <TabsList aria-label="Secciones de estadísticas" variant="line">
+      <Tabs className="mt-3" defaultValue="resumen">
+        <TabsList
+          aria-label="Secciones de estadísticas"
+          className="h-9 border-b px-1"
+          variant="line"
+        >
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="ranking">Ranking</TabsTrigger>
           <TabsTrigger value="partidos">Partidos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="resumen">
-          <section aria-labelledby="spotlight-title" className="pt-3">
+          <section aria-labelledby="spotlight-title" className="pt-2">
             {figure ? (
-              <Card>
-                <CardHeader className="border-b py-4">
-                  <div className="flex items-center gap-2 text-primary">
-                    <SparklesIcon aria-hidden="true" />
-                    <span className="text-xs font-semibold uppercase tracking-wider">
-                      El vestuario habla
-                    </span>
-                  </div>
-                  <CardTitle id="spotlight-title">La carrera del grupo</CardTitle>
-                  <CardDescription>Goles y asistencias del período elegido.</CardDescription>
-                  <CardAction>
-                    <Badge>Figura: {figure.displayName}</Badge>
-                  </CardAction>
-                </CardHeader>
-                <CardContent className="grid gap-6 py-5 lg:grid-cols-[0.85fr_1.15fr]">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="size-12">
-                        <AvatarFallback className="bg-primary font-bold text-primary-foreground">
-                          {initials(figure.displayName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <h2 className="truncate text-xl font-bold tracking-tight">
-                          {figure.displayName}
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                          {figure.contributions} participaciones de gol
-                        </p>
-                      </div>
+              <Card className="group/spotlight relative isolate gap-0 py-0">
+                <PitchMarkings />
+                <CardHeader className="relative z-10 flex min-h-16 flex-row items-center justify-between gap-4 border-b px-5 py-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-primary">
+                      <SparklesIcon className="size-4" aria-hidden="true" />
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.12em]">
+                        El vestuario habla
+                      </span>
                     </div>
+                    <CardTitle className="mt-1 text-base" id="spotlight-title">
+                      La carrera del grupo
+                    </CardTitle>
+                  </div>
+                  <Badge className="max-w-48 truncate" variant="secondary">
+                    Figura: {figure.displayName}
+                  </Badge>
+                </CardHeader>
 
-                    <dl className="grid grid-cols-3 gap-3 border-y py-3">
-                      <SpotlightMetric label="Goles" value={figure.goals} />
-                      <SpotlightMetric label="Asist." value={figure.assists} />
-                      <SpotlightMetric
-                        label="Prom."
-                        value={formatRate(figure.contributionsPerMatch)}
-                      />
-                    </dl>
+                <CardContent className="relative z-10 grid p-0 lg:grid-cols-[0.82fr_1.18fr_0.9fr]">
+                  <div className="flex flex-col justify-between gap-4 p-5 lg:min-h-64">
+                    <div>
+                      <div className="flex items-center gap-4">
+                        <Avatar className="size-14 ring-4 ring-primary/10 transition-transform duration-200 ease-out group-hover/spotlight:-rotate-2 group-hover/spotlight:scale-105 motion-reduce:transition-none">
+                          <AvatarFallback className="bg-primary text-base font-bold text-primary-foreground">
+                            {initials(figure.displayName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                            La figura
+                          </p>
+                          <h2 className="truncate text-2xl font-bold tracking-[-0.03em]">
+                            {figure.displayName}
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-semibold tabular-nums text-foreground">
+                              {figure.contributions}
+                            </span>{" "}
+                            participaciones de gol
+                          </p>
+                        </div>
+                      </div>
+
+                      <dl className="mt-5 grid grid-cols-3 gap-3 border-y py-3">
+                        <SpotlightMetric label="Goles" value={figure.goals} />
+                        <SpotlightMetric label="Asist." value={figure.assists} />
+                        <SpotlightMetric
+                          label="Prom."
+                          value={formatRate(figure.contributionsPerMatch)}
+                        />
+                      </dl>
+                    </div>
 
                     <Link
                       className={buttonVariants({
                         variant: "outline",
                         size: "sm",
-                        className: "w-full sm:w-fit",
+                        className:
+                          "w-full justify-between bg-background/35 sm:w-fit sm:justify-center",
                       })}
                       href={playerHref(detailBase, figure.playerId, filters.query)}
                     >
                       Ver ficha
-                      <ArrowRightIcon data-icon="inline-end" />
+                      <ArrowRightIcon
+                        className="transition-transform duration-200 ease-out group-hover/button:translate-x-0.5 motion-reduce:transition-none"
+                        data-icon="inline-end"
+                      />
                     </Link>
                   </div>
 
-                  <div className="border-t pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                  <div className="border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
                     <div className="mb-3 flex items-end justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">Carrera G+A</p>
-                        <p className="text-xs text-muted-foreground">El podio del grupo</p>
+                        <p className="text-xs text-muted-foreground">
+                          Goles y asistencias, cabeza a cabeza
+                        </p>
                       </div>
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {dashboard.summary.totalGoals} goles
-                      </span>
+                      <span className="text-xs tabular-nums text-muted-foreground">Top 3</span>
                     </div>
                     <ContributionRace
                       detailBase={detailBase}
@@ -271,30 +293,37 @@ function StatsDashboardContent({
                       query={filters.query}
                     />
                   </div>
+
+                  <div className="border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
+                    <p className="text-sm font-semibold">Dueños de la tabla</p>
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      Los líderes del período elegido
+                    </p>
+                    <div className="divide-y">
+                      <HallLeader
+                        icon={<CrosshairIcon />}
+                        label="Goleador"
+                        player={scorer}
+                        suffix="goles"
+                        value={scorer?.goals ?? 0}
+                      />
+                      <HallLeader
+                        icon={<SparklesIcon />}
+                        label="El que reparte"
+                        player={assister}
+                        suffix="asistencias"
+                        value={assister?.assists ?? 0}
+                      />
+                      <HallLeader
+                        icon={<FlameIcon />}
+                        label="Más ganador"
+                        player={winner}
+                        suffix="% victorias"
+                        value={winner ? Math.round(winner.winPercentage) : 0}
+                      />
+                    </div>
+                  </div>
                 </CardContent>
-                <CardFooter className="grid gap-4 border-t py-4 md:grid-cols-3">
-                  <HallLeader
-                    icon={<CrosshairIcon />}
-                    label="Goleador"
-                    player={scorer}
-                    suffix="goles"
-                    value={scorer?.goals ?? 0}
-                  />
-                  <HallLeader
-                    icon={<SparklesIcon />}
-                    label="El que reparte"
-                    player={assister}
-                    suffix="asistencias"
-                    value={assister?.assists ?? 0}
-                  />
-                  <HallLeader
-                    icon={<FlameIcon />}
-                    label="Más ganador"
-                    player={winner}
-                    suffix="% victorias"
-                    value={winner ? Math.round(winner.winPercentage) : 0}
-                  />
-                </CardFooter>
               </Card>
             ) : (
               <Empty className="border">
@@ -414,42 +443,48 @@ function StatsFiltersBar({
   filters: ReturnType<typeof useStatsFilters>;
 }) {
   return (
-    <section aria-label="Filtros de estadísticas">
-      <div className="grid items-end gap-3 sm:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
-        <FilterSelect
-          id="stats-period"
-          label="Período"
-          onChange={(value) => filters.set("period", value)}
-          options={[
-            { label: "Todos los tiempos", value: "all" },
-            { label: "Últimos 30 días", value: "30d" },
-            { label: "Este año", value: "year" },
-          ]}
-          value={filters.period}
-        />
-        <FilterSelect
-          id="stats-court"
-          label="Cancha"
-          onChange={(value) => filters.set("court", value)}
-          options={[
-            { label: "Todas las canchas", value: "all" },
-            ...dashboard.courts.map((court) => ({ label: court.name, value: court.id })),
-          ]}
-          value={filters.court}
-        />
-        <FilterSelect
-          id="stats-result"
-          label="Resultado"
-          onChange={(value) => filters.set("result", value)}
-          options={[
-            { label: "Todos", value: "all" },
-            { label: "Con ganador", value: "decided" },
-            { label: "Empates", value: "draws" },
-          ]}
-          value={filters.result}
-        />
+    <section aria-label="Filtros de estadísticas" className="rounded-lg border bg-card/55 p-2">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <div className="flex h-9 shrink-0 items-center gap-2 px-2 text-xs font-medium text-muted-foreground">
+          <SlidersHorizontalIcon className="size-4" aria-hidden="true" />
+          Mirando
+        </div>
+        <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-3">
+          <FilterSelect
+            id="stats-period"
+            label="Período"
+            onChange={(value) => filters.set("period", value)}
+            options={[
+              { label: "Todos los tiempos", value: "all" },
+              { label: "Últimos 30 días", value: "30d" },
+              { label: "Este año", value: "year" },
+            ]}
+            value={filters.period}
+          />
+          <FilterSelect
+            id="stats-court"
+            label="Cancha"
+            onChange={(value) => filters.set("court", value)}
+            options={[
+              { label: "Todas las canchas", value: "all" },
+              ...dashboard.courts.map((court) => ({ label: court.name, value: court.id })),
+            ]}
+            value={filters.court}
+          />
+          <FilterSelect
+            id="stats-result"
+            label="Resultado"
+            onChange={(value) => filters.set("result", value)}
+            options={[
+              { label: "Todos", value: "all" },
+              { label: "Con ganador", value: "decided" },
+              { label: "Empates", value: "draws" },
+            ]}
+            value={filters.result}
+          />
+        </div>
         {filters.active ? (
-          <Button className="min-h-11" onClick={filters.reset} variant="ghost">
+          <Button className="min-h-11 shrink-0" onClick={filters.reset} variant="ghost">
             Limpiar
           </Button>
         ) : null}
@@ -472,8 +507,10 @@ function FilterSelect({
   value: string;
 }) {
   return (
-    <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+    <Field className="min-w-0">
+      <FieldLabel className="sr-only" htmlFor={id}>
+        {label}
+      </FieldLabel>
       <Select
         items={options}
         onValueChange={(nextValue) => {
@@ -481,8 +518,13 @@ function FilterSelect({
         }}
         value={value}
       >
-        <SelectTrigger className="min-h-11 w-full" id={id}>
-          <SelectValue>{options.find((option) => option.value === value)?.label}</SelectValue>
+        <SelectTrigger className="min-h-11 w-full bg-background/35" id={id}>
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {label}
+          </span>
+          <SelectValue className="min-w-0 font-medium">
+            {options.find((option) => option.value === value)?.label}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
@@ -647,18 +689,27 @@ function ContributionRace({
 }) {
   const maximum = players[0]?.contributions || 1;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {players.map((player, index) => (
         <Link
-          className="group flex min-h-11 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="group/racer flex min-h-14 items-center gap-3 rounded-md px-2 outline-none transition-colors duration-200 ease-out hover:bg-muted/55 focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
           href={playerHref(detailBase, player.playerId, query)}
           key={player.playerId}
         >
-          <span className="w-5 text-center text-xs font-semibold tabular-nums text-muted-foreground">
+          <span
+            className={cn(
+              "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-200 motion-reduce:transition-none",
+              index === 0
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground group-hover/racer:text-foreground",
+            )}
+          >
             {String(index + 1).padStart(2, "0")}
           </span>
-          <Avatar className="size-8">
-            <AvatarFallback>{initials(player.displayName)}</AvatarFallback>
+          <Avatar className="size-8 transition-transform duration-200 ease-out group-hover/racer:scale-105 motion-reduce:transition-none">
+            <AvatarFallback className={index === 0 ? "bg-primary/15 text-primary" : ""}>
+              {initials(player.displayName)}
+            </AvatarFallback>
           </Avatar>
           <span className="min-w-0 flex-1">
             <span className="mb-1.5 flex items-center justify-between gap-3">
@@ -667,8 +718,11 @@ function ContributionRace({
             </span>
             <span className="block h-1.5 overflow-hidden rounded-full bg-muted">
               <span
-                className="block h-full rounded-full bg-primary transition-[width] duration-200 motion-reduce:transition-none"
-                style={{ width: `${Math.max((player.contributions / maximum) * 100, 4)}%` }}
+                className="stats-race-bar block h-full rounded-full bg-primary"
+                style={{
+                  animationDelay: `${index * 70}ms`,
+                  width: `${Math.max((player.contributions / maximum) * 100, 4)}%`,
+                }}
               />
             </span>
           </span>
@@ -684,7 +738,7 @@ function SpotlightMetric({ label, value }: { label: string; value: number | stri
       <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
-      <dd className="mt-1 text-xl font-bold tabular-nums">{value}</dd>
+      <dd className="mt-0.5 text-xl font-bold tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -703,19 +757,35 @@ function HallLeader({
   value: number;
 }) {
   return (
-    <div className="flex items-center gap-3 md:items-start">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-primary [&_svg]:size-4">
+    <div className="group/leader flex min-h-[3.65rem] items-center gap-3 py-2">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-primary transition-colors duration-200 ease-out group-hover/leader:bg-primary/15 motion-reduce:transition-none [&_svg]:size-4">
         {icon}
       </span>
-      <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="mt-1 truncate text-base font-semibold">
-          {player?.displayName ?? "Sin datos"}
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          {label}
         </p>
-        <p className="text-sm tabular-nums text-muted-foreground">
-          <span className="font-semibold text-foreground">{value}</span> {suffix}
-        </p>
+        <p className="truncate text-sm font-semibold">{player?.displayName ?? "Sin datos"}</p>
       </div>
+      <p className="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+        <span className="block text-base font-bold text-foreground">{value}</span>
+        {suffix}
+      </p>
+    </div>
+  );
+}
+
+function PitchMarkings() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-y-0 right-0 z-0 hidden w-[59%] overflow-hidden opacity-[0.045] lg:block"
+    >
+      <span className="absolute inset-5 rounded-md border border-foreground" />
+      <span className="absolute inset-y-5 left-1/2 w-px bg-foreground" />
+      <span className="absolute left-1/2 top-1/2 size-24 -translate-x-1/2 -translate-y-1/2 rounded-full border border-foreground" />
+      <span className="absolute left-5 top-1/2 h-24 w-12 -translate-y-1/2 border border-l-0 border-foreground" />
+      <span className="absolute right-5 top-1/2 h-24 w-12 -translate-y-1/2 border border-r-0 border-foreground" />
     </div>
   );
 }
