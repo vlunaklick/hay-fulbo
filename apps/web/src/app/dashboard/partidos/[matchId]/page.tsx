@@ -151,7 +151,7 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
   const court = directory.courts.find((item) => item.id === detail.courtId);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <header className="flex items-center justify-between gap-4">
         <Button
           variant="ghost"
@@ -265,7 +265,7 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
         <MatchParityCard matchId={detail.id} />
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_17rem]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_15rem]">
         <Tabs defaultValue="sheet">
           <TabsList className="grid h-10 w-full grid-cols-5 lg:grid-cols-4">
             <TabsTrigger value="sheet">Ficha</TabsTrigger>
@@ -324,7 +324,7 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
           </TabsContent>
         </Tabs>
 
-        <aside className="hidden flex-col gap-4 lg:flex">
+        <aside className="hidden flex-col gap-3 lg:flex">
           <ClosurePanel
             detail={detail}
             issues={issues}
