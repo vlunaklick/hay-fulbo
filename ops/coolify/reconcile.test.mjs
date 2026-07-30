@@ -91,7 +91,6 @@ function createFakeCoolify() {
         status: "running:healthy",
       };
       delete app.autogenerate_domain;
-      delete app.is_auto_deploy_enabled;
       delete app.is_force_https_enabled;
       state.apps.push(app);
       return json(app, 201);
@@ -190,6 +189,10 @@ test("apply is idempotent and never sends Crecenly in a mutation", async () => {
   assert.equal(fake.state.projects.filter(({ name }) => name === "hay-fulbo").length, 1);
   assert.equal(fake.state.databases.filter(({ name }) => name === "hay-fulbo-postgres").length, 1);
   assert.equal(fake.state.apps.filter(({ name }) => name === "hay-fulbo-web").length, 1);
+  assert.equal(
+    fake.state.apps.find(({ name }) => name === "hay-fulbo-web").is_auto_deploy_enabled,
+    true,
+  );
   assert.ok(
     fake.state.mutations
       .filter(({ method, path }) => method === "PATCH" && path === "/applications/hay-app")
@@ -202,4 +205,10 @@ test("apply is idempotent and never sends Crecenly in a mutation", async () => {
   assert.ok(env.RUNTIME_DATABASE_PASSWORD);
   assert.match(env.DATABASE_URL, /^postgresql:\/\/hay_fulbo_runtime:/);
   assert.equal(env.BETTER_AUTH_URL, "https://hay-fulbo.example.test");
+
+  const application = fake.state.apps.find(({ name }) => name === "hay-fulbo-web");
+  application.is_auto_deploy_enabled = false;
+  const repaired = await reconcileCoolify(options);
+  assert.ok(repaired.actions.includes("update application hay-fulbo-web"));
+  assert.equal(application.is_auto_deploy_enabled, true);
 });

@@ -55,10 +55,12 @@ bun run coolify:apply
 ```
 
 The application is pinned to `origin/main`, exposes port `3001`, forces HTTPS,
-uses `/api/health`, disables automatic deployment, and requests a generated
-Coolify domain. PostgreSQL uses an elevated migrator role only during startup;
-the runtime `DATABASE_URL` is built with `URL` for the restricted
-`hay_fulbo_runtime` role. Seven local backups are retained and S3 is disabled.
+uses `/api/health`, enables automatic deployment, and requests a generated
+Coolify domain. Public repositories also require an active GitHub `push` webhook
+targeting Coolify's manual GitHub webhook endpoint. PostgreSQL uses an elevated
+migrator role only during startup; the runtime `DATABASE_URL` is built with
+`URL` for the restricted `hay_fulbo_runtime` role. Seven local backups are
+retained and S3 is disabled.
 
 Trigger one deployment and wait for a terminal Coolify status:
 
