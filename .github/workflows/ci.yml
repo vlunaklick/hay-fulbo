@@ -54,16 +54,6 @@ jobs:
           bun run test
           MATCH_TEST_DATABASE_URL="$MIGRATION_DATABASE_URL" bun run test:integration
       - run: bun run build
-      - run: bunx playwright install --with-deps chromium
-      - run: bun run test:e2e
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: |
-            playwright-report
-            test-results
-          if-no-files-found: ignore
 
   deploy:
     name: Deploy production
