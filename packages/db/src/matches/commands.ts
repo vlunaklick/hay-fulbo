@@ -5,6 +5,7 @@ import {
   match,
   matchAppearance,
   matchOrganizerTransfer,
+  matchRsvp,
   matchTeam,
   matchTransition,
   member,
@@ -163,6 +164,7 @@ async function createMatch(
   if (command.courtCostMinor !== undefined && command.courtCostMinor !== null) {
     assertNonnegativeMoney(command.courtCostMinor);
   }
+  if (command.capacity !== undefined) assertCapacity(command.capacity);
   if (command.courtId) {
     await requireActiveCourt(transaction, scope.groupId, command.courtId);
   }
@@ -175,6 +177,7 @@ async function createMatch(
       scheduledAt: command.scheduledAt,
       courtId: command.courtId ?? null,
       courtCostMinor: command.courtCostMinor ?? null,
+      capacity: command.capacity ?? 10,
     })
     .returning({ id: match.id, lockVersion: match.lockVersion });
   if (!created) {
@@ -358,6 +361,7 @@ async function updateMatch(
   if (command.courtCostMinor !== undefined && command.courtCostMinor !== null) {
     assertNonnegativeMoney(command.courtCostMinor);
   }
+  if (command.capacity !== undefined) assertCapacity(command.capacity);
   if (command.courtId) {
     await requireActiveCourt(transaction, scope.groupId, command.courtId);
   }
@@ -367,6 +371,7 @@ async function updateMatch(
       ...(command.scheduledAt !== undefined ? { scheduledAt: command.scheduledAt } : {}),
       ...(command.courtId !== undefined ? { courtId: command.courtId } : {}),
       ...(command.courtCostMinor !== undefined ? { courtCostMinor: command.courtCostMinor } : {}),
+      ...(command.capacity !== undefined ? { capacity: command.capacity } : {}),
     })
     .where(and(eq(match.groupId, scope.groupId), eq(match.id, locked.id)));
   if (command.courtCostMinor !== undefined) {
@@ -444,6 +449,22 @@ async function addParticipant(
     teamId: command.teamId,
     joinedOrder: (order?.highest ?? 0) + 1,
   });
+  await transaction
+    .insert(matchRsvp)
+    .values({
+      groupId: scope.groupId,
+      matchId: locked.id,
+      playerId: command.playerId,
+      response: "yes",
+    })
+    .onConflictDoUpdate({
+      target: [matchRsvp.groupId, matchRsvp.matchId, matchRsvp.playerId],
+      set: {
+        response: "yes",
+        respondedAt: sql`case when ${matchRsvp.response} = 'yes' then ${matchRsvp.respondedAt} else now() end`,
+        updatedAt: new Date(),
+      },
+    });
   await recalculateContributions(transaction, scope.groupId, locked.id, locked.courtCostMinor);
   return bumpVersion(transaction, scope.groupId, locked);
 }
@@ -500,6 +521,15 @@ async function removeParticipant(
         eq(matchAppearance.groupId, scope.groupId),
         eq(matchAppearance.matchId, locked.id),
         eq(matchAppearance.playerId, command.playerId),
+      ),
+    );
+  await transaction
+    .delete(matchRsvp)
+    .where(
+      and(
+        eq(matchRsvp.groupId, scope.groupId),
+        eq(matchRsvp.matchId, locked.id),
+        eq(matchRsvp.playerId, command.playerId),
       ),
     );
   await recalculateContributions(transaction, scope.groupId, locked.id, locked.courtCostMinor);
@@ -1033,6 +1063,12 @@ function assertReason(value: string) {
 
 function assertDate(value: Date) {
   if (Number.isNaN(value.getTime())) throw new MatchCommandError("invalid_input");
+}
+
+function assertCapacity(value: number) {
+  if (!Number.isInteger(value) || value < 2 || value > 40) {
+    throw new MatchCommandError("invalid_input");
+  }
 }
 
 function assertSportingTotal(value: number) {

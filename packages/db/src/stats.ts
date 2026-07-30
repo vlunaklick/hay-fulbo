@@ -1,4 +1,5 @@
 export { derivePlayerStats, deriveStatsDashboard, deriveStatsMatch } from "./stats/derive";
+export { deriveMatchParity, deriveSocieties } from "./stats/insights";
 export {
   createStatsQueries,
   StatsReadError,
@@ -7,6 +8,7 @@ export {
 } from "./stats/queries";
 export type {
   PlayerStats,
+  MatchParity,
   StatsAggregate,
   StatsDashboard,
   StatsFilters,
@@ -16,4 +18,5 @@ export type {
   StatsSource,
   StatsSourceMatch,
   StatsSourceTeam,
+  StatsSociety,
 } from "./stats/types";

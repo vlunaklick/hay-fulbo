@@ -31,6 +31,7 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 export const matchStatus = pgEnum("match_status", ["open", "closed", "cancelled"]);
 export const expectedAmountKind = pgEnum("expected_amount_kind", ["automatic", "fixed"]);
 export const sharedLinkAction = pgEnum("shared_link_action", ["created", "rotated", "revoked"]);
+export const rsvpResponse = pgEnum("rsvp_response", ["yes", "maybe", "no"]);
 
 export const player = pgTable(
   "player",
@@ -103,6 +104,7 @@ export const match = pgTable(
     courtId: uuid("court_id"),
     scheduledAt: instant("scheduled_at").notNull(),
     courtCostMinor: bigint("court_cost_minor", { mode: "bigint" }),
+    capacity: integer("capacity").default(10).notNull(),
     status: matchStatus("status").default("open").notNull(),
     lockVersion: integer("lock_version").default(0).notNull(),
     createdAt: instant("created_at").defaultNow().notNull(),
@@ -119,6 +121,7 @@ export const match = pgTable(
       "match_court_cost_minor_nonnegative",
       sql`${table.courtCostMinor} is null or ${table.courtCostMinor} >= 0`,
     ),
+    check("match_capacity_allowed", sql`${table.capacity} between 2 and 40`),
     check("match_lock_version_nonnegative", sql`${table.lockVersion} >= 0`),
     index("match_group_closed_scheduled_idx")
       .on(table.groupId, table.scheduledAt.desc())
@@ -224,6 +227,40 @@ export const matchAppearance = pgTable(
       table.matchId,
     ),
     index("match_appearance_group_match_team_idx").on(table.groupId, table.matchId, table.teamId),
+  ],
+);
+
+export const matchRsvp = pgTable(
+  "match_rsvp",
+  {
+    groupId: text("group_id").notNull(),
+    matchId: uuid("match_id").notNull(),
+    playerId: uuid("player_id").notNull(),
+    response: rsvpResponse("response").notNull(),
+    respondedAt: instant("responded_at").defaultNow().notNull(),
+    updatedAt: updatedInstant(),
+  },
+  (table) => [
+    primaryKey({
+      name: "match_rsvp_pk",
+      columns: [table.groupId, table.matchId, table.playerId],
+    }),
+    foreignKey({
+      name: "match_rsvp_group_match_fk",
+      columns: [table.groupId, table.matchId],
+      foreignColumns: [match.groupId, match.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "match_rsvp_group_player_fk",
+      columns: [table.groupId, table.playerId],
+      foreignColumns: [player.groupId, player.id],
+    }).onDelete("restrict"),
+    index("match_rsvp_group_match_response_idx").on(
+      table.groupId,
+      table.matchId,
+      table.response,
+      table.respondedAt,
+    ),
   ],
 );
 

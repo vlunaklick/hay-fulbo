@@ -37,6 +37,7 @@ const commandSchema = z.discriminatedUnion("type", [
     scheduledAt: z.coerce.date(),
     courtId: id.nullish(),
     courtCostMinor: optionalMinor.optional(),
+    capacity: z.number().int().min(2).max(40).optional(),
     teams: z.tuple([
       z.object({
         displayName: z.string().trim().min(1),
@@ -77,6 +78,7 @@ const commandSchema = z.discriminatedUnion("type", [
     scheduledAt: z.coerce.date().optional(),
     courtId: id.nullable().optional(),
     courtCostMinor: optionalMinor.optional(),
+    capacity: z.number().int().min(2).max(40).optional(),
   }),
   z.object({
     type: z.literal("updateTeam"),
@@ -186,6 +188,20 @@ export const matchesRouter = router({
   directory: protectedProcedure.query(async ({ ctx }) => {
     try {
       return await queries.directory(scopeFromSession(ctx.session));
+    } catch (error) {
+      throw asTrpcError(error);
+    }
+  }),
+
+  inviteLink: protectedProcedure.input(z.object({ matchId: id })).query(async ({ ctx, input }) => {
+    try {
+      const detail = await queries.detail(scopeFromSession(ctx.session), input.matchId);
+      return {
+        url: ctx.matchInviteAccess.createUrl({
+          groupId: detail.groupId,
+          matchId: detail.id,
+        }),
+      };
     } catch (error) {
       throw asTrpcError(error);
     }

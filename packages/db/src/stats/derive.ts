@@ -9,6 +9,7 @@ import type {
   StatsSourceMatch,
   StatsSourceTeam,
 } from "./types";
+import { deriveSocieties } from "./insights";
 
 type ScoredMatch = {
   match: StatsSourceMatch;
@@ -56,6 +57,10 @@ export function deriveStatsDashboard(
       goalsPerMatch: ratio(totalGoals, closedMatches.length),
     },
     ranking,
+    societies: deriveSocieties(
+      source,
+      closedMatches.map((scored) => scored.match),
+    ),
     history,
     upcoming: upcoming
       ? {

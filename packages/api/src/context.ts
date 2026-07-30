@@ -1,7 +1,7 @@
 import { auth } from "@hay-fulbo/auth";
 import type { NextRequest } from "next/server";
 
-import { groupAccess, groupJoinAccess, sharedAccess } from "./access-runtime";
+import { groupAccess, groupJoinAccess, matchInviteAccess, sharedAccess } from "./access-runtime";
 
 export async function createContext(req: NextRequest) {
   const session = await auth.api.getSession({
@@ -10,6 +10,7 @@ export async function createContext(req: NextRequest) {
   return {
     groupAccess,
     groupJoinAccess,
+    matchInviteAccess,
     requestHeaders: req.headers,
     session,
     sharedAccess,

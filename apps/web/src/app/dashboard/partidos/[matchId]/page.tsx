@@ -63,18 +63,23 @@ import {
   CircleAlertIcon,
   CircleIcon,
   LockKeyholeIcon,
+  Maximize2Icon,
   PlusIcon,
   ShieldCheckIcon,
   TrophyIcon,
   UsersRoundIcon,
   WalletCardsIcon,
 } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppContext } from "@/components/app-shell";
+import { MatchAttendancePanel } from "@/components/match-attendance-panel";
+import { MatchParityCard } from "@/components/match-parity-card";
+import { MatchResultCard } from "@/components/match-result-card";
 import { formatDate, formatMoney, toMinor } from "@/lib/format";
 import { queryClient, trpc } from "@/utils/trpc";
 
@@ -125,7 +130,7 @@ export default function MatchPage() {
 }
 
 function MatchControl({ detail, directory }: { detail: Detail; directory: Directory }) {
-  const { role, user } = useAppContext();
+  const { groupName, role, user } = useAppContext();
   const isOrganizer = detail.organizerUserId === user.id || role !== "member";
   const isOpen = detail.status === "open";
   const issues = closureIssues(detail);
@@ -157,21 +162,34 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
           <ArrowLeftIcon data-icon="inline-start" aria-hidden="true" />
           Partidos
         </Button>
-        <Badge
-          variant={
-            detail.status === "cancelled"
-              ? "destructive"
+        <div className="flex items-center gap-2">
+          {isOpen ? (
+            <Button
+              render={<Link href={`/dashboard/partidos/${detail.id}/cancha` as Route} />}
+              nativeButton={false}
+              size="sm"
+              variant="outline"
+            >
+              <Maximize2Icon data-icon="inline-start" aria-hidden="true" />
+              Modo cancha
+            </Button>
+          ) : null}
+          <Badge
+            variant={
+              detail.status === "cancelled"
+                ? "destructive"
+                : detail.status === "closed"
+                  ? "secondary"
+                  : "outline"
+            }
+          >
+            {detail.status === "open"
+              ? "Abierto"
               : detail.status === "closed"
-                ? "secondary"
-                : "outline"
-          }
-        >
-          {detail.status === "open"
-            ? "Abierto"
-            : detail.status === "closed"
-              ? "Cerrado"
-              : "Cancelado"}
-        </Badge>
+                ? "Cerrado"
+                : "Cancelado"}
+          </Badge>
+        </div>
       </header>
 
       <Card size="sm">
@@ -207,6 +225,45 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
           <span>{scoreFor(detail, detail.teams[1]?.id)}</span> {detail.teams[1]?.displayName}
         </div>
       </Card>
+
+      <MatchAttendancePanel
+        key={`attendance-${detail.lockVersion}`}
+        canEdit={isOrganizer && isOpen}
+        court={court ? { address: court.address, mapsUrl: court.mapsUrl, name: court.name } : null}
+        currency="ARS"
+        detail={detail}
+        groupName={groupName}
+        onCapacityChange={(capacity) =>
+          run({
+            capacity,
+            expectedLockVersion: detail.lockVersion,
+            matchId: detail.id,
+            type: "updateMatch",
+          })
+        }
+        pending={execute.isPending}
+        timeZone="America/Argentina/Buenos_Aires"
+      />
+
+      {detail.status === "closed" && detail.teams.length >= 2 ? (
+        <MatchResultCard
+          dateLabel={formatDate(detail.scheduledAt)}
+          groupName={groupName}
+          left={{
+            goals: scoreFor(detail, detail.teams[0]?.id),
+            name: detail.teams[0]?.displayName ?? "Equipo 1",
+          }}
+          matchId={detail.id}
+          right={{
+            goals: scoreFor(detail, detail.teams[1]?.id),
+            name: detail.teams[1]?.displayName ?? "Equipo 2",
+          }}
+        />
+      ) : null}
+
+      {detail.status === "open" && detail.teams.length >= 2 ? (
+        <MatchParityCard matchId={detail.id} />
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_17rem]">
         <Tabs defaultValue="sheet">

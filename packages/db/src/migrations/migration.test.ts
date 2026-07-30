@@ -23,6 +23,7 @@ describe("database enforcement migration", () => {
       "match",
       "match_team",
       "match_appearance",
+      "match_rsvp",
       "match_transition",
       "match_organizer_transfer",
       "group_shared_link",

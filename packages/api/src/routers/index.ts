@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { GroupActor } from "../group-access";
 import { GroupAccessError } from "../group-access";
 import { GroupJoinError } from "../group-join-access";
+import { MatchInviteError } from "../match-invite-access";
 import { SharedAccessError } from "../shared-access";
 import { protectedProcedure, publicProcedure, router } from "../index";
 import { matchesRouter } from "./matches";
@@ -61,6 +62,20 @@ async function translateAccessError<T>(operation: () => Promise<T>) {
       throw new TRPCError({
         cause: error,
         code: error.code === "JOIN_LINK_NOT_ACTIVE" ? "NOT_FOUND" : "BAD_REQUEST",
+        message: error.message,
+      });
+    }
+    if (error instanceof MatchInviteError) {
+      throw new TRPCError({
+        cause: error,
+        code:
+          error.code === "MATCH_INVITE_NOT_FOUND"
+            ? "NOT_FOUND"
+            : error.code === "MATCH_NOT_OPEN"
+              ? "CONFLICT"
+              : error.code === "PLAYER_NOT_FOUND"
+                ? "BAD_REQUEST"
+                : "UNAUTHORIZED",
         message: error.message,
       });
     }
@@ -181,8 +196,30 @@ const groupRouter = router({
   }),
 });
 
+const matchInviteRouter = router({
+  preview: publicProcedure
+    .input(z.object({ token: z.string().min(1).max(512) }))
+    .query(({ ctx, input }) =>
+      translateAccessError(() => ctx.matchInviteAccess.preview(input.token)),
+    ),
+  respond: publicProcedure
+    .input(
+      z.object({
+        playerId: z.uuid(),
+        response: z.enum(["yes", "maybe", "no"]),
+        token: z.string().min(1).max(512),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      translateAccessError(() =>
+        ctx.matchInviteAccess.respond(input.token, input.playerId, input.response),
+      ),
+    ),
+});
+
 export const appRouter = router({
   group: groupRouter,
+  matchInvite: matchInviteRouter,
   matches: matchesRouter,
   stats: statsRouter,
   healthCheck: publicProcedure.query(() => {

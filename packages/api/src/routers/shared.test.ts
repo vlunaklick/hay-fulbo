@@ -15,6 +15,7 @@ const dashboard: StatsDashboard = {
   filters: { result: "draws" },
   summary: { matchesPlayed: 0, totalGoals: 0, goalsPerMatch: 0 },
   ranking: [],
+  societies: [],
   history: [],
   upcoming: null,
   finances: null,

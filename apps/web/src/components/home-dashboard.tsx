@@ -26,9 +26,11 @@ import {
   BanknoteIcon,
   CalendarDaysIcon,
   CircleAlertIcon,
+  HandshakeIcon,
   PlusIcon,
   TrophyIcon,
 } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 
 import { useAppContext } from "@/components/app-shell";
@@ -275,6 +277,38 @@ export function HomeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-primary/20">
+        <CardHeader>
+          <div className="flex items-center gap-2 text-primary">
+            <HandshakeIcon className="size-4" aria-hidden="true" />
+            <span className="text-xs font-bold uppercase tracking-[0.14em]">Nueva lectura</span>
+          </div>
+          <CardTitle>Sociedades del grupo</CardTitle>
+          <CardDescription>
+            Descubrí qué duplas suman más puntos cuando juegan juntas.
+          </CardDescription>
+          <CardAction>
+            <Button
+              render={<Link href={"/dashboard/estadisticas/sociedades" as Route} />}
+              nativeButton={false}
+              size="sm"
+              variant="outline"
+            >
+              Ver sociedades
+              <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
+            </Button>
+          </CardAction>
+        </CardHeader>
+        {dashboard.societies[0] ? (
+          <CardContent className="flex items-center justify-between gap-4">
+            <p className="truncate font-semibold">
+              {dashboard.societies[0].playerNames.join(" + ")}
+            </p>
+            <Badge variant="secondary">{dashboard.societies[0].points} pts.</Badge>
+          </CardContent>
+        ) : null}
+      </Card>
     </div>
   );
 }

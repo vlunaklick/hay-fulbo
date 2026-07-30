@@ -105,6 +105,7 @@ export type StatsDashboard = {
     goalsPerMatch: number;
   };
   ranking: StatsAggregate[];
+  societies: StatsSociety[];
   history: StatsMatchListItem[];
   upcoming: (StatsMatchListItem & { courtCostMinor: string | null }) | null;
   finances: {
@@ -123,6 +124,43 @@ export type StatsDashboard = {
       debtMinor: string;
     }[];
   } | null;
+};
+
+export type StatsSociety = {
+  playerIds: readonly [string, string];
+  playerNames: readonly [string, string];
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  points: number;
+  winPercentage: number;
+  goalDifference: number;
+  contributions: number;
+};
+
+export type MatchParity = {
+  matchId: string;
+  confidence: "low" | "medium" | "high";
+  sample: {
+    averageMatchesPerPlayer: number;
+    closedMatches: number;
+  };
+  teams: readonly [
+    {
+      id: string;
+      displayName: string;
+      probability: number;
+      rating: number;
+    },
+    {
+      id: string;
+      displayName: string;
+      probability: number;
+      rating: number;
+    },
+  ];
+  drawProbability: number;
 };
 
 export type PlayerStats = {

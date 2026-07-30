@@ -105,6 +105,16 @@ export const statsRouter = router({
         throw asStatsTrpcError(error);
       }
     }),
+
+  parity: protectedProcedure
+    .input(z.object({ matchId: statsIdSchema }))
+    .query(async ({ ctx, input }) => {
+      try {
+        return await queries.parity(scopeFromSession(ctx.session), input.matchId);
+      } catch (error) {
+        throw asStatsTrpcError(error);
+      }
+    }),
 });
 
 function scopeFromSession(session: {

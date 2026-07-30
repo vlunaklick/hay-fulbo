@@ -50,6 +50,7 @@ export default function NewMatchPage() {
   const [scheduledAt, setScheduledAt] = useState(defaultDateTime);
   const [courtId, setCourtId] = useState<string | null>(null);
   const [cost, setCost] = useState("");
+  const [capacity, setCapacity] = useState("10");
   const [teamOne, setTeamOne] = useState("Oscuros");
   const [teamTwo, setTeamTwo] = useState("Claros");
   const [error, setError] = useState<string | null>(null);
@@ -88,12 +89,17 @@ export default function NewMatchPage() {
       return setError("Completá la fecha y los dos equipos.");
     }
     if (cost.trim() && courtCostMinor === null) return setError("Ingresá un precio válido.");
+    const parsedCapacity = Number(capacity);
+    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 2 || parsedCapacity > 40) {
+      return setError("Los cupos deben ser un número entre 2 y 40.");
+    }
     setError(null);
     create.mutate({
       type: "createMatch",
       scheduledAt: new Date(scheduledAt),
       courtId,
       courtCostMinor,
+      capacity: parsedCapacity,
       teams: [{ displayName: teamOne }, { displayName: teamTwo }],
     });
   }
@@ -176,6 +182,21 @@ export default function NewMatchPage() {
                     onChange={(event) => setCost(event.target.value)}
                     placeholder="Ej. 48000"
                   />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="capacity">Cupos</FieldLabel>
+                  <Input
+                    id="capacity"
+                    inputMode="numeric"
+                    max={40}
+                    min={2}
+                    onChange={(event) => setCapacity(event.target.value)}
+                    type="number"
+                    value={capacity}
+                  />
+                  <FieldDescription>
+                    Los confirmados que superen este número pasan a lista de espera.
+                  </FieldDescription>
                 </Field>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field>

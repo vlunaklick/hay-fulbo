@@ -15,7 +15,9 @@ import {
 } from "../schema";
 import type * as schema from "../schema";
 import { derivePlayerStats, deriveStatsDashboard, deriveStatsMatch } from "./derive";
+import { deriveMatchParity } from "./insights";
 import type {
+  MatchParity,
   PlayerStats,
   StatsDashboard,
   StatsFilters,
@@ -76,6 +78,15 @@ export function createStatsQueries(database: StatsDatabase) {
       return database.transaction(async (transaction) => {
         const source = await loadAuthorizedSource(transaction, access);
         const result = deriveStatsMatch(source, matchId);
+        if (!result) throw new StatsReadError("not_found");
+        return result;
+      });
+    },
+
+    async parity(access: StatsAccess, matchId: string): Promise<MatchParity> {
+      return database.transaction(async (transaction) => {
+        const source = await loadAuthorizedSource(transaction, access);
+        const result = deriveMatchParity(source, matchId);
         if (!result) throw new StatsReadError("not_found");
         return result;
       });

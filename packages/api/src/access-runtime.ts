@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { auth, invitationDeliveryMode } from "@hay-fulbo/auth";
 import { db } from "@hay-fulbo/db";
+import { calculateScore } from "@hay-fulbo/db/matches";
 import { createStatsQueries, StatsReadError } from "@hay-fulbo/db/stats";
 import {
   groupSharedLink,
@@ -9,6 +10,7 @@ import {
   groupJoinLink,
   match,
   matchAppearance,
+  matchRsvp,
   matchTeam,
   member,
   organization,
@@ -29,6 +31,12 @@ import {
   createGroupJoinAccess,
   type GroupJoinRepository,
 } from "./group-join-access";
+import {
+  createMatchInviteAccess,
+  MatchInviteError,
+  type MatchInvitationSource,
+  type MatchInviteRepository,
+} from "./match-invite-access";
 import {
   SharedAccessError,
   createSharedAccess,
@@ -368,6 +376,179 @@ export const groupJoinAccess = createGroupJoinAccess({
   appBaseUrl: env.BETTER_AUTH_URL,
   authorizeOwner: (actor, groupId) => groupAccess.authorize(actor, groupId, "owner"),
   repository: groupJoinRepository,
+  signingSecret: env.BETTER_AUTH_SECRET,
+});
+
+type RuntimeTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function loadMatchInvitation(
+  tx: RuntimeTransaction,
+  groupId: string,
+  matchId: string,
+): Promise<MatchInvitationSource | null> {
+  const [root] = await tx
+    .select({
+      capacity: match.capacity,
+      courtAddress: court.address,
+      courtCostMinor: match.courtCostMinor,
+      courtMapsUrl: court.mapsUrl,
+      courtName: court.name,
+      currency: organization.currencyCode,
+      groupName: organization.name,
+      id: match.id,
+      scheduledAt: match.scheduledAt,
+      status: match.status,
+      timeZone: organization.timeZone,
+    })
+    .from(match)
+    .innerJoin(organization, eq(organization.id, match.groupId))
+    .leftJoin(court, and(eq(court.groupId, match.groupId), eq(court.id, match.courtId)))
+    .where(and(eq(match.groupId, groupId), eq(match.id, matchId), isNull(organization.archivedAt)))
+    .limit(1);
+  if (!root) return null;
+
+  const [teams, appearances, players] = await Promise.all([
+    tx
+      .select({
+        displayName: matchTeam.displayName,
+        id: matchTeam.id,
+        slot: matchTeam.slot,
+        unattributedGoals: matchTeam.unattributedGoals,
+      })
+      .from(matchTeam)
+      .where(and(eq(matchTeam.groupId, groupId), eq(matchTeam.matchId, matchId)))
+      .orderBy(asc(matchTeam.slot)),
+    tx
+      .select({
+        assists: matchAppearance.assists,
+        goals: matchAppearance.goals,
+        ownGoals: matchAppearance.ownGoals,
+        teamId: matchAppearance.teamId,
+      })
+      .from(matchAppearance)
+      .where(and(eq(matchAppearance.groupId, groupId), eq(matchAppearance.matchId, matchId))),
+    tx
+      .select({
+        archivedAt: player.archivedAt,
+        displayName: player.displayName,
+        id: player.id,
+        normalizedName: player.normalizedName,
+        respondedAt: matchRsvp.respondedAt,
+        response: matchRsvp.response,
+      })
+      .from(player)
+      .leftJoin(
+        matchRsvp,
+        and(
+          eq(matchRsvp.groupId, player.groupId),
+          eq(matchRsvp.playerId, player.id),
+          eq(matchRsvp.matchId, matchId),
+        ),
+      )
+      .where(eq(player.groupId, groupId))
+      .orderBy(asc(player.normalizedName), asc(player.id)),
+  ]);
+  const score = calculateScore({
+    appearances,
+    teams: teams.map(({ id, unattributedGoals }) => ({ id, unattributedGoals })),
+  });
+
+  return {
+    group: {
+      currency: root.currency,
+      name: root.groupName,
+      timeZone: root.timeZone,
+    },
+    match: {
+      capacity: root.capacity,
+      court:
+        root.courtName && root.courtAddress && root.courtMapsUrl
+          ? {
+              address: root.courtAddress,
+              mapsUrl: root.courtMapsUrl,
+              name: root.courtName,
+            }
+          : null,
+      courtCostMinor: root.courtCostMinor,
+      id: root.id,
+      scheduledAt: root.scheduledAt,
+      status: root.status,
+      teams: teams.map((team) => ({
+        displayName: team.displayName,
+        goals: score.find((item) => item.teamId === team.id)?.goals ?? 0,
+      })),
+    },
+    players: players.map((item) => ({
+      archived: item.archivedAt !== null,
+      displayName: item.displayName,
+      id: item.id,
+      normalizedName: item.normalizedName,
+      respondedAt: item.respondedAt,
+      response: item.response,
+    })),
+  };
+}
+
+const matchInviteRepository: MatchInviteRepository = {
+  async read({ groupId, matchId }) {
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
+      return loadMatchInvitation(tx, groupId, matchId);
+    });
+  },
+
+  async respond({ groupId, matchId, playerId, response }) {
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
+      const [root] = await tx
+        .select({ status: match.status })
+        .from(match)
+        .where(and(eq(match.groupId, groupId), eq(match.id, matchId)))
+        .limit(1)
+        .for("update");
+      if (!root) return null;
+      if (root.status !== "open") {
+        throw new MatchInviteError("MATCH_NOT_OPEN", "La convocatoria ya está cerrada");
+      }
+      const [eligible] = await tx
+        .select({ id: player.id })
+        .from(player)
+        .where(and(eq(player.groupId, groupId), eq(player.id, playerId), isNull(player.archivedAt)))
+        .limit(1);
+      if (!eligible) {
+        throw new MatchInviteError("PLAYER_NOT_FOUND", "El jugador no está disponible");
+      }
+      const [current] = await tx
+        .select({
+          respondedAt: matchRsvp.respondedAt,
+          response: matchRsvp.response,
+        })
+        .from(matchRsvp)
+        .where(
+          and(
+            eq(matchRsvp.groupId, groupId),
+            eq(matchRsvp.matchId, matchId),
+            eq(matchRsvp.playerId, playerId),
+          ),
+        )
+        .limit(1);
+      const respondedAt =
+        current?.response === "yes" && response === "yes" ? current.respondedAt : new Date();
+      await tx
+        .insert(matchRsvp)
+        .values({ groupId, matchId, playerId, respondedAt, response })
+        .onConflictDoUpdate({
+          target: [matchRsvp.groupId, matchRsvp.matchId, matchRsvp.playerId],
+          set: { respondedAt, response, updatedAt: new Date() },
+        });
+      return loadMatchInvitation(tx, groupId, matchId);
+    });
+  },
+};
+
+export const matchInviteAccess = createMatchInviteAccess({
+  appBaseUrl: env.BETTER_AUTH_URL,
+  repository: matchInviteRepository,
   signingSecret: env.BETTER_AUTH_SECRET,
 });
 

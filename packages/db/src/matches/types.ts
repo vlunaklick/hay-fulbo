@@ -54,6 +54,7 @@ export type MatchCommand =
       scheduledAt: Date;
       courtId?: string | null;
       courtCostMinor?: bigint | null;
+      capacity?: number;
       teams: readonly [
         { displayName: string; color?: string | null },
         { displayName: string; color?: string | null },
@@ -81,6 +82,7 @@ export type MatchCommand =
       scheduledAt?: Date;
       courtId?: string | null;
       courtCostMinor?: bigint | null;
+      capacity?: number;
     }
   | {
       type: "updateTeam";
@@ -206,6 +208,7 @@ export type MatchCommandResultFor<TCommand extends MatchCommand> = TCommand exte
         : MatchMutationResult;
 
 export type ContributionStatus = "exempt" | "pending" | "partial" | "paid" | "overpaid";
+export type RsvpResponse = "yes" | "maybe" | "no";
 
 export type MatchDetail = {
   id: string;
@@ -214,9 +217,16 @@ export type MatchDetail = {
   courtId: string | null;
   scheduledAt: Date;
   courtCostMinor: bigint | null;
+  capacity: number;
   status: "open" | "closed" | "cancelled";
   lockVersion: number;
   score: readonly { teamId: string; goals: number }[];
+  rsvps: readonly {
+    playerId: string;
+    playerDisplayName: string;
+    response: RsvpResponse;
+    respondedAt: Date;
+  }[];
   teams: readonly {
     id: string;
     slot: number;
