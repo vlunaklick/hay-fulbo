@@ -263,7 +263,7 @@ export function AppShell({
 
         <div className="md:col-start-2">
           <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
-            <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8">
+            <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 md:px-6 xl:px-8">
               <GroupSwitcher activeGroup={group} groups={groups.data} role={context.role} />
               <div className="flex shrink-0 items-center gap-2">
                 <ModeToggle />
@@ -284,7 +284,7 @@ export function AppShell({
               </div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 md:px-8 md:py-8">
+          <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-28 md:px-6 md:py-6 xl:px-8">
             {children}
           </main>
         </div>
