@@ -218,8 +218,26 @@ export function AppShell({
               )}
             </Button>
           </div>
+          <div
+            className={cn(
+              "border-y py-3",
+              sidebarCollapsed ? "mt-3" : "mt-5 flex flex-col gap-1 px-1",
+            )}
+          >
+            {sidebarCollapsed ? null : (
+              <span className="px-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Grupo
+              </span>
+            )}
+            <GroupSwitcher
+              activeGroup={group}
+              compact={sidebarCollapsed}
+              groups={groups.data}
+              role={context.role}
+            />
+          </div>
           <nav
-            className={cn("flex flex-col gap-2", sidebarCollapsed ? "mt-5" : "mt-8")}
+            className={cn("mt-4 flex flex-col gap-2", sidebarCollapsed && "items-center")}
             aria-label="Principal"
           >
             {navigation.map((item) => (
@@ -245,46 +263,52 @@ export function AppShell({
               </Link>
             ))}
           </nav>
-          <div className="mt-auto">
-            <UserMenu
-              compact={sidebarCollapsed}
-              role={context.role}
-              side="right"
-              user={user}
-              onProfile={() => router.push("/dashboard/perfil")}
-              onSignOut={() =>
-                authClient.signOut({
-                  fetchOptions: { onSuccess: () => router.push("/login") },
-                })
-              }
-            />
+          <div
+            className={cn(
+              "mt-auto flex gap-2 border-t pt-3",
+              sidebarCollapsed ? "flex-col items-center" : "items-center",
+            )}
+          >
+            <ModeToggle />
+            <div className={sidebarCollapsed ? undefined : "min-w-0 flex-1"}>
+              <UserMenu
+                compact={sidebarCollapsed}
+                role={context.role}
+                side="right"
+                user={user}
+                onProfile={() => router.push("/dashboard/perfil")}
+                onSignOut={() =>
+                  authClient.signOut({
+                    fetchOptions: { onSuccess: () => router.push("/login") },
+                  })
+                }
+              />
+            </div>
           </div>
         </aside>
 
         <div className="md:col-start-2">
-          <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
-            <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 md:px-6 xl:px-8">
+          <header className="sticky top-0 z-10 border-b bg-background md:hidden">
+            <div className="flex h-14 items-center justify-between gap-3 px-4">
               <GroupSwitcher activeGroup={group} groups={groups.data} role={context.role} />
               <div className="flex shrink-0 items-center gap-2">
                 <ModeToggle />
-                <div className="md:hidden">
-                  <UserMenu
-                    compact
-                    role={context.role}
-                    side="bottom"
-                    user={user}
-                    onProfile={() => router.push("/dashboard/perfil")}
-                    onSignOut={() =>
-                      authClient.signOut({
-                        fetchOptions: { onSuccess: () => router.push("/login") },
-                      })
-                    }
-                  />
-                </div>
+                <UserMenu
+                  compact
+                  role={context.role}
+                  side="bottom"
+                  user={user}
+                  onProfile={() => router.push("/dashboard/perfil")}
+                  onSignOut={() =>
+                    authClient.signOut({
+                      fetchOptions: { onSuccess: () => router.push("/login") },
+                    })
+                  }
+                />
               </div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-28 md:px-6 md:py-6 xl:px-8">
+          <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-28 md:px-6 md:py-5 md:pb-8 xl:px-8">
             {children}
           </main>
         </div>
@@ -350,7 +374,7 @@ function UserMenu({
           <Button
             variant="ghost"
             size={compact ? "icon" : "default"}
-            className={cn("w-full", !compact && "h-auto justify-start px-2 py-2")}
+            className={compact ? "size-11" : "h-auto w-full justify-start px-2 py-2"}
           />
         }
       >

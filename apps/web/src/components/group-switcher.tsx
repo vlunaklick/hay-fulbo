@@ -35,10 +35,12 @@ type GroupSummary = {
 
 export function GroupSwitcher({
   activeGroup,
+  compact = false,
   groups,
   role,
 }: {
   activeGroup: GroupSummary;
+  compact?: boolean;
   groups: readonly GroupSummary[];
   role: "leader" | "member" | "owner";
 }) {
@@ -51,25 +53,41 @@ export function GroupSwitcher({
         router.refresh();
       },
       onError: (error) =>
-        toast.error("No pudimos cambiar de grupo", { description: error.message }),
+        toast.error("No pudimos cambiar de grupo", {
+          description: error.message,
+        }),
     }),
   );
 
   return (
     <>
-      <div className="min-w-0">
+      <div className={compact ? "flex justify-center" : "w-full min-w-0"}>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={`Cambiar grupo, actual: ${activeGroup.name}`}
+            title={compact ? `Grupo: ${activeGroup.name}` : undefined}
             render={
               <Button
                 variant="ghost"
-                className="h-auto min-w-0 justify-start gap-1 px-1 py-0.5 text-left"
+                size={compact ? "icon" : "default"}
+                className={
+                  compact
+                    ? undefined
+                    : "h-auto w-full min-w-0 justify-between gap-1 overflow-hidden text-left"
+                }
               />
             }
           >
-            <span className="truncate text-sm font-semibold">{activeGroup.name}</span>
-            <ChevronsUpDownIcon aria-hidden="true" />
+            {compact ? (
+              <span className="text-xs font-bold" aria-hidden="true">
+                {activeGroup.name.slice(0, 2).toLocaleUpperCase("es")}
+              </span>
+            ) : (
+              <>
+                <span className="min-w-0 truncate text-sm font-semibold">{activeGroup.name}</span>
+                <ChevronsUpDownIcon className="shrink-0" aria-hidden="true" />
+              </>
+            )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-56">
             <DropdownMenuGroup>

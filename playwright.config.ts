@@ -2,6 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 
 const port = 3013;
 const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${port}`;
+const databaseURL =
+  process.env.E2E_DATABASE_URL ??
+  process.env.DATABASE_URL ??
+  "postgresql://postgres:password@127.0.0.1:55432/hay-fulbo";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -22,6 +26,11 @@ export default defineConfig({
     ? undefined
     : {
         command: "bun run --cwd apps/web dev:e2e",
+        env: {
+          BETTER_AUTH_URL: baseURL,
+          CORS_ORIGIN: baseURL,
+          DATABASE_URL: databaseURL,
+        },
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
