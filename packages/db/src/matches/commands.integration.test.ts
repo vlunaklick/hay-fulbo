@@ -473,9 +473,16 @@ integration("MatchCommands public seam", () => {
         type: "cancelMatch",
         matchId: created.matchId,
         expectedLockVersion: version,
-        reason: "Sin autoridad",
+        reason: "El dueño conserva autoridad",
       }),
-    ).rejects.toMatchObject({ code: "forbidden" } satisfies Partial<MatchCommandError>);
+    ).resolves.toMatchObject({ lockVersion: version + 1 });
+    version += 1;
+    ({ lockVersion: version } = await commands.execute(organizer, {
+      type: "restoreMatch",
+      matchId: created.matchId,
+      expectedLockVersion: version,
+      reason: "La fecha sigue",
+    }));
     await expect(
       commands.execute(nextOrganizer, {
         type: "cancelMatch",

@@ -64,3 +64,27 @@ jobs:
             playwright-report
             test-results
           if-no-files-found: ignore
+
+  deploy:
+    name: Deploy production
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://hay-fulbo.vmoon.tech
+    env:
+      COOLIFY_API_URL: ${{ secrets.COOLIFY_API_URL }}
+      COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Deploy exact main revision
+        run: node ops/coolify/deploy.mjs
+      - name: Verify production
+        run: node ops/coolify/smoke.mjs
