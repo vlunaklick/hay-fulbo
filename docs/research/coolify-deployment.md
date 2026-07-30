@@ -62,17 +62,17 @@ custodiarla Coolify, no el repositorio.
 
 ### Aplicación
 
-| Campo | Valor |
-| --- | --- |
-| Fuente | repositorio GitHub `vlunaklick/hay-fulbo` |
-| Rama de producción | `main` |
-| Build pack | `Dockerfile` |
-| Base Directory | `/` |
-| Dockerfile Location | `/apps/web/Dockerfile` |
-| Port Exposes | `3001` |
-| Port Mappings | vacío |
-| Dominio | URL HTTPS final |
-| Auto deploy | habilitado para `main`, después del primer despliegue manual validado |
+| Campo               | Valor                                                                 |
+| ------------------- | --------------------------------------------------------------------- |
+| Fuente              | repositorio GitHub `vlunaklick/hay-fulbo`                             |
+| Rama de producción  | `main`                                                                |
+| Build pack          | `Dockerfile`                                                          |
+| Base Directory      | `/`                                                                   |
+| Dockerfile Location | `/apps/web/Dockerfile`                                                |
+| Port Exposes        | `3001`                                                                |
+| Port Mappings       | vacío                                                                 |
+| Dominio             | URL HTTPS final                                                       |
+| Auto deploy         | habilitado para `main`, después del primer despliegue manual validado |
 
 La raíz debe seguir siendo el contexto: el Dockerfile copia todo el monorepo y
 Bun resuelve workspaces. Coolify soporta base directory para monorepos, una
