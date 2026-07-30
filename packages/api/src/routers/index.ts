@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { GroupActor } from "../group-access";
 import { GroupAccessError } from "../group-access";
+import { GroupJoinError } from "../group-join-access";
 import { SharedAccessError } from "../shared-access";
 import { protectedProcedure, publicProcedure, router } from "../index";
 import { matchesRouter } from "./matches";
@@ -53,6 +54,13 @@ async function translateAccessError<T>(operation: () => Promise<T>) {
             : error.code === "SHARED_LINK_ALREADY_ACTIVE"
               ? "CONFLICT"
               : "UNAUTHORIZED",
+        message: error.message,
+      });
+    }
+    if (error instanceof GroupJoinError) {
+      throw new TRPCError({
+        cause: error,
+        code: error.code === "JOIN_LINK_NOT_ACTIVE" ? "NOT_FOUND" : "BAD_REQUEST",
         message: error.message,
       });
     }
@@ -134,6 +142,42 @@ const groupRouter = router({
       .mutation(({ ctx, input }) =>
         translateAccessError(() => ctx.sharedAccess.rotate(actorFromContext(ctx), input.groupId)),
       ),
+  }),
+  joinLink: router({
+    status: protectedProcedure
+      .input(z.object({ groupId: z.string().min(1) }))
+      .query(({ ctx, input }) =>
+        translateAccessError(() =>
+          ctx.groupJoinAccess.status(actorFromContext(ctx), input.groupId),
+        ),
+      ),
+    renew: protectedProcedure
+      .input(z.object({ groupId: z.string().min(1) }))
+      .mutation(({ ctx, input }) =>
+        translateAccessError(() => ctx.groupJoinAccess.renew(actorFromContext(ctx), input.groupId)),
+      ),
+    revoke: protectedProcedure
+      .input(z.object({ groupId: z.string().min(1) }))
+      .mutation(({ ctx, input }) =>
+        translateAccessError(() =>
+          ctx.groupJoinAccess.revoke(actorFromContext(ctx), input.groupId),
+        ),
+      ),
+    preview: publicProcedure
+      .input(z.object({ token: z.string().min(1).max(512) }))
+      .query(({ ctx, input }) =>
+        translateAccessError(() => ctx.groupJoinAccess.preview(input.token)),
+      ),
+    accept: protectedProcedure
+      .input(z.object({ token: z.string().min(1).max(512) }))
+      .mutation(async ({ ctx, input }) => {
+        const actor = actorFromContext(ctx);
+        const result = await translateAccessError(() =>
+          ctx.groupJoinAccess.accept(actor, input.token),
+        );
+        await translateAccessError(() => ctx.groupAccess.selectGroup(actor, result.group.id));
+        return result;
+      }),
   }),
 });
 

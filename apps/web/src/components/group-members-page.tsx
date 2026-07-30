@@ -20,6 +20,12 @@ import {
   DialogTitle,
 } from "@hay-fulbo/ui/components/dialog";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@hay-fulbo/ui/components/input-group";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,7 +34,16 @@ import {
 } from "@hay-fulbo/ui/components/select";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CircleAlertIcon, ShieldCheckIcon, Trash2Icon, UsersRoundIcon } from "lucide-react";
+import {
+  CircleAlertIcon,
+  CopyIcon,
+  LinkIcon,
+  RefreshCwIcon,
+  ShieldCheckIcon,
+  Trash2Icon,
+  UnlinkIcon,
+  UsersRoundIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -55,6 +70,10 @@ export function GroupMembersPage() {
   const { activeGroupId, role } = useAppContext();
   const directory = useQuery(trpc.matches.directory.queryOptions());
   const [removeTarget, setRemoveTarget] = useState<GroupMember | null>(null);
+  const joinLink = useQuery({
+    ...trpc.group.joinLink.status.queryOptions({ groupId: activeGroupId }),
+    enabled: role === "owner",
+  });
 
   const updateRole = useMutation(
     trpc.group.updateMemberRole.mutationOptions({
@@ -77,6 +96,40 @@ export function GroupMembersPage() {
         toast.error("No pudimos sacar a la cuenta", { description: error.message }),
     }),
   );
+  const renewJoinLink = useMutation(
+    trpc.group.joinLink.renew.mutationOptions({
+      onSuccess: async (result) => {
+        await queryClient.invalidateQueries({
+          queryKey: trpc.group.joinLink.status.queryKey({ groupId: activeGroupId }),
+        });
+        await navigator.clipboard.writeText(result.url).catch(() => undefined);
+        toast.success("Link creado y copiado");
+      },
+      onError: (error) => toast.error("No pudimos crear el link", { description: error.message }),
+    }),
+  );
+  const revokeJoinLink = useMutation(
+    trpc.group.joinLink.revoke.mutationOptions({
+      onSuccess: async () => {
+        toast.success("Link desactivado");
+        await queryClient.invalidateQueries({
+          queryKey: trpc.group.joinLink.status.queryKey({ groupId: activeGroupId }),
+        });
+      },
+      onError: (error) =>
+        toast.error("No pudimos desactivar el link", { description: error.message }),
+    }),
+  );
+
+  async function copyJoinLink() {
+    if (!joinLink.data?.active) return;
+    try {
+      await navigator.clipboard.writeText(joinLink.data.url);
+      toast.success("Link copiado");
+    } catch {
+      toast.error("No pudimos copiarlo");
+    }
+  }
 
   if (role !== "owner") {
     return (
@@ -93,13 +146,86 @@ export function GroupMembersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="space-y-1">
+      <header className="flex flex-col gap-1">
         <p className="text-sm font-semibold text-primary">Tu grupo</p>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Personas y permisos</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           Designá líderes para que puedan editar partidos, jugadores y canchas.
         </p>
       </header>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <LinkIcon aria-hidden="true" />
+            <CardTitle>Link para sumarse</CardTitle>
+            {joinLink.data?.active ? <Badge variant="secondary">Activo</Badge> : null}
+          </div>
+          <CardDescription>
+            Cualquiera con este link puede crear una cuenta o ingresar y sumarse como miembro.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {joinLink.isPending ? (
+            <Skeleton className="h-11 w-full" />
+          ) : joinLink.isError ? (
+            <Alert variant="destructive">
+              <CircleAlertIcon aria-hidden="true" />
+              <AlertTitle>No pudimos cargar el link</AlertTitle>
+              <AlertDescription>{joinLink.error.message}</AlertDescription>
+            </Alert>
+          ) : joinLink.data.active ? (
+            <>
+              <InputGroup>
+                <InputGroupInput
+                  aria-label="Link para sumarse al grupo"
+                  readOnly
+                  value={joinLink.data.url}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton onClick={copyJoinLink} size="icon-sm" aria-label="Copiar link">
+                    <CopyIcon aria-hidden="true" />
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={renewJoinLink.isPending || revokeJoinLink.isPending}
+                  onClick={() => renewJoinLink.mutate({ groupId: activeGroupId })}
+                  variant="outline"
+                >
+                  <RefreshCwIcon data-icon="inline-start" aria-hidden="true" />
+                  {renewJoinLink.isPending ? "Renovando…" : "Renovar link"}
+                </Button>
+                <Button
+                  disabled={renewJoinLink.isPending || revokeJoinLink.isPending}
+                  onClick={() => revokeJoinLink.mutate({ groupId: activeGroupId })}
+                  variant="ghost"
+                >
+                  <UnlinkIcon data-icon="inline-start" aria-hidden="true" />
+                  {revokeJoinLink.isPending ? "Desactivando…" : "Desactivar"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Renovarlo invalida inmediatamente el link anterior.
+              </p>
+            </>
+          ) : (
+            <div className="flex flex-col items-start gap-2">
+              <Button
+                disabled={renewJoinLink.isPending}
+                onClick={() => renewJoinLink.mutate({ groupId: activeGroupId })}
+              >
+                <LinkIcon data-icon="inline-start" aria-hidden="true" />
+                {renewJoinLink.isPending ? "Creando…" : "Crear link"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                El link se copia automáticamente cuando lo creás.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {directory.isPending ? (
         <div className="grid gap-3 md:grid-cols-2">

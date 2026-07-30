@@ -50,7 +50,8 @@ export default function LoginPage() {
     setSubmitting(true);
     const requestedReturn = new URLSearchParams(window.location.search).get("returnTo");
     const returnTo =
-      requestedReturn && /^\/invitaciones\/[A-Za-z0-9_-]+$/.test(requestedReturn)
+      requestedReturn &&
+      /^\/(?:invitaciones\/[A-Za-z0-9_-]+|sumarse\/[A-Za-z0-9_.-]+)$/.test(requestedReturn)
         ? requestedReturn
         : "/dashboard";
     const callbacks = {
@@ -58,8 +59,10 @@ export default function LoginPage() {
         toast.success(mode === "signin" ? "Sesión iniciada" : "Cuenta creada");
         if (returnTo === "/dashboard") {
           router.push("/dashboard");
-        } else {
+        } else if (returnTo.startsWith("/invitaciones/")) {
           router.push(returnTo as `/invitaciones/${string}`);
+        } else {
+          router.push(returnTo as Parameters<typeof router.push>[0]);
         }
         router.refresh();
       },

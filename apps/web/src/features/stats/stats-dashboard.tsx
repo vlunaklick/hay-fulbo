@@ -1,7 +1,6 @@
 "use client";
 
-import type { StatsDashboard, StatsFilters } from "@hay-fulbo/db/stats";
-import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
+import type { StatsAggregate, StatsDashboard, StatsFilters } from "@hay-fulbo/db/stats";
 import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button, buttonVariants } from "@hay-fulbo/ui/components/button";
@@ -41,20 +40,21 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRightIcon,
-  BanknoteIcon,
   CalendarDaysIcon,
-  CheckCircle2Icon,
   Clock3Icon,
+  CrosshairIcon,
+  FlameIcon,
   LockKeyholeIcon,
-  MapPinIcon,
+  MedalIcon,
+  SparklesIcon,
   TrophyIcon,
-  UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
+import { initials } from "@/lib/initials";
 import { trpc } from "@/utils/trpc";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 
@@ -159,6 +159,10 @@ function StatsDashboardContent({
   mode: DashboardMode;
 }) {
   const detailBase = mode === "shared" ? "/compartido" : "/dashboard/estadisticas";
+  const figure = dashboard.ranking[0] ?? null;
+  const scorer = leaderBy(dashboard.ranking, (row) => row.goals);
+  const assister = leaderBy(dashboard.ranking, (row) => row.assists);
+  const winner = leaderBy(dashboard.ranking, (row) => row.winPercentage);
   return (
     <main
       className={cn(
@@ -166,30 +170,149 @@ function StatsDashboardContent({
         mode === "shared" ? "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12" : "",
       )}
     >
-      <header className="mb-8 space-y-3">
+      <header className="mb-8 flex flex-col gap-3">
         <Badge variant="outline">
           <LockKeyholeIcon data-icon="inline-start" />
           {mode === "shared" ? "Enlace privado · solo lectura" : "Tu grupo"}
         </Badge>
         <div>
-          <p className="mb-1 text-sm text-muted-foreground">El vestuario</p>
+          <p className="mb-1 text-sm font-medium text-primary">Estadísticas</p>
           <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            {dashboard.group.name}
+            Los números de {dashboard.group.name}
           </h1>
         </div>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          Próxima fecha, caja y números del grupo. Las estadísticas deportivas cuentan solamente
-          partidos cerrados.
+          Rendimiento, goles y protagonistas. Solo cuentan los partidos cerrados.
         </p>
       </header>
 
-      <section aria-label="Próxima fecha y caja" className="grid gap-4 lg:grid-cols-2">
-        <UpcomingCard dashboard={dashboard} detailBase={detailBase} />
-        <FinancesCard dashboard={dashboard} />
+      <StatsFiltersBar dashboard={dashboard} filters={filters} />
+
+      <section aria-labelledby="spotlight-title" className="mt-8">
+        {figure ? (
+          <Card>
+            <CardHeader className="border-b">
+              <div className="flex items-center gap-2 text-primary">
+                <SparklesIcon aria-hidden="true" />
+                <span className="text-xs font-semibold uppercase tracking-wider">
+                  El vestuario habla
+                </span>
+              </div>
+              <CardTitle className="text-xl" id="spotlight-title">
+                La carrera del grupo
+              </CardTitle>
+              <CardDescription>
+                El ranking combina goles y asistencias del período elegido.
+              </CardDescription>
+              <CardAction>
+                <Badge variant="secondary">{dashboard.summary.matchesPlayed} PJ cerrados</Badge>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="flex flex-col justify-between gap-8">
+                <div className="flex items-center gap-4">
+                  <Avatar className="size-16">
+                    <AvatarFallback className="bg-primary text-lg font-bold text-primary-foreground">
+                      {initials(figure.displayName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <Badge className="mb-2">Figura del grupo</Badge>
+                    <h2 className="truncate text-2xl font-bold tracking-tight">
+                      {figure.displayName}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      {figure.contributions} participaciones de gol
+                    </p>
+                  </div>
+                </div>
+
+                <dl className="grid grid-cols-3 gap-3 border-y py-4">
+                  <SpotlightMetric label="Goles" value={figure.goals} />
+                  <SpotlightMetric label="Asist." value={figure.assists} />
+                  <SpotlightMetric label="Prom." value={formatRate(figure.contributionsPerMatch)} />
+                </dl>
+
+                <Link
+                  className={buttonVariants({
+                    variant: "outline",
+                    className: "w-full sm:w-fit",
+                  })}
+                  href={playerHref(detailBase, figure.playerId, filters.query)}
+                >
+                  Ver ficha de {figure.displayName}
+                  <ArrowRightIcon data-icon="inline-end" />
+                </Link>
+              </div>
+
+              <div className="border-t pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+                <div className="mb-5 flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Carrera G+A</p>
+                    <p className="text-xs text-muted-foreground">Los cinco más determinantes</p>
+                  </div>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {dashboard.summary.totalGoals} goles totales
+                  </span>
+                </div>
+                <ContributionRace
+                  detailBase={detailBase}
+                  players={dashboard.ranking.slice(0, 5)}
+                  query={filters.query}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <TrophyIcon />
+              </EmptyMedia>
+              <EmptyTitle>El salón todavía está vacío</EmptyTitle>
+              <EmptyDescription>
+                Cerrá el primer partido para descubrir al goleador y empezar el ranking.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
       </section>
 
-      <Separator className="my-8" />
-      <StatsFiltersBar dashboard={dashboard} filters={filters} />
+      {figure ? (
+        <section aria-labelledby="hall-title" className="mt-10">
+          <SectionHeading
+            eyebrow={`${dashboard.summary.totalGoals} goles en ${dashboard.summary.matchesPlayed} partidos`}
+            icon={<MedalIcon />}
+            id="hall-title"
+            title="Salón de la fama"
+          />
+          <Card className="mt-4">
+            <CardContent className="grid gap-6 md:grid-cols-3">
+              <HallLeader
+                icon={<CrosshairIcon />}
+                label="Goleador"
+                player={scorer}
+                suffix="goles"
+                value={scorer?.goals ?? 0}
+              />
+              <HallLeader
+                icon={<SparklesIcon />}
+                label="El que reparte"
+                player={assister}
+                suffix="asistencias"
+                value={assister?.assists ?? 0}
+              />
+              <HallLeader
+                icon={<FlameIcon />}
+                label="Más ganador"
+                player={winner}
+                suffix="% victorias"
+                value={winner ? Math.round(winner.winPercentage) : 0}
+              />
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
 
       <section aria-labelledby="ranking-title" className="mt-10">
         <SectionHeading
@@ -277,175 +400,6 @@ function StatsDashboardContent({
         </div>
       </section>
     </main>
-  );
-}
-
-function UpcomingCard({ dashboard, detailBase }: { dashboard: DashboardData; detailBase: string }) {
-  const match = dashboard.upcoming;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Próximo partido</CardTitle>
-        <CardDescription>La fecha que viene</CardDescription>
-        {match ? (
-          <CardAction>
-            <Badge variant="secondary">Abierto</Badge>
-          </CardAction>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        {match ? (
-          <div className="space-y-5">
-            <div className="flex items-start gap-3">
-              <CalendarDaysIcon className="mt-0.5 size-5 text-primary" />
-              <div>
-                <p className="text-base font-medium">
-                  {formatDate(match.scheduledAt, dashboard.group.timeZone)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {formatTime(match.scheduledAt, dashboard.group.timeZone)}
-                </p>
-              </div>
-            </div>
-            {match.court ? (
-              <div className="flex items-start gap-3">
-                <MapPinIcon className="mt-0.5 size-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">{match.court.name}</p>
-                  <p className="text-xs text-muted-foreground">{match.court.address}</p>
-                </div>
-              </div>
-            ) : null}
-            {match.courtCostMinor ? (
-              <div className="flex items-start gap-3">
-                <BanknoteIcon className="mt-0.5 size-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">
-                    {formatMoney(match.courtCostMinor, dashboard.group.currency)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Costo de la Cancha</p>
-                </div>
-              </div>
-            ) : null}
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-y py-4 text-center">
-              <TeamName name={match.teams[0]?.displayName ?? "Equipo 1"} />
-              <span className="text-xs text-muted-foreground">VS</span>
-              <TeamName name={match.teams[1]?.displayName ?? "Equipo 2"} />
-            </div>
-            <Link
-              className={buttonVariants({
-                variant: "outline",
-                className: "min-h-11 w-full",
-              })}
-              href={matchHref(detailBase, match.matchId)}
-            >
-              Ver partido
-              <ArrowRightIcon data-icon="inline-end" />
-            </Link>
-          </div>
-        ) : (
-          <Empty className="min-h-52 p-4">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <CalendarDaysIcon />
-              </EmptyMedia>
-              <EmptyTitle>No hay una próxima fecha</EmptyTitle>
-              <EmptyDescription>
-                Cuando el organizador cargue un partido abierto, va a aparecer acá.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function FinancesCard({ dashboard }: { dashboard: DashboardData }) {
-  const finances = dashboard.finances;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Caja de la fecha</CardTitle>
-        <CardDescription>
-          {finances?.courtCostMinor
-            ? `Cancha ${formatMoney(finances.courtCostMinor, dashboard.group.currency)}`
-            : "Esperado, pagado y pendiente"}
-        </CardDescription>
-        {finances ? (
-          <CardAction>
-            <Badge variant={finances.debtMinor === "0" ? "secondary" : "outline"}>
-              {finances.debtMinor === "0" ? (
-                <CheckCircle2Icon data-icon="inline-start" />
-              ) : (
-                <BanknoteIcon data-icon="inline-start" />
-              )}
-              {finances.debtMinor === "0" ? "Al día" : "Hay deuda"}
-            </Badge>
-          </CardAction>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        {finances ? (
-          <div className="space-y-5">
-            <dl className="grid grid-cols-3 gap-3">
-              <MoneyMetric
-                label="Esperado"
-                value={formatMoney(finances.expectedMinor, dashboard.group.currency)}
-              />
-              <MoneyMetric
-                label="Pagado"
-                value={formatMoney(finances.paidMinor, dashboard.group.currency)}
-              />
-              <MoneyMetric
-                label="Falta"
-                value={formatMoney(finances.debtMinor, dashboard.group.currency)}
-              />
-            </dl>
-            <Alert>
-              <UsersIcon />
-              <AlertTitle>
-                {finances.paidCount} de {finances.participantCount} al día
-              </AlertTitle>
-              <AlertDescription>
-                {finances.debtors.length === 0
-                  ? "La caja está completa."
-                  : `${finances.debtors.length} ${
-                      finances.debtors.length === 1 ? "persona debe" : "personas deben"
-                    }.`}
-              </AlertDescription>
-            </Alert>
-            {finances.debtors.length > 0 ? (
-              <div aria-label="Deudores" className="space-y-1">
-                {finances.debtors.map((debtor) => (
-                  <div
-                    className="flex min-h-11 items-center justify-between gap-3 border-b py-2 last:border-0"
-                    key={debtor.playerId}
-                  >
-                    <span className="truncate text-sm">{debtor.displayName}</span>
-                    <Badge variant="outline">
-                      {formatMoney(debtor.debtMinor, dashboard.group.currency)}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <Empty className="min-h-52 p-4">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <BanknoteIcon />
-              </EmptyMedia>
-              <EmptyTitle>Sin caja abierta</EmptyTitle>
-              <EmptyDescription>
-                La caja se arma con las participaciones del próximo partido.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -689,16 +643,97 @@ function SectionHeading({
   );
 }
 
-function TeamName({ name }: { name: string }) {
-  return <p className="truncate text-sm font-semibold">{name}</p>;
+function ContributionRace({
+  detailBase,
+  players,
+  query,
+}: {
+  detailBase: string;
+  players: StatsAggregate[];
+  query: string;
+}) {
+  const maximum = players[0]?.contributions || 1;
+  return (
+    <div className="flex flex-col gap-4">
+      {players.map((player, index) => (
+        <Link
+          className="group flex min-h-11 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          href={playerHref(detailBase, player.playerId, query)}
+          key={player.playerId}
+        >
+          <span className="w-5 text-center text-xs font-semibold tabular-nums text-muted-foreground">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <Avatar className="size-8">
+            <AvatarFallback>{initials(player.displayName)}</AvatarFallback>
+          </Avatar>
+          <span className="min-w-0 flex-1">
+            <span className="mb-1.5 flex items-center justify-between gap-3">
+              <span className="truncate text-sm font-medium">{player.displayName}</span>
+              <span className="text-xs font-semibold tabular-nums">{player.contributions} G+A</span>
+            </span>
+            <span className="block h-1.5 overflow-hidden rounded-full bg-muted">
+              <span
+                className="block h-full rounded-full bg-primary transition-[width] duration-200 motion-reduce:transition-none"
+                style={{ width: `${Math.max((player.contributions / maximum) * 100, 4)}%` }}
+              />
+            </span>
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
 }
 
-function MoneyMetric({ label, value }: { label: string; value: string }) {
+function SpotlightMetric({ label, value }: { label: string; value: number | string }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className="mt-1 truncate text-sm font-semibold tabular-nums sm:text-base">{value}</dd>
+      <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="mt-1 text-xl font-bold tabular-nums">{value}</dd>
     </div>
+  );
+}
+
+function HallLeader({
+  icon,
+  label,
+  player,
+  suffix,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  player: StatsAggregate | null;
+  suffix: string;
+  value: number;
+}) {
+  return (
+    <div className="flex items-center gap-3 md:items-start">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-primary [&_svg]:size-4">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="mt-1 truncate text-base font-semibold">
+          {player?.displayName ?? "Sin datos"}
+        </p>
+        <p className="text-sm tabular-nums text-muted-foreground">
+          <span className="font-semibold text-foreground">{value}</span> {suffix}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function leaderBy(
+  ranking: StatsAggregate[],
+  value: (player: StatsAggregate) => number,
+): StatsAggregate | null {
+  return ranking.reduce<StatsAggregate | null>(
+    (leader, player) => (!leader || value(player) > value(leader) ? player : leader),
+    null,
   );
 }
 
@@ -774,32 +809,8 @@ function formatDate(value: Date | string, timeZone: string) {
   }).format(new Date(value));
 }
 
-function formatTime(value: Date | string, timeZone: string) {
-  return new Intl.DateTimeFormat("es-AR", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatMoney(value: string, currency: string) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(Number(value) / 100);
-}
-
 function formatRate(value: number) {
   return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(value);
-}
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
 }
 
 function playerHref(base: string, playerId: string, query: string) {

@@ -1,9 +1,12 @@
+import { randomUUID } from "node:crypto";
+
 import { auth, invitationDeliveryMode } from "@hay-fulbo/auth";
 import { db } from "@hay-fulbo/db";
 import { createStatsQueries, StatsReadError } from "@hay-fulbo/db/stats";
 import {
   groupSharedLink,
   groupSharedLinkEvent,
+  groupJoinLink,
   match,
   matchAppearance,
   matchTeam,
@@ -13,7 +16,7 @@ import {
   court,
 } from "@hay-fulbo/db/schema/index";
 import { env } from "@hay-fulbo/env/server";
-import { and, asc, eq, inArray, max, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 
 import {
   GroupAccessError,
@@ -21,6 +24,11 @@ import {
   type GroupAccessRepository,
   type OrganizationGateway,
 } from "./group-access";
+import {
+  GroupJoinError,
+  createGroupJoinAccess,
+  type GroupJoinRepository,
+} from "./group-join-access";
 import {
   SharedAccessError,
   createSharedAccess,
@@ -221,6 +229,146 @@ export const groupAccess = createGroupAccess({
   organizations: organizationGateway,
   repository: groupAccessRepository,
   requireVerifiedEmailForGroupCreation: invitationDeliveryMode === "email",
+});
+
+const groupJoinRepository: GroupJoinRepository = {
+  async findLink(groupId) {
+    const [link] = await db
+      .select({
+        generation: groupJoinLink.generation,
+        revokedAt: groupJoinLink.revokedAt,
+      })
+      .from(groupJoinLink)
+      .where(eq(groupJoinLink.groupId, groupId))
+      .limit(1);
+    return link
+      ? {
+          active: link.revokedAt === null,
+          generation: link.generation,
+        }
+      : null;
+  },
+
+  async replaceLink({ actorUserId, groupId }) {
+    return db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select ${organization.id} from ${organization} where ${organization.id} = ${groupId} for update`,
+      );
+      const [current] = await tx
+        .select({ generation: groupJoinLink.generation })
+        .from(groupJoinLink)
+        .where(eq(groupJoinLink.groupId, groupId))
+        .limit(1);
+      const generation = (current?.generation ?? 0) + 1;
+      await tx
+        .insert(groupJoinLink)
+        .values({
+          generation,
+          groupId,
+          issuedAt: new Date(),
+          issuedByUserId: actorUserId,
+          revokedAt: null,
+        })
+        .onConflictDoUpdate({
+          set: {
+            generation,
+            issuedAt: new Date(),
+            issuedByUserId: actorUserId,
+            revokedAt: null,
+          },
+          target: groupJoinLink.groupId,
+        });
+      return { generation };
+    });
+  },
+
+  async revokeLink(groupId) {
+    const [revoked] = await db
+      .update(groupJoinLink)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(groupJoinLink.groupId, groupId), isNull(groupJoinLink.revokedAt)))
+      .returning({ groupId: groupJoinLink.groupId });
+    if (!revoked) {
+      throw new GroupJoinError("JOIN_LINK_NOT_ACTIVE", "No hay un link activo");
+    }
+  },
+
+  async resolveLink({ generation, groupId }) {
+    const [group] = await db
+      .select({
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+      })
+      .from(groupJoinLink)
+      .innerJoin(organization, eq(organization.id, groupJoinLink.groupId))
+      .where(
+        and(
+          eq(groupJoinLink.groupId, groupId),
+          eq(groupJoinLink.generation, generation),
+          isNull(groupJoinLink.revokedAt),
+          isNull(organization.archivedAt),
+        ),
+      )
+      .limit(1);
+    return group ?? null;
+  },
+
+  async acceptLink({ generation, groupId, userId }) {
+    return db.transaction(async (tx) => {
+      const [group] = await tx
+        .select({
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+        })
+        .from(groupJoinLink)
+        .innerJoin(organization, eq(organization.id, groupJoinLink.groupId))
+        .where(
+          and(
+            eq(groupJoinLink.groupId, groupId),
+            eq(groupJoinLink.generation, generation),
+            isNull(groupJoinLink.revokedAt),
+            isNull(organization.archivedAt),
+          ),
+        )
+        .limit(1)
+        .for("share");
+      if (!group) {
+        throw new GroupJoinError("JOIN_LINK_NOT_ACTIVE", "Este link fue desactivado o reemplazado");
+      }
+
+      const [existing] = await tx
+        .select({ id: member.id })
+        .from(member)
+        .where(and(eq(member.organizationId, groupId), eq(member.userId, userId)))
+        .limit(1);
+      if (!existing) {
+        await tx
+          .insert(member)
+          .values({
+            id: randomUUID(),
+            organizationId: groupId,
+            role: "member",
+            userId,
+          })
+          .onConflictDoNothing({
+            target: [member.organizationId, member.userId],
+          });
+      }
+      return {
+        alreadyMember: Boolean(existing),
+        group,
+      };
+    });
+  },
+};
+
+export const groupJoinAccess = createGroupJoinAccess({
+  appBaseUrl: env.BETTER_AUTH_URL,
+  authorizeOwner: (actor, groupId) => groupAccess.authorize(actor, groupId, "owner"),
+  repository: groupJoinRepository,
+  signingSecret: env.BETTER_AUTH_SECRET,
 });
 
 const statsQueries = createStatsQueries(db);

@@ -354,6 +354,22 @@ export const groupSharedLinkEvent = pgTable(
   ],
 );
 
+export const groupJoinLink = pgTable(
+  "group_join_link",
+  {
+    groupId: text("group_id")
+      .primaryKey()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    generation: integer("generation").notNull(),
+    issuedAt: instant("issued_at").defaultNow().notNull(),
+    issuedByUserId: text("issued_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    revokedAt: instant("revoked_at"),
+  },
+  (table) => [check("group_join_link_generation_positive", sql`${table.generation} > 0`)],
+);
+
 export const historyImport = pgTable(
   "history_import",
   {
