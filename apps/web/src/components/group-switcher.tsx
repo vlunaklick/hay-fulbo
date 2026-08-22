@@ -19,7 +19,14 @@ import {
 } from "@hay-fulbo/ui/components/dropdown-menu";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
-import { CheckIcon, ChevronsUpDownIcon, PlusIcon, SettingsIcon, UserPlusIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronsUpDownIcon,
+  MapPinIcon,
+  PlusIcon,
+  SettingsIcon,
+  UserPlusIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -109,6 +116,10 @@ export function GroupSwitcher({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => router.push("/dashboard/canchas")}>
+                <MapPinIcon aria-hidden="true" />
+                Canchas
+              </DropdownMenuItem>
               {role === "owner" ? (
                 <>
                   <DropdownMenuItem onClick={() => router.push("/dashboard/grupo#invitar")}>

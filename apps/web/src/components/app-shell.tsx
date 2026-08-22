@@ -12,13 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@hay-fulbo/ui/components/dropdown-menu";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
-import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -26,20 +19,12 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
-import { Field, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@hay-fulbo/ui/components/select";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   HouseIcon,
+  ArrowRightIcon,
   CalendarDaysIcon,
   ChevronUpIcon,
   CircleUserRoundIcon,
@@ -48,6 +33,7 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PlusIcon,
+  SettingsIcon,
   TrophyIcon,
   UsersRoundIcon,
 } from "lucide-react";
@@ -82,8 +68,12 @@ const navigation = [
   { href: "/dashboard", label: "Inicio", icon: HouseIcon },
   { href: "/dashboard/partidos", label: "Partidos", icon: CalendarDaysIcon },
   { href: "/dashboard/jugadores", label: "Jugadores", icon: UsersRoundIcon },
-  { href: "/dashboard/canchas", label: "Canchas", icon: MapPinIcon },
   { href: "/dashboard/estadisticas", label: "Estadísticas", icon: TrophyIcon },
+] as const;
+
+const groupNavigation = [
+  { href: "/dashboard/canchas", label: "Canchas", icon: MapPinIcon },
+  { href: "/dashboard/grupo", label: "Personas y permisos", icon: SettingsIcon },
 ] as const;
 
 export function AppShell({
@@ -133,43 +123,12 @@ export function AppShell({
   if (!groups.data.length) return <CreateGroupGate />;
   if (!activeGroupId || !groups.data.some((group) => group.id === activeGroupId)) {
     return (
-      <main className="grid min-h-svh place-items-center px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Elegí el grupo</CardTitle>
-            <CardDescription>La información se mantiene separada para cada grupo.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="group">Grupo</FieldLabel>
-                <Select
-                  items={groups.data.map((group) => ({
-                    label: group.name,
-                    value: group.id,
-                  }))}
-                  onValueChange={(value) => {
-                    if (typeof value === "string") selectGroup.mutate({ groupId: value });
-                  }}
-                >
-                  <SelectTrigger id="group" className="w-full">
-                    <SelectValue placeholder="Seleccionar grupo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {groups.data.map((group) => (
-                        <SelectItem key={group.id} value={group.id}>
-                          {group.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </FieldGroup>
-          </CardContent>
-        </Card>
-      </main>
+      <GroupWelcome
+        groups={groups.data}
+        onSelect={(groupId) => selectGroup.mutate({ groupId })}
+        pending={selectGroup.isPending}
+        userName={user.name}
+      />
     );
   }
   if (membership.isPending) return <ShellSkeleton />;
@@ -262,6 +221,35 @@ export function AppShell({
                 {sidebarCollapsed ? null : item.label}
               </Link>
             ))}
+            {sidebarCollapsed ? (
+              <div className="my-1 h-px w-6 bg-border" aria-hidden="true" />
+            ) : (
+              <span className="mt-3 px-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Grupo
+              </span>
+            )}
+            {groupNavigation.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-label={sidebarCollapsed ? item.label : undefined}
+                title={sidebarCollapsed ? item.label : undefined}
+                className={cn(
+                  buttonVariants({
+                    size: sidebarCollapsed ? "icon" : "default",
+                    variant: isActivePath(pathname, item.href) ? "secondary" : "ghost",
+                  }),
+                  "w-full",
+                  !sidebarCollapsed && "justify-start",
+                )}
+              >
+                <item.icon
+                  data-icon={sidebarCollapsed ? undefined : "inline-start"}
+                  aria-hidden="true"
+                />
+                {sidebarCollapsed ? null : item.label}
+              </Link>
+            ))}
           </nav>
           <div
             className={cn(
@@ -314,7 +302,7 @@ export function AppShell({
         </div>
 
         <nav
-          className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t bg-sidebar px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden"
+          className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t bg-sidebar px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden"
           aria-label="Principal"
         >
           {navigation.map((item) => (
@@ -418,6 +406,49 @@ function UserMenu({
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function GroupWelcome({
+  groups,
+  onSelect,
+  pending,
+  userName,
+}: {
+  groups: ReadonlyArray<{ id: string; name: string }>;
+  onSelect: (groupId: string) => void;
+  pending: boolean;
+  userName: string;
+}) {
+  return (
+    <main className="grid min-h-svh place-items-center px-4">
+      <div className="w-full max-w-md">
+        <div className="mb-6 flex flex-col gap-1 text-center">
+          <LogoMark className="mx-auto size-12" />
+          <h1 className="mt-3 text-2xl font-bold tracking-tight">¡Hola, {userName}!</h1>
+          <p className="text-sm text-muted-foreground">¿Con qué grupo jugamos hoy?</p>
+        </div>
+        <div className="flex flex-col gap-2">
+          {groups.map((group) => (
+            <Button
+              key={group.id}
+              disabled={pending}
+              onClick={() => onSelect(group.id)}
+              variant="outline"
+              className="h-auto justify-between py-4 text-left"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <Avatar>
+                  <AvatarFallback>{initials(group.name)}</AvatarFallback>
+                </Avatar>
+                <span className="truncate font-semibold">{group.name}</span>
+              </span>
+              <ArrowRightIcon aria-hidden="true" />
+            </Button>
+          ))}
+        </div>
+      </div>
+    </main>
   );
 }
 

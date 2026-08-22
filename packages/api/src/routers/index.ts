@@ -8,7 +8,23 @@ import { MatchInviteError } from "../match-invite-access";
 import { SharedAccessError } from "../shared-access";
 import { protectedProcedure, publicProcedure, router } from "../index";
 import { matchesRouter } from "./matches";
+import { statsFiltersSchema } from "./stats-input";
 import { statsRouter } from "./stats";
+
+async function translatePublicError<T>(operation: () => Promise<T>) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof SharedAccessError) {
+      throw new TRPCError({
+        cause: error,
+        code: "NOT_FOUND",
+        message: "El grupo público no existe o ya no está disponible",
+      });
+    }
+    throw error;
+  }
+}
 
 function actorFromContext(ctx: {
   requestHeaders: Headers;
@@ -158,6 +174,20 @@ const groupRouter = router({
         translateAccessError(() => ctx.sharedAccess.rotate(actorFromContext(ctx), input.groupId)),
       ),
   }),
+  settings: router({
+    read: protectedProcedure
+      .input(z.object({ groupId: z.string().min(1) }))
+      .query(({ ctx, input }) =>
+        translateAccessError(() => ctx.groupSettings.read(actorFromContext(ctx), input.groupId)),
+      ),
+    updateVisibility: protectedProcedure
+      .input(z.object({ groupId: z.string().min(1), publicVisibility: z.boolean() }))
+      .mutation(({ ctx, input }) =>
+        translateAccessError(() =>
+          ctx.groupSettings.updateVisibility(actorFromContext(ctx), input),
+        ),
+      ),
+  }),
   joinLink: router({
     status: protectedProcedure
       .input(z.object({ groupId: z.string().min(1) }))
@@ -217,10 +247,40 @@ const matchInviteRouter = router({
     ),
 });
 
+const publicRouter = router({
+  snapshot: publicProcedure
+    .input(z.object({ slug: z.string().min(1).max(120) }))
+    .query(({ ctx, input }) => translatePublicError(() => ctx.publicAccess.snapshot(input.slug))),
+  dashboard: publicProcedure
+    .input(z.object({ slug: z.string().min(1).max(120), filters: statsFiltersSchema }))
+    .query(({ ctx, input }) =>
+      translatePublicError(() => ctx.publicAccess.dashboard(input.slug, input.filters ?? {})),
+    ),
+  player: publicProcedure
+    .input(
+      z.object({
+        slug: z.string().min(1).max(120),
+        playerId: z.string().uuid(),
+        filters: statsFiltersSchema,
+      }),
+    )
+    .query(({ ctx, input }) =>
+      translatePublicError(() =>
+        ctx.publicAccess.player(input.slug, input.playerId, input.filters ?? {}),
+      ),
+    ),
+  match: publicProcedure
+    .input(z.object({ slug: z.string().min(1).max(120), matchId: z.string().uuid() }))
+    .query(({ ctx, input }) =>
+      translatePublicError(() => ctx.publicAccess.match(input.slug, input.matchId)),
+    ),
+});
+
 export const appRouter = router({
   group: groupRouter,
   matchInvite: matchInviteRouter,
   matches: matchesRouter,
+  public: publicRouter,
   stats: statsRouter,
   healthCheck: publicProcedure.query(() => {
     return "OK";

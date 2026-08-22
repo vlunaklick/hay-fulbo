@@ -101,10 +101,12 @@ export const organization = pgTable(
       .notNull(),
     currencyCode: varchar("currency_code", { length: 3 }).default("ARS").notNull(),
     timeZone: text("time_zone").default("America/Argentina/Buenos_Aires").notNull(),
+    publicVisibility: boolean("public_visibility").default(false).notNull(),
     archivedAt: instant("archived_at"),
   },
   (table) => [
     check("organization_currency_code_iso_shape", sql`${table.currencyCode} ~ '^[A-Z]{3}$'`),
+    index("organization_slug_public_idx").on(table.slug, table.publicVisibility),
   ],
 );
 

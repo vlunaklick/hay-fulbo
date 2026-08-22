@@ -38,6 +38,7 @@ import {
   Clock3Icon,
   CrosshairIcon,
   FlameIcon,
+  GlobeIcon,
   LockKeyholeIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
@@ -49,7 +50,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
 import { initials } from "@/lib/initials";
-import { trpc } from "@/utils/trpc";
+import { trpc, trpcHttpClient } from "@/utils/trpc";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 
 import { sharedStatsClient } from "./stats-client";
@@ -57,7 +58,7 @@ import { StatsError } from "./stats-error";
 import { StatsLoading } from "./stats-loading";
 import { useSharedCapability } from "./shared-fragment";
 
-type DashboardMode = "member" | "shared";
+type DashboardMode = "member" | "shared" | "public";
 type DashboardData = Omit<StatsDashboard, "history" | "upcoming"> & {
   history: Array<
     Omit<StatsDashboard["history"][number], "scheduledAt"> & {
@@ -112,6 +113,27 @@ export function SharedStatsDashboard() {
   );
 }
 
+export function PublicStatsDashboard({ slug }: { slug: string }) {
+  const filters = useStatsFilters();
+  const query = useQuery({
+    queryKey: ["public-stats-dashboard", slug, filters.api],
+    queryFn: () => trpcHttpClient.public.dashboard.query({ slug, filters: filters.api }),
+    retry: false,
+  });
+
+  return (
+    <DashboardQueryState
+      data={query.data}
+      error={query.error}
+      filters={filters}
+      mode="public"
+      pending={query.isPending}
+      retry={() => void query.refetch()}
+      slug={slug}
+    />
+  );
+}
+
 function DashboardQueryState({
   data,
   error,
@@ -119,6 +141,7 @@ function DashboardQueryState({
   mode,
   pending,
   retry,
+  slug,
 }: {
   data?: DashboardData;
   error: { message: string } | null;
@@ -126,6 +149,7 @@ function DashboardQueryState({
   mode: DashboardMode;
   pending: boolean;
   retry: () => void;
+  slug?: string;
 }) {
   if (pending) return <StatsLoading />;
   if (error || !data) {
@@ -134,25 +158,34 @@ function DashboardQueryState({
         message={
           mode === "shared"
             ? "Este enlace privado no está activo. Pedile al organizador el enlace más reciente."
-            : error?.message
+            : mode === "public"
+              ? "Este grupo no está disponible públicamente."
+              : error?.message
         }
         onRetry={retry}
       />
     );
   }
-  return <StatsDashboardContent dashboard={data} filters={filters} mode={mode} />;
+  return <StatsDashboardContent dashboard={data} filters={filters} mode={mode} slug={slug} />;
 }
 
 function StatsDashboardContent({
   dashboard,
   filters,
   mode,
+  slug,
 }: {
   dashboard: DashboardData;
   filters: ReturnType<typeof useStatsFilters>;
   mode: DashboardMode;
+  slug?: string;
 }) {
-  const detailBase = mode === "shared" ? "/compartido" : "/dashboard/estadisticas";
+  const detailBase =
+    mode === "shared"
+      ? "/compartido"
+      : mode === "public"
+        ? `/g/${slug ?? ""}`
+        : "/dashboard/estadisticas";
   const figure = dashboard.ranking[0] ?? null;
   const scorer = leaderBy(dashboard.ranking, (row) => row.goals);
   const assister = leaderBy(dashboard.ranking, (row) => row.assists);
@@ -161,7 +194,7 @@ function StatsDashboardContent({
     <main
       className={cn(
         "w-full",
-        mode === "shared" ? "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12" : "",
+        mode === "member" ? "" : "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12",
       )}
     >
       <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -170,6 +203,12 @@ function StatsDashboardContent({
             <Badge className="mb-1 w-fit" variant="outline">
               <LockKeyholeIcon data-icon="inline-start" />
               Enlace privado · solo lectura
+            </Badge>
+          ) : null}
+          {mode === "public" ? (
+            <Badge className="mb-1 w-fit" variant="outline">
+              <GlobeIcon data-icon="inline-start" />
+              Grupo público · solo lectura
             </Badge>
           ) : null}
           <h1 className="text-2xl font-bold tracking-[-0.03em] sm:text-3xl">Estadísticas</h1>

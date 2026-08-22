@@ -37,6 +37,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CircleAlertIcon,
   CopyIcon,
+  GlobeIcon,
   LinkIcon,
   RefreshCwIcon,
   ShieldCheckIcon,
@@ -72,6 +73,10 @@ export function GroupMembersPage() {
   const [removeTarget, setRemoveTarget] = useState<GroupMember | null>(null);
   const joinLink = useQuery({
     ...trpc.group.joinLink.status.queryOptions({ groupId: activeGroupId }),
+    enabled: role === "owner",
+  });
+  const settings = useQuery({
+    ...trpc.group.settings.read.queryOptions({ groupId: activeGroupId }),
     enabled: role === "owner",
   });
 
@@ -120,6 +125,29 @@ export function GroupMembersPage() {
         toast.error("No pudimos desactivar el link", { description: error.message }),
     }),
   );
+  const updateVisibility = useMutation(
+    trpc.group.settings.updateVisibility.mutationOptions({
+      onSuccess: async (result) => {
+        toast.success(
+          result.publicVisibility ? "El grupo es público" : "El grupo dejó de ser público",
+        );
+        await queryClient.invalidateQueries({
+          queryKey: trpc.group.settings.read.queryKey({ groupId: activeGroupId }),
+        });
+      },
+      onError: (error) =>
+        toast.error("No pudimos cambiar la visibilidad", { description: error.message }),
+    }),
+  );
+
+  async function copyText(value: string, label = "Link copiado") {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(label);
+    } catch {
+      toast.error("No pudimos copiarlo");
+    }
+  }
 
   async function copyJoinLink() {
     if (!joinLink.data?.active) return;
@@ -221,6 +249,81 @@ export function GroupMembersPage() {
               </Button>
               <p className="text-xs text-muted-foreground">
                 El link se copia automáticamente cuando lo creás.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <GlobeIcon aria-hidden="true" />
+            <CardTitle>Grupo público</CardTitle>
+            {settings.data?.publicVisibility ? <Badge variant="secondary">Público</Badge> : null}
+          </div>
+          <CardDescription>
+            Cualquiera con la dirección puede ver partidos, resultados y estadísticas. Sin cuentas,
+            sin deudas: los pagos nunca se muestran en la vista pública.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {settings.isPending ? (
+            <Skeleton className="h-11 w-full" />
+          ) : settings.isError ? (
+            <Alert variant="destructive">
+              <CircleAlertIcon aria-hidden="true" />
+              <AlertTitle>No pudimos cargar la configuración</AlertTitle>
+              <AlertDescription>{settings.error.message}</AlertDescription>
+            </Alert>
+          ) : settings.data?.publicVisibility ? (
+            <>
+              <InputGroup>
+                <InputGroupInput
+                  aria-label="Dirección pública del grupo"
+                  readOnly
+                  value={`${typeof window === "undefined" ? "" : window.location.origin}/g/${settings.data.slug ?? ""}`}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    aria-label="Copiar dirección pública"
+                    onClick={() => {
+                      const slug = settings.data?.slug;
+                      if (slug)
+                        void copyText(`${window.location.origin}/g/${slug}`, "Dirección copiada");
+                    }}
+                    size="icon-sm"
+                  >
+                    <CopyIcon aria-hidden="true" />
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={updateVisibility.isPending}
+                  onClick={() =>
+                    updateVisibility.mutate({ groupId: activeGroupId, publicVisibility: false })
+                  }
+                  variant="outline"
+                >
+                  <UnlinkIcon data-icon="inline-start" aria-hidden="true" />
+                  {updateVisibility.isPending ? "Guardando…" : "Hacer privado"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-start gap-2">
+              <Button
+                disabled={updateVisibility.isPending}
+                onClick={() =>
+                  updateVisibility.mutate({ groupId: activeGroupId, publicVisibility: true })
+                }
+              >
+                <GlobeIcon data-icon="inline-start" aria-hidden="true" />
+                {updateVisibility.isPending ? "Activando…" : "Hacer público"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Podés apagarlo cuando quieras y la dirección deja de funcionar al instante.
               </p>
             </div>
           )}

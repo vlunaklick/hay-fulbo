@@ -102,6 +102,51 @@ export type SharedAccessContext = {
   generation: number;
 };
 
+export interface PublicAccessRepository {
+  resolvePublicGroup(slug: string): Promise<{ id: string } | null>;
+  readPublicSnapshot(context: { groupId: string }): Promise<SharedGroupSnapshot>;
+  readPublicDashboard(context: { groupId: string }, filters: StatsFilters): Promise<StatsDashboard>;
+  readPublicPlayer(
+    context: { groupId: string },
+    playerId: string,
+    filters: StatsFilters,
+  ): Promise<PlayerStats>;
+  readPublicMatch(context: { groupId: string }, matchId: string): Promise<StatsMatchDetail>;
+}
+
+export function createPublicAccess({ repository }: { repository: PublicAccessRepository }) {
+  const resolve = async (slug: string) => {
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      throw new SharedAccessError("INVALID_SHARED_ACCESS", "Public access is invalid");
+    }
+    const group = await repository.resolvePublicGroup(slug);
+    if (!group) {
+      throw new SharedAccessError("INVALID_SHARED_ACCESS", "Public access is invalid");
+    }
+    return { groupId: group.id };
+  };
+
+  return {
+    async snapshot(slug: string) {
+      return repository.readPublicSnapshot(await resolve(slug));
+    },
+
+    async dashboard(slug: string, filters: StatsFilters = {}) {
+      return repository.readPublicDashboard(await resolve(slug), filters);
+    },
+
+    async player(slug: string, playerId: string, filters: StatsFilters = {}) {
+      return repository.readPublicPlayer(await resolve(slug), playerId, filters);
+    },
+
+    async match(slug: string, matchId: string) {
+      return repository.readPublicMatch(await resolve(slug), matchId);
+    },
+  };
+}
+
+export type PublicAccess = ReturnType<typeof createPublicAccess>;
+
 type SharedAccessDependencies = {
   repository: SharedAccessRepository;
   authorizeOwner: (actor: GroupActor, groupId: string) => Promise<GroupAuthorization>;

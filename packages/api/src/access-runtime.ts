@@ -17,7 +17,10 @@ import {
   player,
   court,
 } from "@hay-fulbo/db/schema/index";
+import type * as schema from "@hay-fulbo/db/schema/index";
 import { env } from "@hay-fulbo/env/server";
+import type { ExtractTablesWithRelations } from "drizzle-orm";
+import type { NodePgTransaction } from "drizzle-orm/node-postgres";
 import { and, asc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 
 import {
@@ -26,6 +29,7 @@ import {
   type GroupAccessRepository,
   type OrganizationGateway,
 } from "./group-access";
+import { createGroupSettings } from "./group-settings";
 import {
   GroupJoinError,
   createGroupJoinAccess,
@@ -40,8 +44,11 @@ import {
 import {
   SharedAccessError,
   createSharedAccess,
+  createPublicAccess,
+  type PublicAccessRepository,
   type SharedAccessRepository,
 } from "./shared-access";
+import type { SharedGroupSnapshot } from "./shared-access";
 
 const groupAccessRepository: GroupAccessRepository = {
   async assertPlayerInGroup({ groupId, playerId }) {
@@ -554,7 +561,7 @@ export const matchInviteAccess = createMatchInviteAccess({
 
 const statsQueries = createStatsQueries(db);
 
-const sharedAccessRepository: SharedAccessRepository = {
+const sharedAccessRepository: SharedAccessRepository & PublicAccessRepository = {
   async replaceLink({ actorUserId, groupId, mode, tokenHash }) {
     return db.transaction(async (tx) => {
       await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
@@ -665,119 +672,58 @@ const sharedAccessRepository: SharedAccessRepository = {
       if (!active) {
         throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
       }
+      return loadGroupSnapshot(tx, groupId);
+    });
+  },
+
+  async resolvePublicGroup(slug) {
+    const [group] = await db
+      .select({ id: organization.id })
+      .from(organization)
+      .where(
+        and(
+          eq(organization.slug, slug),
+          eq(organization.publicVisibility, true),
+          sql`${organization.archivedAt} is null`,
+        ),
+      )
+      .limit(1);
+    return group ?? null;
+  },
+
+  async readPublicSnapshot({ groupId }) {
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
       const [group] = await tx
-        .select({
-          currencyCode: organization.currencyCode,
-          id: organization.id,
-          name: organization.name,
-          slug: organization.slug,
-          timeZone: organization.timeZone,
-        })
+        .select({ publicVisibility: organization.publicVisibility })
         .from(organization)
-        .where(and(eq(organization.id, groupId), sql`${organization.archivedAt} is null`))
+        .where(
+          and(
+            eq(organization.id, groupId),
+            eq(organization.publicVisibility, true),
+            sql`${organization.archivedAt} is null`,
+          ),
+        )
         .limit(1);
       if (!group) {
-        throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
+        throw new SharedAccessError("INVALID_SHARED_ACCESS", "Public access is invalid");
       }
-
-      const players = await tx
-        .select({
-          archivedAt: player.archivedAt,
-          displayName: player.displayName,
-          id: player.id,
-        })
-        .from(player)
-        .where(eq(player.groupId, groupId))
-        .orderBy(asc(player.normalizedName), asc(player.id));
-      const courts = await tx
-        .select({
-          address: court.address,
-          archivedAt: court.archivedAt,
-          id: court.id,
-          mapsUrl: court.mapsUrl,
-          name: court.name,
-        })
-        .from(court)
-        .where(eq(court.groupId, groupId))
-        .orderBy(asc(court.normalizedName), asc(court.id));
-      const matches = await tx
-        .select({
-          courtCostMinor: match.courtCostMinor,
-          courtId: match.courtId,
-          id: match.id,
-          scheduledAt: match.scheduledAt,
-          status: match.status,
-        })
-        .from(match)
-        .where(eq(match.groupId, groupId))
-        .orderBy(asc(match.scheduledAt), asc(match.id));
-
-      const matchIds = matches.map(({ id }) => id);
-      const teams =
-        matchIds.length === 0
-          ? []
-          : await tx
-              .select({
-                color: matchTeam.color,
-                displayName: matchTeam.displayName,
-                id: matchTeam.id,
-                matchId: matchTeam.matchId,
-                slot: matchTeam.slot,
-                unattributedGoals: matchTeam.unattributedGoals,
-              })
-              .from(matchTeam)
-              .where(and(eq(matchTeam.groupId, groupId), inArray(matchTeam.matchId, matchIds)))
-              .orderBy(asc(matchTeam.matchId), asc(matchTeam.slot));
-      const appearances =
-        matchIds.length === 0
-          ? []
-          : await tx
-              .select({
-                assists: matchAppearance.assists,
-                expectedMinor: matchAppearance.expectedMinor,
-                goals: matchAppearance.goals,
-                matchId: matchAppearance.matchId,
-                ownGoals: matchAppearance.ownGoals,
-                paidMinor: matchAppearance.paidMinor,
-                playerId: matchAppearance.playerId,
-                teamId: matchAppearance.teamId,
-              })
-              .from(matchAppearance)
-              .where(
-                and(
-                  eq(matchAppearance.groupId, groupId),
-                  inArray(matchAppearance.matchId, matchIds),
-                ),
-              )
-              .orderBy(asc(matchAppearance.matchId), asc(matchAppearance.joinedOrder));
-
-      return {
-        courts: courts.map((item) => ({
-          ...item,
-          archivedAt: item.archivedAt?.toISOString() ?? null,
-        })),
-        group,
-        matches: matches.map((item) => ({
-          ...item,
-          appearances: appearances
-            .filter(({ matchId }) => matchId === item.id)
-            .map(({ matchId: _matchId, ...appearance }) => ({
-              ...appearance,
-              expectedMinor: appearance.expectedMinor.toString(),
-              paidMinor: appearance.paidMinor.toString(),
-            })),
-          courtCostMinor: item.courtCostMinor?.toString() ?? null,
-          scheduledAt: item.scheduledAt.toISOString(),
-          teams: teams
-            .filter(({ matchId }) => matchId === item.id)
-            .map(({ matchId: _matchId, ...team }) => team),
-        })),
-        players: players.map((item) => ({
-          ...item,
-          archivedAt: item.archivedAt?.toISOString() ?? null,
-        })),
-      };
+      return loadGroupSnapshot(tx, groupId);
     });
+  },
+
+  async readPublicDashboard({ groupId }, filters) {
+    return readPublicStats(() => statsQueries.dashboard({ kind: "public", groupId }, filters));
+  },
+
+  async readPublicPlayer({ groupId }, playerId, filters) {
+    return readPublicStats(() =>
+      statsQueries.player({ kind: "public", groupId }, playerId, filters),
+    );
+  },
+
+  async readPublicMatch({ groupId }, matchId) {
+    return readPublicStats(() => statsQueries.match({ kind: "public", groupId }, matchId));
   },
 
   async readDashboard({ generation, groupId, tokenHash }, filters) {
@@ -813,8 +759,183 @@ async function readSharedStats<T>(operation: () => Promise<T>) {
   }
 }
 
+async function readPublicStats<T>(operation: () => Promise<T>) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (
+      error instanceof StatsReadError &&
+      (error.code === "group_not_public" || error.code === "invalid_shared_access")
+    ) {
+      throw new SharedAccessError("INVALID_SHARED_ACCESS", "Public access is invalid");
+    }
+    throw error;
+  }
+}
+
+async function loadGroupSnapshot(
+  tx: NodePgTransaction<typeof schema, ExtractTablesWithRelations<typeof schema>>,
+  groupId: string,
+): Promise<SharedGroupSnapshot> {
+  const [group] = await tx
+    .select({
+      currencyCode: organization.currencyCode,
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+      timeZone: organization.timeZone,
+    })
+    .from(organization)
+    .where(and(eq(organization.id, groupId), sql`${organization.archivedAt} is null`))
+    .limit(1);
+  if (!group) {
+    throw new SharedAccessError("INVALID_SHARED_ACCESS", "Shared access is invalid");
+  }
+
+  const players = await tx
+    .select({
+      archivedAt: player.archivedAt,
+      displayName: player.displayName,
+      id: player.id,
+    })
+    .from(player)
+    .where(eq(player.groupId, groupId))
+    .orderBy(asc(player.normalizedName), asc(player.id));
+  const courts = await tx
+    .select({
+      address: court.address,
+      archivedAt: court.archivedAt,
+      id: court.id,
+      mapsUrl: court.mapsUrl,
+      name: court.name,
+    })
+    .from(court)
+    .where(eq(court.groupId, groupId))
+    .orderBy(asc(court.normalizedName), asc(court.id));
+  const matches = await tx
+    .select({
+      courtCostMinor: match.courtCostMinor,
+      courtId: match.courtId,
+      id: match.id,
+      scheduledAt: match.scheduledAt,
+      status: match.status,
+    })
+    .from(match)
+    .where(eq(match.groupId, groupId))
+    .orderBy(asc(match.scheduledAt), asc(match.id));
+
+  const matchIds = matches.map(({ id }) => id);
+  const teams =
+    matchIds.length === 0
+      ? []
+      : await tx
+          .select({
+            color: matchTeam.color,
+            displayName: matchTeam.displayName,
+            id: matchTeam.id,
+            matchId: matchTeam.matchId,
+            slot: matchTeam.slot,
+            unattributedGoals: matchTeam.unattributedGoals,
+          })
+          .from(matchTeam)
+          .where(and(eq(matchTeam.groupId, groupId), inArray(matchTeam.matchId, matchIds)))
+          .orderBy(asc(matchTeam.matchId), asc(matchTeam.slot));
+  const appearances =
+    matchIds.length === 0
+      ? []
+      : await tx
+          .select({
+            assists: matchAppearance.assists,
+            expectedMinor: matchAppearance.expectedMinor,
+            goals: matchAppearance.goals,
+            matchId: matchAppearance.matchId,
+            ownGoals: matchAppearance.ownGoals,
+            paidMinor: matchAppearance.paidMinor,
+            playerId: matchAppearance.playerId,
+            teamId: matchAppearance.teamId,
+          })
+          .from(matchAppearance)
+          .where(
+            and(eq(matchAppearance.groupId, groupId), inArray(matchAppearance.matchId, matchIds)),
+          )
+          .orderBy(asc(matchAppearance.matchId), asc(matchAppearance.joinedOrder));
+
+  return {
+    courts: courts.map((item) => ({
+      ...item,
+      archivedAt: item.archivedAt?.toISOString() ?? null,
+    })),
+    group,
+    matches: matches.map((item) => ({
+      ...item,
+      appearances: appearances
+        .filter(({ matchId }) => matchId === item.id)
+        .map(({ matchId: _matchId, ...appearance }) => ({
+          ...appearance,
+          expectedMinor: appearance.expectedMinor.toString(),
+          paidMinor: appearance.paidMinor.toString(),
+        })),
+      courtCostMinor: item.courtCostMinor?.toString() ?? null,
+      scheduledAt: item.scheduledAt.toISOString(),
+      teams: teams
+        .filter(({ matchId }) => matchId === item.id)
+        .map(({ matchId: _matchId, ...team }) => team),
+    })),
+    players: players.map((item) => ({
+      ...item,
+      archivedAt: item.archivedAt?.toISOString() ?? null,
+    })),
+  };
+}
+
 export const sharedAccess = createSharedAccess({
   appBaseUrl: env.BETTER_AUTH_URL,
   authorizeOwner: (actor, groupId) => groupAccess.authorize(actor, groupId, "owner"),
   repository: sharedAccessRepository,
+});
+
+export const publicAccess = createPublicAccess({ repository: sharedAccessRepository });
+
+const groupSettingsRepository = {
+  async read(groupId: string) {
+    const [group] = await db
+      .select({
+        id: organization.id,
+        name: organization.name,
+        publicVisibility: organization.publicVisibility,
+        slug: organization.slug,
+      })
+      .from(organization)
+      .where(and(eq(organization.id, groupId), sql`${organization.archivedAt} is null`))
+      .limit(1);
+    return group ?? null;
+  },
+
+  async updateVisibility({
+    groupId,
+    publicVisibility,
+  }: {
+    groupId: string;
+    publicVisibility: boolean;
+  }) {
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
+      const [updated] = await tx
+        .update(organization)
+        .set({ publicVisibility, updatedAt: new Date() })
+        .where(eq(organization.id, groupId))
+        .returning({
+          id: organization.id,
+          name: organization.name,
+          publicVisibility: organization.publicVisibility,
+          slug: organization.slug,
+        });
+      return updated ?? null;
+    });
+  },
+};
+
+export const groupSettings = createGroupSettings({
+  repository: groupSettingsRepository,
+  authorizeOwner: (actor, groupId) => groupAccess.authorize(actor, groupId, "owner"),
 });

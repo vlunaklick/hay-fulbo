@@ -30,12 +30,14 @@ type StatsTransaction = NodePgTransaction<typeof schema, ExtractTablesWithRelati
 
 export type StatsAccess =
   | { kind: "member"; groupId: string; actorUserId: string }
+  | { kind: "public"; groupId: string }
   | { kind: "shared"; groupId: string; generation: number; tokenHash: Buffer };
 
 export type StatsReadErrorCode =
   | "membership_required"
   | "invalid_shared_access"
   | "group_not_found"
+  | "group_not_public"
   | "not_found";
 
 export class StatsReadError extends Error {
@@ -244,6 +246,21 @@ async function establishStatsScope(transaction: StatsTransaction, access: StatsA
   }
 
   await transaction.execute(sql`select set_config('app.group_id', ${access.groupId}, true)`);
+
+  if (access.kind === "public") {
+    const [group] = await transaction
+      .select({ publicVisibility: organization.publicVisibility })
+      .from(organization)
+      .where(
+        and(
+          eq(organization.id, access.groupId),
+          eq(organization.publicVisibility, true),
+          sql`${organization.archivedAt} is null`,
+        ),
+      )
+      .limit(1);
+    if (!group) throw new StatsReadError("group_not_public");
+  }
 
   if (access.kind === "shared") {
     const [sharedLink] = await transaction

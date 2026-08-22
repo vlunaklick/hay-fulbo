@@ -1,0 +1,2 @@
+ALTER TABLE "organization" ADD COLUMN "public_visibility" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE INDEX "organization_slug_public_idx" ON "organization" USING btree ("slug","public_visibility");

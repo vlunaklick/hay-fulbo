@@ -32,17 +32,18 @@ import {
   TrophyIcon,
 } from "lucide-react";
 import Link from "next/link";
+import type { Route } from "next";
 import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
-import { trpc } from "@/utils/trpc";
+import { trpc, trpcHttpClient } from "@/utils/trpc";
 
 import { sharedStatsClient } from "./stats-client";
 import { StatsError } from "./stats-error";
 import { StatsLoading } from "./stats-loading";
 import { useSharedCapability } from "./shared-fragment";
 
-type Mode = "member" | "shared";
+type Mode = "member" | "shared" | "public";
 type SerializedPlayerStats = Omit<PlayerStats, "matches"> & {
   matches: Array<
     Omit<PlayerStats["matches"][number], "scheduledAt"> & {
@@ -104,8 +105,48 @@ export function SharedMatchStats({ matchId }: { matchId: string }) {
   return <MatchStatsContent data={query.data} mode="shared" />;
 }
 
-function PlayerStatsContent({ data, mode }: { data: SerializedPlayerStats; mode: Mode }) {
-  const base = mode === "shared" ? "/compartido" : "/dashboard/estadisticas";
+export function PublicPlayerStats({ playerId, slug }: { playerId: string; slug: string }) {
+  const filters = usePlayerFilters();
+  const query = useQuery({
+    queryKey: ["public-player-stats", slug, playerId, filters],
+    queryFn: () => trpcHttpClient.public.player.query({ playerId, slug, filters }),
+    retry: false,
+  });
+  if (query.isPending) return <StatsLoading />;
+  if (query.error || !query.data) {
+    return <StatsError message="Este grupo no está disponible públicamente." />;
+  }
+  return <PlayerStatsContent data={query.data} mode="public" slug={slug} />;
+}
+
+export function PublicMatchStats({ matchId, slug }: { matchId: string; slug: string }) {
+  const query = useQuery({
+    queryKey: ["public-match-stats", slug, matchId],
+    queryFn: () => trpcHttpClient.public.match.query({ matchId, slug }),
+    retry: false,
+  });
+  if (query.isPending) return <StatsLoading />;
+  if (query.error || !query.data) {
+    return <StatsError message="Este grupo no está disponible públicamente." />;
+  }
+  return <MatchStatsContent data={query.data} mode="public" slug={slug} />;
+}
+
+function PlayerStatsContent({
+  data,
+  mode,
+  slug,
+}: {
+  data: SerializedPlayerStats;
+  mode: Mode;
+  slug?: string;
+}) {
+  const base =
+    mode === "shared"
+      ? "/compartido"
+      : mode === "public"
+        ? (`/g/${slug ?? ""}` as Route)
+        : "/dashboard/estadisticas";
   return (
     <main
       className={cn(
@@ -209,7 +250,7 @@ function PlayerStatsContent({ data, mode }: { data: SerializedPlayerStats; mode:
                     className:
                       "h-auto min-h-16 w-full justify-between rounded-none px-4 py-3 text-left",
                   })}
-                  href={`${base}/partidos/${match.matchId}`}
+                  href={`${base}/partidos/${match.matchId}` as Route}
                 >
                   <span>
                     <span className="block text-sm font-medium">
@@ -238,8 +279,21 @@ function PlayerStatsContent({ data, mode }: { data: SerializedPlayerStats; mode:
   );
 }
 
-function MatchStatsContent({ data, mode }: { data: SerializedMatchDetail; mode: Mode }) {
-  const base = mode === "shared" ? "/compartido" : "/dashboard/estadisticas";
+function MatchStatsContent({
+  data,
+  mode,
+  slug,
+}: {
+  data: SerializedMatchDetail;
+  mode: Mode;
+  slug?: string;
+}) {
+  const base =
+    mode === "shared"
+      ? "/compartido"
+      : mode === "public"
+        ? (`/g/${slug ?? ""}` as Route)
+        : "/dashboard/estadisticas";
   return (
     <main
       className={cn(
@@ -258,7 +312,7 @@ function MatchStatsContent({ data, mode }: { data: SerializedMatchDetail; mode: 
           <ArrowLeftIcon data-icon="inline-start" />
           Volver
         </Link>
-        {mode === "shared" ? (
+        {mode !== "member" ? (
           <Badge variant="outline">
             <LockKeyholeIcon data-icon="inline-start" />
             Solo lectura
@@ -327,7 +381,7 @@ function MatchStatsContent({ data, mode }: { data: SerializedMatchDetail; mode: 
                 <TableHead className="text-right">G</TableHead>
                 <TableHead className="text-right">A</TableHead>
                 <TableHead className="text-right">AG</TableHead>
-                <TableHead className="text-right">Pago</TableHead>
+                {mode !== "public" ? <TableHead className="text-right">Pago</TableHead> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -339,7 +393,7 @@ function MatchStatsContent({ data, mode }: { data: SerializedMatchDetail; mode: 
                         variant: "link",
                         className: "h-auto min-h-11 justify-start px-0",
                       })}
-                      href={`${base}/jugadores/${appearance.playerId}`}
+                      href={`${base}/jugadores/${appearance.playerId}` as Route}
                     >
                       {appearance.playerDisplayName}
                     </Link>
@@ -347,11 +401,13 @@ function MatchStatsContent({ data, mode }: { data: SerializedMatchDetail; mode: 
                   <TableCell className="text-right tabular-nums">{appearance.goals}</TableCell>
                   <TableCell className="text-right tabular-nums">{appearance.assists}</TableCell>
                   <TableCell className="text-right tabular-nums">{appearance.ownGoals}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant={appearance.debtMinor === "0" ? "secondary" : "outline"}>
-                      {appearance.debtMinor === "0" ? "Al día" : "Pendiente"}
-                    </Badge>
-                  </TableCell>
+                  {mode !== "public" ? (
+                    <TableCell className="text-right">
+                      <Badge variant={appearance.debtMinor === "0" ? "secondary" : "outline"}>
+                        {appearance.debtMinor === "0" ? "Al día" : "Pendiente"}
+                      </Badge>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))}
             </TableBody>

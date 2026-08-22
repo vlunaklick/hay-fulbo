@@ -44,14 +44,6 @@ import {
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
 import { Separator } from "@hay-fulbo/ui/components/separator";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@hay-fulbo/ui/components/sheet";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import {
   Table,
@@ -61,23 +53,18 @@ import {
   TableHeader,
   TableRow,
 } from "@hay-fulbo/ui/components/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import {
   ArrowLeftIcon,
   CalendarClockIcon,
   CheckCircle2Icon,
-  ChevronRightIcon,
   CircleAlertIcon,
   CircleIcon,
-  ClipboardListIcon,
   LockKeyholeIcon,
-  RotateCcwIcon,
   Maximize2Icon,
-  MegaphoneIcon,
   PlusIcon,
-  ScaleIcon,
-  Share2Icon,
   ShieldCheckIcon,
   TrophyIcon,
   UsersRoundIcon,
@@ -101,15 +88,6 @@ type Inputs = inferRouterInputs<AppRouter>;
 type Detail = Outputs["matches"]["detail"];
 type Directory = Outputs["matches"]["directory"];
 type ExecuteInput = Inputs["matches"]["execute"];
-type MatchPanel =
-  | "attendance"
-  | "closure"
-  | "game"
-  | "parity"
-  | "payments"
-  | "result"
-  | "sheet"
-  | "squad";
 
 const closureText = {
   match_not_started: "La hora del partido todavía no pasó.",
@@ -153,7 +131,7 @@ export default function MatchPage() {
 
 function MatchControl({ detail, directory }: { detail: Detail; directory: Directory }) {
   const { groupName, role, user } = useAppContext();
-  const [activePanel, setActivePanel] = useState<MatchPanel | null>(null);
+  const [activeTab, setActiveTab] = useState("ficha");
   const isOrganizer = detail.organizerUserId === user.id || role !== "member";
   const isOpen = detail.status === "open";
   const issues = closureIssues(detail);
@@ -177,57 +155,6 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
   );
   const run = (command: ExecuteInput) => execute.mutate(command);
   const court = directory.courts.find((item) => item.id === detail.courtId);
-  const appearances = detail.teams.flatMap((team) => team.appearances);
-  const participantCount = appearances.length;
-  const paidCount = appearances.filter((row) =>
-    ["exempt", "paid", "overpaid"].includes(row.contributionStatus),
-  ).length;
-  const confirmedCount = Math.min(
-    detail.rsvps.filter((rsvp) => rsvp.response === "yes").length,
-    detail.capacity,
-  );
-  const panelCopy = {
-    attendance: {
-      title: "Convocatoria",
-      description: "Cupos, confirmaciones y enlaces para compartir la fecha.",
-    },
-    closure: {
-      title:
-        detail.status === "cancelled"
-          ? "Restaurar partido"
-          : detail.status === "closed"
-            ? "Reabrir partido"
-            : readyToClose
-              ? "Cerrar partido"
-              : "Revisar cierre",
-      description: "Estado de la carga y acciones que cambian el estado del partido.",
-    },
-    game: {
-      title: "Juego",
-      description: "Goles, asistencias y resultado de la fecha.",
-    },
-    parity: {
-      title: "Cómo llegan",
-      description: "Comparación recreativa basada en el historial cerrado del grupo.",
-    },
-    payments: {
-      title: "Caja",
-      description: "Aportes esperados, pagos y saldo del partido.",
-    },
-    result: {
-      title: "Resultado",
-      description: "Placa final lista para descargar o compartir.",
-    },
-    sheet: {
-      title: "Ficha del partido",
-      description: "Fecha, cancha, precio y nombres de los equipos.",
-    },
-    squad: {
-      title: "Plantel",
-      description: "Jugadores, equipos y capitanes de esta fecha.",
-    },
-  } satisfies Record<MatchPanel, { description: string; title: string }>;
-  const currentPanel = panelCopy[activePanel ?? "sheet"];
   const statusLabel =
     detail.status === "open" ? "Abierto" : detail.status === "closed" ? "Finalizado" : "Cancelado";
 
@@ -315,111 +242,41 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
       </section>
 
       <section aria-labelledby="match-actions-title">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <div>
-            <h2 id="match-actions-title" className="text-sm font-bold">
-              Gestionar partido
-            </h2>
-            <p className="text-xs text-muted-foreground">Abrí solo la tarea que necesitás.</p>
-          </div>
-          {isOrganizer ? (
-            <Button
-              disabled={execute.isPending}
-              onClick={() => {
-                if (isOpen && readyToClose) {
-                  run({
-                    type: "closeMatch",
-                    matchId: detail.id,
-                    expectedLockVersion: detail.lockVersion,
-                  });
-                  return;
-                }
-                setActivePanel("closure");
-              }}
-              variant={isOpen && readyToClose ? "default" : "outline"}
-            >
-              {isOpen && readyToClose ? (
-                <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
-              ) : !isOpen ? (
-                <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
-              ) : (
-                <CircleAlertIcon data-icon="inline-start" aria-hidden="true" />
-              )}
-              {isOpen
-                ? readyToClose
-                  ? "Cerrar partido"
-                  : `Revisar cierre · ${issues.length}`
-                : detail.status === "closed"
-                  ? "Reabrir partido"
-                  : "Restaurar partido"}
-            </Button>
-          ) : null}
-        </div>
+        <h2 className="sr-only" id="match-actions-title">
+          Gestionar partido
+        </h2>
+        <Tabs defaultValue="ficha" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList
+            aria-label="Secciones del partido"
+            className="h-9 w-full justify-start overflow-x-auto border-b px-1"
+            variant="line"
+          >
+            <TabsTrigger value="ficha">Ficha</TabsTrigger>
+            {isOpen ? <TabsTrigger value="convocatoria">Convocatoria</TabsTrigger> : null}
+            <TabsTrigger value="plantel">Plantel</TabsTrigger>
+            <TabsTrigger value="juego">Juego</TabsTrigger>
+            <TabsTrigger value="caja">Caja</TabsTrigger>
+            {isOpen && detail.teams.length >= 2 ? (
+              <TabsTrigger value="como-llegan">Cómo llegan</TabsTrigger>
+            ) : null}
+            {detail.status === "closed" ? (
+              <TabsTrigger value="resultado">Resultado</TabsTrigger>
+            ) : null}
+            {isOrganizer ? <TabsTrigger value="resumen">Resumen</TabsTrigger> : null}
+          </TabsList>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <TabsContent value="ficha" className="mt-4">
+            <MatchSheet
+              detail={detail}
+              directory={directory}
+              editable={isOrganizer && isOpen}
+              pending={execute.isPending}
+              run={run}
+            />
+          </TabsContent>
+
           {isOpen ? (
-            <MatchPanelButton
-              icon={<MegaphoneIcon aria-hidden="true" />}
-              label="Convocatoria"
-              meta={`${confirmedCount}/${detail.capacity} confirmados`}
-              onClick={() => setActivePanel("attendance")}
-            />
-          ) : detail.status === "closed" ? (
-            <MatchPanelButton
-              icon={<Share2Icon aria-hidden="true" />}
-              label="Resultado"
-              meta="Compartir placa"
-              onClick={() => setActivePanel("result")}
-            />
-          ) : null}
-          <MatchPanelButton
-            icon={<ClipboardListIcon aria-hidden="true" />}
-            label="Ficha"
-            meta={court?.name ?? "Sin cancha"}
-            onClick={() => setActivePanel("sheet")}
-          />
-          <MatchPanelButton
-            icon={<UsersRoundIcon aria-hidden="true" />}
-            label="Plantel"
-            meta={`${participantCount} jugadores`}
-            onClick={() => setActivePanel("squad")}
-          />
-          <MatchPanelButton
-            icon={<WalletCardsIcon aria-hidden="true" />}
-            label="Caja"
-            meta={`${paidCount}/${participantCount} al día`}
-            onClick={() => setActivePanel("payments")}
-          />
-          <MatchPanelButton
-            icon={<TrophyIcon aria-hidden="true" />}
-            label="Juego"
-            meta={`${scoreFor(detail, detail.teams[0]?.id)}–${scoreFor(detail, detail.teams[1]?.id)}`}
-            onClick={() => setActivePanel("game")}
-          />
-          {isOpen && detail.teams.length >= 2 ? (
-            <MatchPanelButton
-              icon={<ScaleIcon aria-hidden="true" />}
-              label="Cómo llegan"
-              meta="Comparar equipos"
-              onClick={() => setActivePanel("parity")}
-            />
-          ) : null}
-        </div>
-      </section>
-
-      <Sheet
-        open={activePanel !== null}
-        onOpenChange={(open) => {
-          if (!open) setActivePanel(null);
-        }}
-      >
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>{currentPanel.title}</SheetTitle>
-            <SheetDescription>{currentPanel.description}</SheetDescription>
-          </SheetHeader>
-          <SheetBody>
-            {activePanel === "attendance" ? (
+            <TabsContent value="convocatoria" className="mt-4">
               <MatchAttendancePanel
                 key={`attendance-${detail.lockVersion}`}
                 canEdit={isOrganizer && isOpen}
@@ -446,8 +303,48 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
                 pending={execute.isPending}
                 timeZone="America/Argentina/Buenos_Aires"
               />
-            ) : null}
-            {activePanel === "result" && detail.status === "closed" ? (
+            </TabsContent>
+          ) : null}
+
+          <TabsContent value="plantel" className="mt-4">
+            <Squads
+              detail={detail}
+              directory={directory}
+              manager={isOrganizer}
+              userId={user.id}
+              pending={execute.isPending}
+              run={run}
+            />
+          </TabsContent>
+
+          <TabsContent value="juego" className="mt-4">
+            <Game
+              detail={detail}
+              manager={isOrganizer}
+              userId={user.id}
+              pending={execute.isPending}
+              run={run}
+            />
+          </TabsContent>
+
+          <TabsContent value="caja" className="mt-4">
+            <Payments
+              detail={detail}
+              manager={isOrganizer}
+              userId={user.id}
+              pending={execute.isPending}
+              run={run}
+            />
+          </TabsContent>
+
+          {isOpen && detail.teams.length >= 2 ? (
+            <TabsContent value="como-llegan" className="mt-4">
+              <MatchParityCard matchId={detail.id} />
+            </TabsContent>
+          ) : null}
+
+          {detail.status === "closed" ? (
+            <TabsContent value="resultado" className="mt-4">
               <MatchResultCard
                 dateLabel={formatDate(detail.scheduledAt)}
                 groupName={groupName}
@@ -461,46 +358,11 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
                   name: detail.teams[1]?.displayName ?? "Equipo 2",
                 }}
               />
-            ) : null}
-            {activePanel === "parity" && isOpen ? <MatchParityCard matchId={detail.id} /> : null}
-            {activePanel === "sheet" ? (
-              <MatchSheet
-                detail={detail}
-                directory={directory}
-                editable={isOrganizer && isOpen}
-                pending={execute.isPending}
-                run={run}
-              />
-            ) : null}
-            {activePanel === "squad" ? (
-              <Squads
-                detail={detail}
-                directory={directory}
-                manager={isOrganizer}
-                userId={user.id}
-                pending={execute.isPending}
-                run={run}
-              />
-            ) : null}
-            {activePanel === "payments" ? (
-              <Payments
-                detail={detail}
-                manager={isOrganizer}
-                userId={user.id}
-                pending={execute.isPending}
-                run={run}
-              />
-            ) : null}
-            {activePanel === "game" ? (
-              <Game
-                detail={detail}
-                manager={isOrganizer}
-                userId={user.id}
-                pending={execute.isPending}
-                run={run}
-              />
-            ) : null}
-            {activePanel === "closure" ? (
+            </TabsContent>
+          ) : null}
+
+          {isOrganizer ? (
+            <TabsContent value="resumen" className="mt-4">
               <ClosurePanel
                 detail={detail}
                 issues={issues}
@@ -508,40 +370,77 @@ function MatchControl({ detail, directory }: { detail: Detail; directory: Direct
                 pending={execute.isPending}
                 run={run}
               />
-            ) : null}
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
-    </div>
-  );
-}
+            </TabsContent>
+          ) : null}
+        </Tabs>
+      </section>
 
-function MatchPanelButton({
-  icon,
-  label,
-  meta,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  meta: string;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      className="h-auto min-h-20 flex-col items-stretch justify-between gap-3 px-3 py-3 text-left"
-      onClick={onClick}
-      variant="outline"
-    >
-      <span className="flex items-center justify-between gap-3">
-        {icon}
-        <ChevronRightIcon aria-hidden="true" />
-      </span>
-      <span className="min-w-0">
-        <strong className="block truncate">{label}</strong>
-        <span className="block truncate text-xs font-normal text-muted-foreground">{meta}</span>
-      </span>
-    </Button>
+      {isOrganizer ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-10 flex justify-center px-4 md:bottom-6">
+          <div className="pointer-events-auto flex min-h-14 items-center gap-3 rounded-full border bg-card px-2 py-2 shadow-[0_12px_32px_rgb(0_0_0/28%)]">
+            {detail.status === "open" ? (
+              readyToClose ? (
+                <>
+                  <span className="hidden pl-3 text-xs font-medium text-muted-foreground sm:block">
+                    Todo listo para cerrar
+                  </span>
+                  <Button
+                    disabled={execute.isPending}
+                    onClick={() =>
+                      run({
+                        type: "closeMatch",
+                        matchId: detail.id,
+                        expectedLockVersion: detail.lockVersion,
+                      })
+                    }
+                  >
+                    <CheckCircle2Icon data-icon="inline-start" aria-hidden="true" />
+                    Cerrar partido
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  disabled={execute.isPending}
+                  onClick={() => setActiveTab("resumen")}
+                  variant="outline"
+                >
+                  <CircleAlertIcon data-icon="inline-start" aria-hidden="true" />
+                  Revisar cierre · {issues.length}
+                </Button>
+              )
+            ) : detail.status === "closed" ? (
+              <ReasonAction
+                label="Reabrir partido"
+                description="Indicá por qué vuelve a edición."
+                pending={execute.isPending}
+                onConfirm={(reason) =>
+                  run({
+                    type: "reopenMatch",
+                    matchId: detail.id,
+                    expectedLockVersion: detail.lockVersion,
+                    reason,
+                  })
+                }
+              />
+            ) : (
+              <ReasonAction
+                label="Restaurar partido"
+                description="Indicá por qué el partido vuelve a estar abierto."
+                pending={execute.isPending}
+                onConfirm={(reason) =>
+                  run({
+                    type: "restoreMatch",
+                    matchId: detail.id,
+                    expectedLockVersion: detail.lockVersion,
+                    reason,
+                  })
+                }
+              />
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
