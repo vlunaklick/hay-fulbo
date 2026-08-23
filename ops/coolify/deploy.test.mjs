@@ -18,7 +18,7 @@ test("updates origin/main SHA, triggers exactly once, and waits for finished", a
     const url = new URL(input);
     const path = url.pathname.replace("/api/v1", "");
     const method = init.method ?? "GET";
-    calls.push({ method, path, search: url.search });
+    calls.push({ method, path, search: url.search, body: init.body });
     if (path === "/projects" && method === "GET") return Response.json([]);
     if (path === "/applications" && method === "GET") return Response.json([app]);
     if (path === "/applications/hay-app" && method === "PATCH") {
@@ -57,7 +57,7 @@ test("updates origin/main SHA, triggers exactly once, and waits for finished", a
   assert.equal(calls.filter(({ path }) => path === "/deploy").length, 1);
   const deployCall = calls.find(({ path }) => path === "/deploy");
   assert.equal(deployCall.method, "POST");
-  assert.equal(deployCall.search, "?uuid=hay-app&force=false");
+  assert.equal(deployCall.body, JSON.stringify({ uuid: "hay-app", force: false }));
   assert.equal(polls, 2);
 });
 

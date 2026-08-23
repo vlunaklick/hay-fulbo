@@ -64,9 +64,10 @@ export async function deployRelease({
     });
   }
 
-  const queued = await client.mutatePost(
-    `/deploy?uuid=${encodeURIComponent(application.uuid)}&force=false`,
-  );
+  const queued = await client.post("/deploy", {
+    uuid: application.uuid,
+    force: false,
+  });
   const deployments = queued?.deployments ?? [];
   if (deployments.length !== 1 || !deployments[0].deployment_uuid) {
     throw new Error("Coolify did not queue exactly one deployment");
