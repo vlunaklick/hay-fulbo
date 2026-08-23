@@ -25,7 +25,7 @@ test("updates origin/main SHA, triggers exactly once, and waits for finished", a
       Object.assign(app, JSON.parse(init.body));
       return Response.json(app);
     }
-    if (path === "/deploy" && method === "GET")
+    if (path === "/deploy" && method === "POST")
       return Response.json({
         deployments: [{ resource_uuid: "hay-app", deployment_uuid: "deployment-1" }],
       });
@@ -55,7 +55,9 @@ test("updates origin/main SHA, triggers exactly once, and waits for finished", a
   assert.equal(result.sha, sha);
   assert.equal(result.status, "finished");
   assert.equal(calls.filter(({ path }) => path === "/deploy").length, 1);
-  assert.equal(calls.find(({ path }) => path === "/deploy").search, "?uuid=hay-app&force=false");
+  const deployCall = calls.find(({ path }) => path === "/deploy");
+  assert.equal(deployCall.method, "POST");
+  assert.equal(deployCall.search, "?uuid=hay-app&force=false");
   assert.equal(polls, 2);
 });
 

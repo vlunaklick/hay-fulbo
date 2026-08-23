@@ -64,7 +64,7 @@ export async function deployRelease({
     });
   }
 
-  const queued = await client.mutateGet(
+  const queued = await client.mutatePost(
     `/deploy?uuid=${encodeURIComponent(application.uuid)}&force=false`,
   );
   const deployments = queued?.deployments ?? [];

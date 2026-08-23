@@ -106,6 +106,9 @@ export function createCoolifyClient({
     mutateGet(path) {
       return request("GET", path, undefined, { mutation: true });
     },
+    mutatePost(path) {
+      return request("POST", path, undefined, { mutation: true });
+    },
   };
 }
 
