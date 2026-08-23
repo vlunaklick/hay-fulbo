@@ -1,49 +1,31 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  MatchRuleError,
-  calculateExpectedContributions,
-  calculateScore,
-  validateMatchClosure,
-} from "../matches";
+import { calculateExpectedContributions, calculateScore, validateMatchClosure } from "../matches";
 
 describe("calculateExpectedContributions", () => {
-  test("preserves fixed amounts and assigns indivisible minor units by joined order", () => {
+  test("assigns indivisible minor units by joined order", () => {
     const result = calculateExpectedContributions({
       courtCostMinor: 10_001n,
       contributions: [
-        { playerId: "late", joinedOrder: 3, kind: "automatic" },
-        { playerId: "invited", joinedOrder: 2, kind: "fixed", expectedMinor: 0n },
-        { playerId: "first", joinedOrder: 1, kind: "automatic" },
+        { playerId: "late", joinedOrder: 3 },
+        { playerId: "invited", joinedOrder: 2 },
+        { playerId: "first", joinedOrder: 1 },
       ],
     });
 
     expect(result).toEqual([
-      { playerId: "late", expectedMinor: 5_000n },
-      { playerId: "invited", expectedMinor: 0n },
-      { playerId: "first", expectedMinor: 5_001n },
+      { playerId: "late", expectedMinor: 3_333n },
+      { playerId: "invited", expectedMinor: 3_334n },
+      { playerId: "first", expectedMinor: 3_334n },
     ]);
   });
 
-  test("rejects fixed amounts above the court cost", () => {
-    expect(() =>
-      calculateExpectedContributions({
-        courtCostMinor: 1_000n,
-        contributions: [
-          { playerId: "a", joinedOrder: 1, kind: "fixed", expectedMinor: 1_001n },
-          { playerId: "b", joinedOrder: 2, kind: "automatic" },
-        ],
-      }),
-    ).toThrow(new MatchRuleError("fixed_amounts_exceed_cost"));
-  });
-
-  test("rejects a positive remainder when nobody has an automatic contribution", () => {
-    expect(() =>
-      calculateExpectedContributions({
-        courtCostMinor: 2_000n,
-        contributions: [{ playerId: "a", joinedOrder: 1, kind: "fixed", expectedMinor: 500n }],
-      }),
-    ).toThrow(new MatchRuleError("unallocated_remainder"));
+  test("returns zero for every player when there is no cost", () => {
+    const result = calculateExpectedContributions({
+      courtCostMinor: 0n,
+      contributions: [{ playerId: "a", joinedOrder: 1 }],
+    });
+    expect(result).toEqual([{ playerId: "a", expectedMinor: 0n }]);
   });
 });
 

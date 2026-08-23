@@ -21,16 +21,12 @@ Identidad con acceso a la aplicación que puede vincularse a uno o más jugadore
 _Avoid_: Jugador, perfil
 
 **Organizador**:
-Usuario responsable de crear un partido, definir sus datos, designar capitanes, corregir cualquier carga y cerrarlo como autoridad final.
+Usuario responsable de crear un partido, definir sus datos, corregir cualquier carga y cerrarlo como autoridad final.
 _Avoid_: Administrador, dueño
 
 **Responsable del grupo**:
 Usuario que controla la membresía y las invitaciones de un grupo. Esta autoridad no lo convierte automáticamente en organizador de todos sus partidos.
 _Avoid_: Organizador, administrador global
-
-**Capitán**:
-Usuario designado para armar uno de los equipos y cargar la participación, los pagos y las estadísticas de sus jugadores. Sus cargas permanecen bajo la autoridad del organizador.
-_Avoid_: Organizador, entrenador
 
 **Aporte**:
 Importe esperado y efectivamente pagado por un jugador para un partido. El esperado surge del prorrateo exacto del costo entre participantes, admite ajustes y queda congelado al cerrar el partido.

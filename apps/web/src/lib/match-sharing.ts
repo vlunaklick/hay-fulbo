@@ -1,5 +1,4 @@
 export type MatchShareDetails = {
-  capacity: number;
   court: { address: string; mapsUrl: string; name: string } | null;
   currency: string;
   estimatedPerPlayerMinor: string | null;
@@ -24,7 +23,6 @@ export function buildMatchMessage(details: MatchShareDetails) {
     hour12: false,
     timeZone: details.timeZone,
   }).format(scheduledAt);
-  const remaining = Math.max(details.capacity - details.playing, 0);
   const lines = [
     `⚽ Hay fulbo · ${details.groupName}`,
     `📅 ${capitalize(date.replace(",", ""))} · ${time}`,
@@ -32,11 +30,9 @@ export function buildMatchMessage(details: MatchShareDetails) {
     details.estimatedPerPlayerMinor
       ? `💵 Estimado ${formatMinor(details.estimatedPerPlayerMinor, details.currency)} por jugador`
       : null,
-    `👥 ${details.playing}/${details.capacity} confirmados${
-      remaining > 0 ? ` · faltan ${remaining}` : " · equipo completo"
-    }`,
+    `👥 ${details.playing} anotados`,
     details.court?.mapsUrl ? `Mapa: ${details.court.mapsUrl}` : null,
-    `Confirmá acá: ${details.invitationUrl}`,
+    `Sumate acá: ${details.invitationUrl}`,
   ];
   return lines.filter((line): line is string => line !== null).join("\n");
 }

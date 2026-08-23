@@ -4,7 +4,6 @@ import {
   court,
   match,
   matchAppearance,
-  matchRsvp,
   matchTeam,
   member,
   organization,
@@ -130,7 +129,6 @@ export function createMatchQueries(database: MatchDatabase) {
                 id: team.id,
                 slot: team.slot,
                 displayName: team.displayName,
-                color: team.color,
                 goals: detail.score.find((score) => score.teamId === team.id)?.goals ?? 0,
               })),
             };
@@ -181,20 +179,6 @@ async function loadDetail(
     )
     .where(and(eq(matchAppearance.groupId, groupId), eq(matchAppearance.matchId, matchId)))
     .orderBy(asc(matchAppearance.joinedOrder));
-  const rsvps = await transaction
-    .select({
-      playerDisplayName: player.displayName,
-      playerId: matchRsvp.playerId,
-      respondedAt: matchRsvp.respondedAt,
-      response: matchRsvp.response,
-    })
-    .from(matchRsvp)
-    .innerJoin(
-      player,
-      and(eq(player.groupId, matchRsvp.groupId), eq(player.id, matchRsvp.playerId)),
-    )
-    .where(and(eq(matchRsvp.groupId, groupId), eq(matchRsvp.matchId, matchId)))
-    .orderBy(asc(matchRsvp.respondedAt), asc(matchRsvp.playerId));
   const score = calculateScore({
     teams: teams.map((team) => ({
       id: team.id,
@@ -210,17 +194,13 @@ async function loadDetail(
     courtId: root.courtId,
     scheduledAt: root.scheduledAt,
     courtCostMinor: root.courtCostMinor,
-    capacity: root.capacity,
     status: root.status,
     lockVersion: root.lockVersion,
     score,
-    rsvps,
     teams: teams.map((team) => ({
       id: team.id,
       slot: team.slot,
       displayName: team.displayName,
-      color: team.color,
-      captainUserId: team.captainUserId,
       unattributedGoals: team.unattributedGoals,
       appearances: appearances
         .filter(({ row }) => row.teamId === team.id)
@@ -232,7 +212,6 @@ async function loadDetail(
           goals: row.goals,
           assists: row.assists,
           ownGoals: row.ownGoals,
-          expectedKind: row.expectedKind,
           expectedMinor: row.expectedMinor,
           paidMinor: row.paidMinor,
           contributionStatus: contributionStatus(row.expectedMinor, row.paidMinor),

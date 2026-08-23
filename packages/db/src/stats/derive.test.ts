@@ -61,8 +61,6 @@ const source: StatsSource = {
           id: "team-a",
           slot: 1,
           displayName: "Oscuros",
-          color: null,
-          captainName: "Alex",
           unattributedGoals: 1,
           appearances: [
             {
@@ -89,8 +87,6 @@ const source: StatsSource = {
           id: "team-b",
           slot: 2,
           displayName: "Claros",
-          color: null,
-          captainName: "Beto",
           unattributedGoals: 0,
           appearances: [
             {
@@ -117,8 +113,6 @@ const source: StatsSource = {
           id: "draw-a",
           slot: 1,
           displayName: "Negros",
-          color: null,
-          captainName: null,
           unattributedGoals: 0,
           appearances: [
             {
@@ -136,8 +130,6 @@ const source: StatsSource = {
           id: "draw-b",
           slot: 2,
           displayName: "Blancos",
-          color: null,
-          captainName: null,
           unattributedGoals: 0,
           appearances: [
             {
@@ -164,8 +156,6 @@ const source: StatsSource = {
           id: "next-a",
           slot: 1,
           displayName: "Pechera",
-          color: null,
-          captainName: "Alex",
           unattributedGoals: 0,
           appearances: [
             {
@@ -183,8 +173,6 @@ const source: StatsSource = {
           id: "next-b",
           slot: 2,
           displayName: "Sin pechera",
-          color: null,
-          captainName: "Beto",
           unattributedGoals: 0,
           appearances: [
             {
@@ -211,8 +199,6 @@ const source: StatsSource = {
           id: "cancelled-a",
           slot: 1,
           displayName: "Pechera",
-          color: null,
-          captainName: null,
           unattributedGoals: 0,
           appearances: [],
         },
@@ -220,8 +206,6 @@ const source: StatsSource = {
           id: "cancelled-b",
           slot: 2,
           displayName: "Sin pechera",
-          color: null,
-          captainName: null,
           unattributedGoals: 0,
           appearances: [],
         },
@@ -238,8 +222,6 @@ const source: StatsSource = {
           id: "reopened-a",
           slot: 1,
           displayName: "A",
-          color: null,
-          captainName: null,
           unattributedGoals: 0,
           appearances: [
             {
@@ -257,8 +239,6 @@ const source: StatsSource = {
           id: "reopened-b",
           slot: 2,
           displayName: "B",
-          color: null,
-          captainName: null,
           unattributedGoals: 0,
           appearances: [],
         },

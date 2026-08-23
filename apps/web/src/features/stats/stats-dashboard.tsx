@@ -35,12 +35,10 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRightIcon,
   CalendarDaysIcon,
-  Clock3Icon,
   CrosshairIcon,
   FlameIcon,
   GlobeIcon,
   LockKeyholeIcon,
-  SlidersHorizontalIcon,
   SparklesIcon,
   TrophyIcon,
 } from "lucide-react";
@@ -249,13 +247,7 @@ function StatsDashboardContent({
                 <PitchMarkings />
                 <CardHeader className="relative z-10 flex min-h-16 flex-row items-center justify-between gap-4 border-b px-5 py-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-primary">
-                      <SparklesIcon className="size-4" aria-hidden="true" />
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.12em]">
-                        El vestuario habla
-                      </span>
-                    </div>
-                    <CardTitle className="mt-1 text-base" id="spotlight-title">
+                    <CardTitle className="text-base" id="spotlight-title">
                       La carrera del grupo
                     </CardTitle>
                   </div>
@@ -384,7 +376,6 @@ function StatsDashboardContent({
           <section aria-labelledby="ranking-title" className="pt-3">
             <SectionHeading
               eyebrow={`${dashboard.summary.matchesPlayed} partidos cerrados`}
-              icon={<TrophyIcon />}
               id="ranking-title"
               title="Ranking"
             />
@@ -415,7 +406,6 @@ function StatsDashboardContent({
               eyebrow={`${dashboard.summary.totalGoals} goles · ${formatRate(
                 dashboard.summary.goalsPerMatch,
               )} por partido`}
-              icon={<Clock3Icon />}
               id="history-title"
               title="Partidos"
             />
@@ -482,52 +472,53 @@ function StatsFiltersBar({
   filters: ReturnType<typeof useStatsFilters>;
 }) {
   return (
-    <section aria-label="Filtros de estadísticas" className="rounded-lg border bg-card/55 p-2">
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-        <div className="flex h-9 shrink-0 items-center gap-2 px-2 text-xs font-medium text-muted-foreground">
-          <SlidersHorizontalIcon className="size-4" aria-hidden="true" />
-          Mirando
-        </div>
-        <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-3">
-          <FilterSelect
-            id="stats-period"
-            label="Período"
-            onChange={(value) => filters.set("period", value)}
-            options={[
-              { label: "Todos los tiempos", value: "all" },
-              { label: "Últimos 30 días", value: "30d" },
-              { label: "Este año", value: "year" },
-            ]}
-            value={filters.period}
-          />
-          <FilterSelect
-            id="stats-court"
-            label="Cancha"
-            onChange={(value) => filters.set("court", value)}
-            options={[
-              { label: "Todas las canchas", value: "all" },
-              ...dashboard.courts.map((court) => ({ label: court.name, value: court.id })),
-            ]}
-            value={filters.court}
-          />
-          <FilterSelect
-            id="stats-result"
-            label="Resultado"
-            onChange={(value) => filters.set("result", value)}
-            options={[
-              { label: "Todos", value: "all" },
-              { label: "Con ganador", value: "decided" },
-              { label: "Empates", value: "draws" },
-            ]}
-            value={filters.result}
-          />
-        </div>
-        {filters.active ? (
-          <Button className="min-h-11 shrink-0" onClick={filters.reset} variant="ghost">
-            Limpiar
-          </Button>
-        ) : null}
+    <section
+      aria-label="Filtros de estadísticas"
+      className="flex flex-col gap-2 lg:flex-row lg:items-center"
+    >
+      <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-3">
+        <FilterSelect
+          id="stats-period"
+          label="Período"
+          onChange={(value) => filters.set("period", value)}
+          options={[
+            { label: "Todos los tiempos", value: "all" },
+            { label: "Últimos 30 días", value: "30d" },
+            { label: "Este año", value: "year" },
+          ]}
+          value={filters.period}
+        />
+        <FilterSelect
+          id="stats-court"
+          label="Cancha"
+          onChange={(value) => filters.set("court", value)}
+          options={[
+            { label: "Todas las canchas", value: "all" },
+            ...dashboard.courts.map((court) => ({ label: court.name, value: court.id })),
+          ]}
+          value={filters.court}
+        />
+        <FilterSelect
+          id="stats-result"
+          label="Resultado"
+          onChange={(value) => filters.set("result", value)}
+          options={[
+            { label: "Todos", value: "all" },
+            { label: "Con ganador", value: "decided" },
+            { label: "Empates", value: "draws" },
+          ]}
+          value={filters.result}
+        />
       </div>
+      {filters.active ? (
+        <Button
+          className="min-h-11 shrink-0 self-start lg:self-auto"
+          onClick={filters.reset}
+          variant="ghost"
+        >
+          Limpiar
+        </Button>
+      ) : null}
     </section>
   );
 }
@@ -691,28 +682,13 @@ function Ranking({
   );
 }
 
-function SectionHeading({
-  eyebrow,
-  icon,
-  id,
-  title,
-}: {
-  eyebrow: string;
-  icon: React.ReactNode;
-  id: string;
-  title: string;
-}) {
+function SectionHeading({ eyebrow, id, title }: { eyebrow: string; id: string; title: string }) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 flex size-9 items-center justify-center bg-muted text-muted-foreground [&_svg]:size-4">
-        {icon}
-      </span>
-      <div>
-        <h2 className="text-xl font-semibold" id={id}>
-          {title}
-        </h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">{eyebrow}</p>
-      </div>
+    <div>
+      <h2 className="text-xl font-semibold" id={id}>
+        {title}
+      </h2>
+      <p className="mt-0.5 text-xs text-muted-foreground">{eyebrow}</p>
     </div>
   );
 }

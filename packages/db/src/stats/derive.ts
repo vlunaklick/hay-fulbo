@@ -281,8 +281,6 @@ function toListItem(source: StatsSource, scored: ScoredMatch): StatsMatchListIte
       id: team.id,
       slot: team.slot,
       displayName: team.displayName,
-      color: team.color,
-      captainName: team.captainName,
       goals: scored.scores.get(team.id) ?? 0,
     })),
   };

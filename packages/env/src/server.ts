@@ -1,4 +1,6 @@
-import "dotenv/config";
+import { loadRootEnv } from "./root-env";
+
+loadRootEnv();
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 

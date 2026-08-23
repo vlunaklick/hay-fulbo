@@ -11,7 +11,6 @@ import {
   member,
   organization,
   player,
-  user,
 } from "../schema";
 import type * as schema from "../schema";
 import { derivePlayerStats, deriveStatsDashboard, deriveStatsMatch } from "./derive";
@@ -151,9 +150,6 @@ async function loadAuthorizedSource(
       ? []
       : await transaction
           .select({
-            captainName: user.name,
-            captainUserId: matchTeam.captainUserId,
-            color: matchTeam.color,
             displayName: matchTeam.displayName,
             id: matchTeam.id,
             matchId: matchTeam.matchId,
@@ -161,7 +157,6 @@ async function loadAuthorizedSource(
             unattributedGoals: matchTeam.unattributedGoals,
           })
           .from(matchTeam)
-          .leftJoin(user, eq(user.id, matchTeam.captainUserId))
           .where(and(eq(matchTeam.groupId, access.groupId), inArray(matchTeam.matchId, matchIds)))
           .orderBy(asc(matchTeam.matchId), asc(matchTeam.slot));
   const appearances =
@@ -209,8 +204,6 @@ async function loadAuthorizedSource(
           id: team.id,
           slot: team.slot,
           displayName: team.displayName,
-          color: team.color,
-          captainName: team.captainUserId ? team.captainName : null,
           unattributedGoals: team.unattributedGoals,
           appearances: appearances
             .filter((appearance) => appearance.matchId === item.id && appearance.teamId === team.id)

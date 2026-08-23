@@ -5,13 +5,6 @@ import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -32,7 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
+import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CircleAlertIcon,
@@ -60,12 +55,6 @@ type GroupMember = {
   name: string;
   role: "leader" | "member" | "owner";
 };
-
-const roleLabel = {
-  leader: "Líder",
-  member: "Miembro",
-  owner: "Organizador",
-} as const;
 
 export function GroupMembersPage() {
   const { activeGroupId, role } = useAppContext();
@@ -182,18 +171,24 @@ export function GroupMembersPage() {
         </p>
       </header>
 
-      <Card id="invitar" className="scroll-mt-24">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <LinkIcon aria-hidden="true" />
-            <CardTitle>Link para sumarse</CardTitle>
+      <section
+        id="invitar"
+        className="flex scroll-mt-24 flex-col gap-3"
+        aria-labelledby="join-link-title"
+      >
+        <div className="flex flex-col gap-1">
+          <h2
+            id="join-link-title"
+            className="flex items-center gap-2 text-lg font-bold tracking-tight"
+          >
+            Link para sumarse
             {joinLink.data?.active ? <Badge variant="secondary">Activo</Badge> : null}
-          </div>
-          <CardDescription>
+          </h2>
+          <p className="text-sm text-muted-foreground">
             Cualquiera con este link puede crear una cuenta o ingresar y sumarse como miembro.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+          </p>
+        </div>
+        <div className="flex flex-col gap-3">
           {joinLink.isPending ? (
             <Skeleton className="h-11 w-full" />
           ) : joinLink.isError ? (
@@ -216,7 +211,7 @@ export function GroupMembersPage() {
                   </InputGroupButton>
                 </InputGroupAddon>
               </InputGroup>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   disabled={renewJoinLink.isPending || revokeJoinLink.isPending}
                   onClick={() => renewJoinLink.mutate({ groupId: activeGroupId })}
@@ -233,10 +228,10 @@ export function GroupMembersPage() {
                   <UnlinkIcon data-icon="inline-start" aria-hidden="true" />
                   {revokeJoinLink.isPending ? "Desactivando…" : "Desactivar"}
                 </Button>
+                <span className="text-xs text-muted-foreground">
+                  Renovarlo invalida inmediatamente el link anterior.
+                </span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Renovarlo invalida inmediatamente el link anterior.
-              </p>
             </>
           ) : (
             <div className="flex flex-col items-start gap-2">
@@ -252,22 +247,26 @@ export function GroupMembersPage() {
               </p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <GlobeIcon aria-hidden="true" />
-            <CardTitle>Grupo público</CardTitle>
+      <Separator />
+
+      <section className="flex flex-col gap-3" aria-labelledby="public-group-title">
+        <div className="flex flex-col gap-1">
+          <h2
+            id="public-group-title"
+            className="flex items-center gap-2 text-lg font-bold tracking-tight"
+          >
+            Grupo público
             {settings.data?.publicVisibility ? <Badge variant="secondary">Público</Badge> : null}
-          </div>
-          <CardDescription>
+          </h2>
+          <p className="text-sm text-muted-foreground">
             Cualquiera con la dirección puede ver partidos, resultados y estadísticas. Sin cuentas,
             sin deudas: los pagos nunca se muestran en la vista pública.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+          </p>
+        </div>
+        <div className="flex flex-col gap-3">
           {settings.isPending ? (
             <Skeleton className="h-11 w-full" />
           ) : settings.isError ? (
@@ -327,13 +326,18 @@ export function GroupMembersPage() {
               </p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
+
+      <Separator />
 
       {directory.isPending ? (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="flex flex-col">
           {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton className="h-40 w-full" key={index} />
+            <Skeleton
+              key={index}
+              className="h-16 w-full rounded-none first:rounded-t-md last:rounded-b-md"
+            />
           ))}
         </div>
       ) : directory.isError ? (
@@ -343,65 +347,64 @@ export function GroupMembersPage() {
           <AlertDescription>{directory.error.message}</AlertDescription>
         </Alert>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          {(directory.data.members as GroupMember[]).map((member) => (
-            <Card key={member.membershipId}>
-              <CardHeader className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-                <Avatar className="size-11">
-                  <AvatarFallback>{initials(member.name)}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <CardTitle className="truncate text-base">{member.name}</CardTitle>
-                  <CardDescription className="truncate">{member.email}</CardDescription>
-                </div>
-                <Badge variant={member.role === "owner" ? "secondary" : "outline"}>
-                  {roleLabel[member.role]}
-                </Badge>
-              </CardHeader>
-              <CardContent className="flex items-center gap-2">
-                {member.role === "owner" ? (
-                  <div className="flex min-h-10 items-center gap-2 text-sm text-muted-foreground">
-                    <ShieldCheckIcon className="size-4 text-primary" aria-hidden="true" />
-                    El organizador conserva el control de miembros y permisos.
-                  </div>
-                ) : (
-                  <>
-                    <Select
-                      disabled={updateRole.isPending || removeMember.isPending}
-                      value={member.role}
-                      onValueChange={(nextRole) => {
-                        if (nextRole !== "leader" && nextRole !== "member") return;
-                        updateRole.mutate({
-                          groupId: activeGroupId,
-                          membershipId: member.membershipId,
-                          role: nextRole,
-                        });
-                      }}
+        <div className="overflow-hidden rounded-lg border">
+          {(directory.data.members as GroupMember[]).map((member, index) => (
+            <div
+              key={member.membershipId}
+              className={cn(
+                "flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5",
+                index > 0 && "border-t",
+              )}
+            >
+              <Avatar className="size-10">
+                <AvatarFallback>{initials(member.name)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1 basis-40">
+                <p className="truncate text-sm font-medium">{member.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+              </div>
+              {member.role === "owner" ? (
+                <span className="flex min-h-10 items-center gap-2 text-sm text-muted-foreground">
+                  <ShieldCheckIcon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  Organizador
+                </span>
+              ) : (
+                <>
+                  <Select
+                    disabled={updateRole.isPending || removeMember.isPending}
+                    value={member.role}
+                    onValueChange={(nextRole) => {
+                      if (nextRole !== "leader" && nextRole !== "member") return;
+                      updateRole.mutate({
+                        groupId: activeGroupId,
+                        membershipId: member.membershipId,
+                        role: nextRole,
+                      });
+                    }}
+                  >
+                    <SelectTrigger
+                      aria-label={`Permisos de ${member.name}`}
+                      className="w-44 min-w-0"
                     >
-                      <SelectTrigger
-                        aria-label={`Permisos de ${member.name}`}
-                        className="min-w-0 flex-1"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="member">Miembro · solo consulta</SelectItem>
-                        <SelectItem value="leader">Líder · puede editar</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      aria-label={`Sacar a ${member.name} del grupo`}
-                      disabled={updateRole.isPending || removeMember.isPending}
-                      onClick={() => setRemoveTarget(member)}
-                      size="icon"
-                      variant="outline"
-                    >
-                      <Trash2Icon aria-hidden="true" />
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Miembro · solo consulta</SelectItem>
+                      <SelectItem value="leader">Líder · puede editar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    aria-label={`Sacar a ${member.name} del grupo`}
+                    disabled={updateRole.isPending || removeMember.isPending}
+                    onClick={() => setRemoveTarget(member)}
+                    size="icon"
+                    variant="ghost"
+                  >
+                    <Trash2Icon aria-hidden="true" />
+                  </Button>
+                </>
+              )}
+            </div>
           ))}
         </div>
       )}

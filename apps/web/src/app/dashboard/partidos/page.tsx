@@ -4,14 +4,6 @@ import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/al
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
-import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -20,6 +12,7 @@ import {
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
+import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightIcon, CalendarDaysIcon, CircleAlertIcon, PlusIcon } from "lucide-react";
 import Link from "next/link";
@@ -62,9 +55,12 @@ export default function DashboardPage() {
       ) : null}
 
       {matches.isPending ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="flex flex-col">
           {[0, 1, 2, 3].map((item) => (
-            <Skeleton key={item} className="h-40 w-full" />
+            <Skeleton
+              key={item}
+              className="h-16 w-full rounded-none first:rounded-t-md last:rounded-b-md"
+            />
           ))}
         </div>
       ) : matches.isError ? (
@@ -93,17 +89,29 @@ export default function DashboardPage() {
           ) : null}
         </Empty>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {matches.data.map((match) => (
-            <Card key={match.id}>
-              <CardHeader>
-                <CardTitle>
+        <div className="overflow-hidden rounded-lg border">
+          {matches.data.map((match, index) => (
+            <Link
+              key={match.id}
+              href={`/dashboard/partidos/${match.id}`}
+              aria-label={`Abrir ${match.teams[0]?.displayName ?? "Equipo 1"} vs. ${
+                match.teams[1]?.displayName ?? "Equipo 2"
+              }`}
+              className={cn(
+                "flex min-h-16 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none sm:px-5",
+                index > 0 && "border-t",
+              )}
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium">
                   {match.teams[0]?.displayName ?? "Equipo 1"}{" "}
-                  <span className="text-muted-foreground">vs.</span>{" "}
+                  <strong className="tabular-nums">{match.teams[0]?.goals ?? 0}</strong>
+                  <span className="px-1.5 text-muted-foreground">–</span>
+                  <strong className="tabular-nums">{match.teams[1]?.goals ?? 0}</strong>{" "}
                   {match.teams[1]?.displayName ?? "Equipo 2"}
-                </CardTitle>
-                <CardDescription>{formatDate(match.scheduledAt)}</CardDescription>
-                <CardAction>
+                </span>
+                <span className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{formatDate(match.scheduledAt)}</span>
                   <Badge
                     variant={
                       match.status === "cancelled"
@@ -115,25 +123,13 @@ export default function DashboardPage() {
                   >
                     {statusLabel[match.status]}
                   </Badge>
-                </CardAction>
-              </CardHeader>
-              <CardContent className="flex items-end justify-between gap-4">
-                <div className="flex items-baseline gap-3" aria-label="Resultado">
-                  <strong className="text-4xl tabular-nums">{match.teams[0]?.goals ?? 0}</strong>
-                  <span className="text-muted-foreground">—</span>
-                  <strong className="text-4xl tabular-nums">{match.teams[1]?.goals ?? 0}</strong>
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  render={<Link href={`/dashboard/partidos/${match.id}`} />}
-                  nativeButton={false}
-                  aria-label="Abrir partido"
-                >
-                  <ArrowRightIcon aria-hidden="true" />
-                </Button>
-              </CardContent>
-            </Card>
+                </span>
+              </span>
+              <ArrowRightIcon
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </Link>
           ))}
         </div>
       )}

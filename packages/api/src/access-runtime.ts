@@ -10,7 +10,6 @@ import {
   groupJoinLink,
   match,
   matchAppearance,
-  matchRsvp,
   matchTeam,
   member,
   organization,
@@ -395,7 +394,6 @@ async function loadMatchInvitation(
 ): Promise<MatchInvitationSource | null> {
   const [root] = await tx
     .select({
-      capacity: match.capacity,
       courtAddress: court.address,
       courtCostMinor: match.courtCostMinor,
       courtMapsUrl: court.mapsUrl,
@@ -439,17 +437,16 @@ async function loadMatchInvitation(
         archivedAt: player.archivedAt,
         displayName: player.displayName,
         id: player.id,
+        joinedTeamId: matchAppearance.teamId,
         normalizedName: player.normalizedName,
-        respondedAt: matchRsvp.respondedAt,
-        response: matchRsvp.response,
       })
       .from(player)
       .leftJoin(
-        matchRsvp,
+        matchAppearance,
         and(
-          eq(matchRsvp.groupId, player.groupId),
-          eq(matchRsvp.playerId, player.id),
-          eq(matchRsvp.matchId, matchId),
+          eq(matchAppearance.groupId, player.groupId),
+          eq(matchAppearance.playerId, player.id),
+          eq(matchAppearance.matchId, matchId),
         ),
       )
       .where(eq(player.groupId, groupId))
@@ -467,7 +464,6 @@ async function loadMatchInvitation(
       timeZone: root.timeZone,
     },
     match: {
-      capacity: root.capacity,
       court:
         root.courtName && root.courtAddress && root.courtMapsUrl
           ? {
@@ -489,9 +485,8 @@ async function loadMatchInvitation(
       archived: item.archivedAt !== null,
       displayName: item.displayName,
       id: item.id,
+      joinedTeamId: item.joinedTeamId ?? null,
       normalizedName: item.normalizedName,
-      respondedAt: item.respondedAt,
-      response: item.response,
     })),
   };
 }
@@ -504,7 +499,7 @@ const matchInviteRepository: MatchInviteRepository = {
     });
   },
 
-  async respond({ groupId, matchId, playerId, response }) {
+  async join({ groupId, matchId, playerId, joined }) {
     return db.transaction(async (tx) => {
       await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
       const [root] = await tx
@@ -525,29 +520,63 @@ const matchInviteRepository: MatchInviteRepository = {
       if (!eligible) {
         throw new MatchInviteError("PLAYER_NOT_FOUND", "El jugador no está disponible");
       }
-      const [current] = await tx
-        .select({
-          respondedAt: matchRsvp.respondedAt,
-          response: matchRsvp.response,
-        })
-        .from(matchRsvp)
+
+      if (!joined) {
+        await tx
+          .delete(matchAppearance)
+          .where(
+            and(
+              eq(matchAppearance.groupId, groupId),
+              eq(matchAppearance.matchId, matchId),
+              eq(matchAppearance.playerId, playerId),
+            ),
+          );
+        return loadMatchInvitation(tx, groupId, matchId);
+      }
+
+      const [existing] = await tx
+        .select({ teamId: matchAppearance.teamId })
+        .from(matchAppearance)
         .where(
           and(
-            eq(matchRsvp.groupId, groupId),
-            eq(matchRsvp.matchId, matchId),
-            eq(matchRsvp.playerId, playerId),
+            eq(matchAppearance.groupId, groupId),
+            eq(matchAppearance.matchId, matchId),
+            eq(matchAppearance.playerId, playerId),
           ),
         )
         .limit(1);
-      const respondedAt =
-        current?.response === "yes" && response === "yes" ? current.respondedAt : new Date();
-      await tx
-        .insert(matchRsvp)
-        .values({ groupId, matchId, playerId, respondedAt, response })
-        .onConflictDoUpdate({
-          target: [matchRsvp.groupId, matchRsvp.matchId, matchRsvp.playerId],
-          set: { respondedAt, response, updatedAt: new Date() },
+      if (!existing) {
+        const [teams, counts] = await Promise.all([
+          tx
+            .select({ id: matchTeam.id, slot: matchTeam.slot })
+            .from(matchTeam)
+            .where(and(eq(matchTeam.groupId, groupId), eq(matchTeam.matchId, matchId)))
+            .orderBy(asc(matchTeam.slot)),
+          tx
+            .select({ count: sql<number>`count(*)::int`, teamId: matchAppearance.teamId })
+            .from(matchAppearance)
+            .where(and(eq(matchAppearance.groupId, groupId), eq(matchAppearance.matchId, matchId)))
+            .groupBy(matchAppearance.teamId),
+        ]);
+        const sizeByTeam = new Map(counts.map((row) => [row.teamId, row.count]));
+        const target = teams.toSorted(
+          (left, right) =>
+            (sizeByTeam.get(left.id) ?? 0) - (sizeByTeam.get(right.id) ?? 0) ||
+            left.slot - right.slot,
+        )[0];
+        if (!target) throw new MatchInviteError("MATCH_NOT_OPEN", "El partido no tiene equipos");
+        const [order] = await tx
+          .select({ highest: max(matchAppearance.joinedOrder) })
+          .from(matchAppearance)
+          .where(and(eq(matchAppearance.groupId, groupId), eq(matchAppearance.matchId, matchId)));
+        await tx.insert(matchAppearance).values({
+          groupId,
+          matchId,
+          playerId,
+          teamId: target.id,
+          joinedOrder: (order?.highest ?? 0) + 1,
         });
+      }
       return loadMatchInvitation(tx, groupId, matchId);
     });
   },
@@ -830,7 +859,6 @@ async function loadGroupSnapshot(
       ? []
       : await tx
           .select({
-            color: matchTeam.color,
             displayName: matchTeam.displayName,
             id: matchTeam.id,
             matchId: matchTeam.matchId,

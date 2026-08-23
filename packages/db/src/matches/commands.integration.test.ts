@@ -19,7 +19,7 @@ integration("MatchCommands public seam", () => {
   const queries = createMatchQueries(database);
   const groupId = "group-a";
   const organizerId = "user-organizer";
-  const captainId = "user-captain";
+  const memberId = "user-member";
   const outsiderId = "user-outsider";
 
   beforeAll(async () => {
@@ -44,9 +44,9 @@ integration("MatchCommands public seam", () => {
         emailVerified: true,
       },
       {
-        id: captainId,
-        name: "Capitán",
-        email: "captain@example.com",
+        id: memberId,
+        name: "Miembro",
+        email: "member@example.com",
         emailVerified: true,
       },
       {
@@ -69,9 +69,9 @@ integration("MatchCommands public seam", () => {
         role: "owner",
       },
       {
-        id: "member-captain",
+        id: "member-member",
         organizationId: groupId,
-        userId: captainId,
+        userId: memberId,
         role: "member",
       },
     ]);
@@ -81,12 +81,11 @@ integration("MatchCommands public seam", () => {
     await pool.end();
   });
 
-  test("creates the match, both temporary teams and its initial event atomically", async () => {
+  test("creates the match with default temporary teams and its initial event atomically", async () => {
     const scope = { groupId, actorUserId: organizerId };
     const created = await commands.execute(scope, {
       type: "createMatch",
       scheduledAt: new Date("2026-07-29T22:00:00.000Z"),
-      teams: [{ displayName: "Oscuros" }, { displayName: "Claros" }],
     });
 
     expect(typeof created.matchId).toBe("string");
@@ -97,8 +96,8 @@ integration("MatchCommands public seam", () => {
       status: "open",
       lockVersion: 0,
       teams: [
-        { slot: 1, displayName: "Oscuros", appearances: [] },
-        { slot: 2, displayName: "Claros", appearances: [] },
+        { slot: 1, displayName: "Equipo 1", appearances: [] },
+        { slot: 2, displayName: "Equipo 2", appearances: [] },
       ],
     });
 
@@ -108,31 +107,29 @@ integration("MatchCommands public seam", () => {
         {
           type: "createMatch",
           scheduledAt: new Date("2026-07-29T22:00:00.000Z"),
-          teams: [{ displayName: "A" }, { displayName: "B" }],
         },
       ),
     ).rejects.toMatchObject({ code: "membership_required" } satisfies Partial<MatchCommandError>);
   });
 
-  test("keeps global setup owner-only while a captain can create a player into their team", async () => {
+  test("keeps global setup manager-only", async () => {
     const organizer = { groupId, actorUserId: organizerId };
-    const captain = { groupId, actorUserId: captainId };
+    const memberScope = { groupId, actorUserId: memberId };
 
     await expect(
-      commands.execute(captain, {
+      commands.execute(memberScope, {
         type: "createMatch",
         scheduledAt: new Date("2026-07-29T22:00:00.000Z"),
-        teams: [{ displayName: "Oscuros" }, { displayName: "Claros" }],
       }),
     ).rejects.toMatchObject({ code: "owner_required" } satisfies Partial<MatchCommandError>);
     await expect(
-      commands.execute(captain, {
+      commands.execute(memberScope, {
         type: "upsertPlayer",
         displayName: "No autorizado",
       }),
     ).rejects.toMatchObject({ code: "owner_required" } satisfies Partial<MatchCommandError>);
     await expect(
-      commands.execute(captain, {
+      commands.execute(memberScope, {
         type: "upsertCourt",
         name: "Cancha ajena",
         address: "Sin permiso 123",
@@ -140,79 +137,27 @@ integration("MatchCommands public seam", () => {
       }),
     ).rejects.toMatchObject({ code: "owner_required" } satisfies Partial<MatchCommandError>);
 
-    const created = await commands.execute(organizer, {
-      type: "createMatch",
-      scheduledAt: new Date("2026-07-29T22:00:00.000Z"),
-      courtCostMinor: 1_000n,
-      teams: [{ displayName: "Oscuros" }, { displayName: "Claros" }],
+    const directory = await queries.directory(organizer);
+    expect(directory.members.find(({ id }) => id === organizerId)).toMatchObject({
+      linkedPlayerId: null,
+      role: "owner",
     });
-    const [captainTeamId, rivalTeamId] = created.teamIds;
-    const captainAssignment = await commands.execute(organizer, {
-      type: "setCaptain",
-      matchId: created.matchId,
-      expectedLockVersion: created.lockVersion,
-      teamId: captainTeamId,
-      captainUserId: captainId,
-    });
-    const added = await commands.execute(captain, {
-      type: "createAndAddParticipant",
-      matchId: created.matchId,
-      expectedLockVersion: captainAssignment.lockVersion,
-      teamId: captainTeamId,
-      displayName: "Jugador invitado",
-    });
-
-    expect(added).toMatchObject({
-      matchId: created.matchId,
-      lockVersion: captainAssignment.lockVersion + 1,
-    });
-    expect(typeof added.playerId).toBe("string");
-    await expect(
-      commands.execute(captain, {
-        type: "createAndAddParticipant",
-        matchId: created.matchId,
-        expectedLockVersion: added.lockVersion,
-        teamId: rivalTeamId,
-        displayName: "No entra",
-      }),
-    ).rejects.toMatchObject({ code: "forbidden" } satisfies Partial<MatchCommandError>);
-
-    const directory = await queries.directory(captain);
-    expect(directory.players.map(({ displayName }) => displayName)).toEqual(["Jugador invitado"]);
-    expect(directory.members).toEqual([
-      {
-        email: "captain@example.com",
-        id: captainId,
-        linkedPlayerId: null,
-        membershipId: "member-captain",
-        name: "Capitán",
-        role: "member",
-      },
-      {
-        email: "organizer@example.com",
-        id: organizerId,
-        linkedPlayerId: null,
-        membershipId: "member-organizer",
-        name: "Organizador",
-        role: "owner",
-      },
-    ]);
   });
 
   test("links each group account to at most one player and exposes the current link", async () => {
     const organizer = { groupId, actorUserId: organizerId };
-    const captain = { groupId, actorUserId: captainId };
+    const memberScope = { groupId, actorUserId: memberId };
     const first = await commands.execute(organizer, {
       type: "upsertPlayer",
       displayName: "Beto",
-      linkedUserId: captainId,
+      linkedUserId: memberId,
     });
 
     await expect(
       commands.execute(organizer, {
         type: "upsertPlayer",
         displayName: "Betito",
-        linkedUserId: captainId,
+        linkedUserId: memberId,
       }),
     ).rejects.toMatchObject({
       code: "player_account_already_linked",
@@ -225,7 +170,7 @@ integration("MatchCommands public seam", () => {
       }),
     ).rejects.toMatchObject({ code: "membership_required" } satisfies Partial<MatchCommandError>);
     await expect(
-      commands.execute(captain, {
+      commands.execute(memberScope, {
         type: "upsertPlayer",
         playerId: first.playerId,
         displayName: "Beto",
@@ -234,8 +179,7 @@ integration("MatchCommands public seam", () => {
     ).rejects.toMatchObject({ code: "owner_required" } satisfies Partial<MatchCommandError>);
 
     const linkedDirectory = await queries.directory(organizer);
-    expect(linkedDirectory.members.find(({ id }) => id === captainId)).toMatchObject({
-      email: "captain@example.com",
+    expect(linkedDirectory.members.find(({ id }) => id === memberId)).toMatchObject({
       linkedPlayerId: first.playerId,
     });
 
@@ -248,21 +192,20 @@ integration("MatchCommands public seam", () => {
     const second = await commands.execute(organizer, {
       type: "upsertPlayer",
       displayName: "Betito",
-      linkedUserId: captainId,
+      linkedUserId: memberId,
     });
     expect(
-      (await queries.directory(organizer)).members.find(({ id }) => id === captainId),
+      (await queries.directory(organizer)).members.find(({ id }) => id === memberId),
     ).toMatchObject({ linkedPlayerId: second.playerId });
   });
 
-  test("prorates exact minor units and confines a captain to their team", async () => {
+  test("prorates exact minor units and lets the organizer manage the roster and stats", async () => {
     const organizer = { groupId, actorUserId: organizerId };
-    const captain = { groupId, actorUserId: captainId };
+    const memberScope = { groupId, actorUserId: memberId };
     const created = await commands.execute(organizer, {
       type: "createMatch",
       scheduledAt: new Date("2026-07-29T22:00:00.000Z"),
       courtCostMinor: 100n,
-      teams: [{ displayName: "Oscuros" }, { displayName: "Claros" }],
     });
     const [firstTeamId, secondTeamId] = created.teamIds;
     const players = await Promise.all(
@@ -273,13 +216,6 @@ integration("MatchCommands public seam", () => {
     let version = created.lockVersion;
 
     ({ lockVersion: version } = await commands.execute(organizer, {
-      type: "setCaptain",
-      matchId: created.matchId,
-      expectedLockVersion: version,
-      teamId: firstTeamId,
-      captainUserId: captainId,
-    }));
-    ({ lockVersion: version } = await commands.execute(captain, {
       type: "addParticipant",
       matchId: created.matchId,
       expectedLockVersion: version,
@@ -287,7 +223,7 @@ integration("MatchCommands public seam", () => {
       playerId: players[0]!.playerId,
     }));
     await expect(
-      commands.execute(captain, {
+      commands.execute(memberScope, {
         type: "addParticipant",
         matchId: created.matchId,
         expectedLockVersion: version,
@@ -319,14 +255,41 @@ integration("MatchCommands public seam", () => {
     expect(detail.lockVersion).toBe(version);
 
     ({ lockVersion: version } = await commands.execute(organizer, {
-      type: "setExpectedContribution",
+      type: "adjustStat",
       matchId: created.matchId,
       expectedLockVersion: version,
+      field: "goals",
+      delta: 1,
       playerId: players[0]!.playerId,
-      kind: "fixed",
-      expectedMinor: 0n,
     }));
+    ({ lockVersion: version } = await commands.execute(organizer, {
+      type: "adjustStat",
+      matchId: created.matchId,
+      expectedLockVersion: version,
+      field: "unattributedGoals",
+      delta: 1,
+      teamId: secondTeamId,
+    }));
+    await expect(
+      commands.execute(organizer, {
+        type: "adjustStat",
+        matchId: created.matchId,
+        expectedLockVersion: version,
+        field: "ownGoals",
+        delta: -1,
+        playerId: players[0]!.playerId,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_input" } satisfies Partial<MatchCommandError>);
+    ({ lockVersion: version } = await commands.execute(organizer, {
+      type: "moveParticipant",
+      matchId: created.matchId,
+      expectedLockVersion: version,
+      playerId: players[2]!.playerId,
+      teamId: firstTeamId,
+    }));
+
     const adjusted = await queries.detail(organizer, created.matchId);
+    expect(adjusted.score.map(({ goals }) => goals)).toEqual([1, 1]);
     expect(
       adjusted.teams.flatMap((team) =>
         team.appearances.map((appearance) => [
@@ -335,15 +298,28 @@ integration("MatchCommands public seam", () => {
         ]),
       ),
     ).toEqual([
-      [0n, "exempt"],
-      [50n, "pending"],
-      [50n, "pending"],
+      [34n, "pending"],
+      [33n, "pending"],
+      [33n, "pending"],
     ]);
+
+    ({ lockVersion: version } = await commands.execute(organizer, {
+      type: "removeParticipant",
+      matchId: created.matchId,
+      expectedLockVersion: version,
+      playerId: players[2]!.playerId,
+    }));
+    const reduced = await queries.detail(organizer, created.matchId);
+    expect(reduced.teams.flatMap((team) => team.appearances.length)).toEqual([1, 1]);
+    expect(
+      reduced.teams
+        .flatMap((team) => team.appearances)
+        .map((appearance) => appearance.expectedMinor),
+    ).toEqual([50n, 50n]);
   });
 
   test("closes valid data, rejects stale writes and still accepts payments", async () => {
     const organizer = { groupId, actorUserId: organizerId };
-    const captain = { groupId, actorUserId: captainId };
     const venue = await commands.execute(organizer, {
       type: "upsertCourt",
       name: "El Poli",
@@ -360,36 +336,35 @@ integration("MatchCommands public seam", () => {
       scheduledAt: new Date("2020-01-01T22:00:00.000Z"),
       courtId: venue.courtId,
       courtCostMinor: 1_000n,
-      teams: [{ displayName: "Oscuros" }, { displayName: "Claros" }],
     });
     const [firstTeamId, secondTeamId] = created.teamIds;
     let version = created.lockVersion;
     for (const command of [
-      {
-        type: "setCaptain" as const,
-        teamId: firstTeamId,
-        captainUserId: captainId,
-      },
       { type: "addParticipant" as const, teamId: firstTeamId, playerId: alice!.playerId },
       { type: "addParticipant" as const, teamId: secondTeamId, playerId: bob!.playerId },
       {
-        type: "updateAppearance" as const,
+        type: "adjustStat" as const,
+        field: "goals" as const,
+        delta: 1 as const,
         playerId: alice!.playerId,
-        goals: 1,
-        assists: 1,
-        ownGoals: 0,
       },
       {
-        type: "updateAppearance" as const,
+        type: "adjustStat" as const,
+        field: "assists" as const,
+        delta: 1 as const,
+        playerId: alice!.playerId,
+      },
+      {
+        type: "adjustStat" as const,
+        field: "ownGoals" as const,
+        delta: 1 as const,
         playerId: bob!.playerId,
-        goals: 0,
-        assists: 0,
-        ownGoals: 1,
       },
       {
-        type: "setUnattributedGoals" as const,
+        type: "adjustStat" as const,
+        field: "unattributedGoals" as const,
+        delta: 1 as const,
         teamId: secondTeamId,
-        goals: 1,
       },
     ]) {
       ({ lockVersion: version } = await commands.execute(organizer, {
@@ -410,17 +385,16 @@ integration("MatchCommands public seam", () => {
     ]);
     await expect(
       commands.execute(organizer, {
-        type: "updateAppearance",
+        type: "adjustStat",
         matchId: created.matchId,
         expectedLockVersion: version,
+        field: "goals",
+        delta: 1,
         playerId: alice!.playerId,
-        goals: 2,
-        assists: 1,
-        ownGoals: 0,
       }),
     ).rejects.toMatchObject({ code: "match_not_open" } satisfies Partial<MatchCommandError>);
     await expect(
-      commands.execute(captain, {
+      commands.execute(organizer, {
         type: "updatePaid",
         matchId: created.matchId,
         expectedLockVersion: version,
@@ -428,23 +402,27 @@ integration("MatchCommands public seam", () => {
         paidMinor: 500n,
       }),
     ).resolves.toMatchObject({ lockVersion: version + 1 });
+    version += 1;
     await expect(
       commands.execute(organizer, {
         type: "reopenMatch",
         matchId: created.matchId,
-        expectedLockVersion: version,
-        reason: "Corregir el tanteador",
+        expectedLockVersion: version - 1,
       }),
     ).rejects.toMatchObject({ code: "concurrent_update" } satisfies Partial<MatchCommandError>);
+    ({ lockVersion: version } = await commands.execute(organizer, {
+      type: "reopenMatch",
+      matchId: created.matchId,
+      expectedLockVersion: version,
+    }));
+    expect((await queries.detail(organizer, created.matchId)).status).toBe("open");
   });
 
-  test("audits cancellation, restoration and organizer transfer through legal states", async () => {
+  test("audits cancellation and restoration without mandatory reasons", async () => {
     const organizer = { groupId, actorUserId: organizerId };
-    const nextOrganizer = { groupId, actorUserId: captainId };
     const created = await commands.execute(organizer, {
       type: "createMatch",
       scheduledAt: new Date("2026-07-29T22:00:00.000Z"),
-      teams: [{ displayName: "Oscuros" }, { displayName: "Claros" }],
     });
     let version = created.lockVersion;
 
@@ -459,37 +437,18 @@ integration("MatchCommands public seam", () => {
       type: "restoreMatch",
       matchId: created.matchId,
       expectedLockVersion: version,
-      reason: "Conseguimos otra cancha",
     }));
     ({ lockVersion: version } = await commands.execute(organizer, {
-      type: "transferOrganizer",
+      type: "cancelMatch",
       matchId: created.matchId,
       expectedLockVersion: version,
-      nextOrganizerUserId: captainId,
-      reason: "Beto organiza esta fecha",
     }));
-    await expect(
-      commands.execute(organizer, {
-        type: "cancelMatch",
-        matchId: created.matchId,
-        expectedLockVersion: version,
-        reason: "El dueño conserva autoridad",
-      }),
-    ).resolves.toMatchObject({ lockVersion: version + 1 });
-    version += 1;
+    expect((await queries.detail(organizer, created.matchId)).status).toBe("cancelled");
     ({ lockVersion: version } = await commands.execute(organizer, {
       type: "restoreMatch",
       matchId: created.matchId,
       expectedLockVersion: version,
-      reason: "La fecha sigue",
     }));
-    await expect(
-      commands.execute(nextOrganizer, {
-        type: "cancelMatch",
-        matchId: created.matchId,
-        expectedLockVersion: version,
-        reason: "Lluvia",
-      }),
-    ).resolves.toMatchObject({ lockVersion: version + 1 });
+    expect((await queries.detail(organizer, created.matchId)).status).toBe("open");
   });
 });

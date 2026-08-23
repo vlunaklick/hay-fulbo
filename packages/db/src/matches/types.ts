@@ -48,18 +48,10 @@ export type MatchMutationResult = {
   lockVersion: number;
 };
 
+export type StatField = "goals" | "assists" | "ownGoals" | "unattributedGoals";
+
 export type MatchCommand =
-  | {
-      type: "createMatch";
-      scheduledAt: Date;
-      courtId?: string | null;
-      courtCostMinor?: bigint | null;
-      capacity?: number;
-      teams: readonly [
-        { displayName: string; color?: string | null },
-        { displayName: string; color?: string | null },
-      ];
-    }
+  | { type: "createMatch"; scheduledAt: Date }
   | {
       type: "upsertPlayer";
       playerId?: string;
@@ -82,22 +74,13 @@ export type MatchCommand =
       scheduledAt?: Date;
       courtId?: string | null;
       courtCostMinor?: bigint | null;
-      capacity?: number;
     }
   | {
-      type: "updateTeam";
+      type: "renameTeam";
       matchId: string;
       expectedLockVersion: number;
       teamId: string;
       displayName: string;
-      color?: string | null;
-    }
-  | {
-      type: "setCaptain";
-      matchId: string;
-      expectedLockVersion: number;
-      teamId: string;
-      captainUserId: string | null;
     }
   | {
       type: "addParticipant";
@@ -120,35 +103,20 @@ export type MatchCommand =
       playerId: string;
     }
   | {
-      type: "assignParticipantTeam";
+      type: "moveParticipant";
       matchId: string;
       expectedLockVersion: number;
       playerId: string;
       teamId: string;
     }
   | {
-      type: "updateAppearance";
+      type: "adjustStat";
       matchId: string;
       expectedLockVersion: number;
-      playerId: string;
-      goals: number;
-      assists: number;
-      ownGoals: number;
-    }
-  | {
-      type: "setUnattributedGoals";
-      matchId: string;
-      expectedLockVersion: number;
-      teamId: string;
-      goals: number;
-    }
-  | {
-      type: "setExpectedContribution";
-      matchId: string;
-      expectedLockVersion: number;
-      playerId: string;
-      kind: "automatic" | "fixed";
-      expectedMinor?: bigint;
+      field: StatField;
+      delta: 1 | -1;
+      playerId?: string;
+      teamId?: string;
     }
   | {
       type: "updatePaid";
@@ -166,19 +134,17 @@ export type MatchCommand =
       type: "reopenMatch";
       matchId: string;
       expectedLockVersion: number;
-      reason: string;
     }
   | {
       type: "cancelMatch";
       matchId: string;
       expectedLockVersion: number;
-      reason: string;
+      reason?: string;
     }
   | {
       type: "restoreMatch";
       matchId: string;
       expectedLockVersion: number;
-      reason: string;
     }
   | {
       type: "transferOrganizer";
@@ -208,7 +174,6 @@ export type MatchCommandResultFor<TCommand extends MatchCommand> = TCommand exte
         : MatchMutationResult;
 
 export type ContributionStatus = "exempt" | "pending" | "partial" | "paid" | "overpaid";
-export type RsvpResponse = "yes" | "maybe" | "no";
 
 export type MatchDetail = {
   id: string;
@@ -217,22 +182,13 @@ export type MatchDetail = {
   courtId: string | null;
   scheduledAt: Date;
   courtCostMinor: bigint | null;
-  capacity: number;
   status: "open" | "closed" | "cancelled";
   lockVersion: number;
   score: readonly { teamId: string; goals: number }[];
-  rsvps: readonly {
-    playerId: string;
-    playerDisplayName: string;
-    response: RsvpResponse;
-    respondedAt: Date;
-  }[];
   teams: readonly {
     id: string;
     slot: number;
     displayName: string;
-    color: string | null;
-    captainUserId: string | null;
     unattributedGoals: number;
     appearances: readonly {
       playerId: string;
@@ -242,7 +198,6 @@ export type MatchDetail = {
       goals: number;
       assists: number;
       ownGoals: number;
-      expectedKind: "automatic" | "fixed";
       expectedMinor: bigint;
       paidMinor: bigint;
       contributionStatus: ContributionStatus;
@@ -257,7 +212,6 @@ export type MatchListItem = Omit<MatchDetail, "teams"> & {
     id: string;
     slot: number;
     displayName: string;
-    color: string | null;
     goals: number;
   }[];
 };

@@ -232,17 +232,17 @@ const matchInviteRouter = router({
     .query(({ ctx, input }) =>
       translateAccessError(() => ctx.matchInviteAccess.preview(input.token)),
     ),
-  respond: publicProcedure
+  join: publicProcedure
     .input(
       z.object({
         playerId: z.uuid(),
-        response: z.enum(["yes", "maybe", "no"]),
+        joined: z.boolean(),
         token: z.string().min(1).max(512),
       }),
     )
     .mutation(({ ctx, input }) =>
       translateAccessError(() =>
-        ctx.matchInviteAccess.respond(input.token, input.playerId, input.response),
+        ctx.matchInviteAccess.join(input.token, input.playerId, input.joined),
       ),
     ),
 });

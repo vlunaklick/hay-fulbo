@@ -7,7 +7,6 @@ import {
   invitation,
   match,
   matchAppearance,
-  matchRsvp,
   matchOrganizerTransfer,
   matchTeam,
   matchTransition,
@@ -41,7 +40,6 @@ describe("Hay Fulbo persistence seam", () => {
         match,
         matchTeam,
         matchAppearance,
-        matchRsvp,
         matchTransition,
         matchOrganizerTransfer,
         groupSharedLink,
@@ -52,7 +50,6 @@ describe("Hay Fulbo persistence seam", () => {
       "match",
       "match_team",
       "match_appearance",
-      "match_rsvp",
       "match_transition",
       "match_organizer_transfer",
       "group_shared_link",
@@ -67,7 +64,6 @@ describe("Hay Fulbo persistence seam", () => {
 
   test("declares tenant-aware foreign keys and database checks", () => {
     const appearance = getTableConfig(matchAppearance);
-    const rsvp = getTableConfig(matchRsvp);
     const foreignKeyColumns = appearance.foreignKeys.map((foreignKey) =>
       foreignKey.reference().columns.map((column) => column.name),
     );
@@ -84,19 +80,6 @@ describe("Hay Fulbo persistence seam", () => {
         "match_appearance_expected_minor_nonnegative",
         "match_appearance_paid_minor_nonnegative",
       ]),
-    );
-    expect(
-      rsvp.foreignKeys.map((foreignKey) =>
-        foreignKey.reference().columns.map((column) => column.name),
-      ),
-    ).toEqual(
-      expect.arrayContaining([
-        ["group_id", "match_id"],
-        ["group_id", "player_id"],
-      ]),
-    );
-    expect(getTableConfig(match).checks.map((constraint) => constraint.name)).toContain(
-      "match_capacity_allowed",
     );
   });
 

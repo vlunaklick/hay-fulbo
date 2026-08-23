@@ -10,7 +10,6 @@ import {
 describe("match sharing", () => {
   test("builds a WhatsApp-ready invitation without an API", () => {
     const message = buildMatchMessage({
-      capacity: 10,
       court: {
         address: "Av. Córdoba 1234",
         mapsUrl: "https://maps.example/cancha",
@@ -27,8 +26,8 @@ describe("match sharing", () => {
 
     expect(message).toContain("Miércoles 5 de agosto · 21:00");
     expect(message).toContain("El Andén · Av. Córdoba 1234");
-    expect(message).toContain("$ 6.000");
-    expect(message).toContain("7/10 confirmados · faltan 3");
+    expect(message).toContain("Estimado $\u00A06.000");
+    expect(message).toContain("7 anotados");
     expect(buildWhatsAppUrl(message)).toStartWith("https://wa.me/?text=");
   });
 

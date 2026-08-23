@@ -20,34 +20,16 @@ const versioned = {
   matchId: id,
   expectedLockVersion: z.number().int().nonnegative(),
 };
-const nonnegativeMinor = z
-  .string()
-  .regex(/^\d+$/)
-  .transform((value) => BigInt(value));
 const optionalMinor = z
   .string()
   .regex(/^\d+$/)
   .nullable()
   .transform((value) => (value === null ? null : BigInt(value)));
-const sportingTotal = z.number().int().nonnegative();
 
 const commandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("createMatch"),
     scheduledAt: z.coerce.date(),
-    courtId: id.nullish(),
-    courtCostMinor: optionalMinor.optional(),
-    capacity: z.number().int().min(2).max(40).optional(),
-    teams: z.tuple([
-      z.object({
-        displayName: z.string().trim().min(1),
-        color: z.string().trim().nullable().optional(),
-      }),
-      z.object({
-        displayName: z.string().trim().min(1),
-        color: z.string().trim().nullable().optional(),
-      }),
-    ]),
   }),
   z.object({
     type: z.literal("upsertPlayer"),
@@ -78,20 +60,12 @@ const commandSchema = z.discriminatedUnion("type", [
     scheduledAt: z.coerce.date().optional(),
     courtId: id.nullable().optional(),
     courtCostMinor: optionalMinor.optional(),
-    capacity: z.number().int().min(2).max(40).optional(),
   }),
   z.object({
-    type: z.literal("updateTeam"),
+    type: z.literal("renameTeam"),
     ...versioned,
     teamId: id,
     displayName: z.string().trim().min(1),
-    color: z.string().trim().nullable().optional(),
-  }),
-  z.object({
-    type: z.literal("setCaptain"),
-    ...versioned,
-    teamId: id,
-    captainUserId: z.string().min(1).nullable(),
   }),
   z.object({
     type: z.literal("addParticipant"),
@@ -111,54 +85,36 @@ const commandSchema = z.discriminatedUnion("type", [
     playerId: id,
   }),
   z.object({
-    type: z.literal("assignParticipantTeam"),
+    type: z.literal("moveParticipant"),
     ...versioned,
     playerId: id,
     teamId: id,
   }),
   z.object({
-    type: z.literal("updateAppearance"),
+    type: z.literal("adjustStat"),
     ...versioned,
-    playerId: id,
-    goals: sportingTotal,
-    assists: sportingTotal,
-    ownGoals: sportingTotal,
-  }),
-  z.object({
-    type: z.literal("setUnattributedGoals"),
-    ...versioned,
-    teamId: id,
-    goals: sportingTotal,
-  }),
-  z.object({
-    type: z.literal("setExpectedContribution"),
-    ...versioned,
-    playerId: id,
-    kind: z.enum(["automatic", "fixed"]),
-    expectedMinor: nonnegativeMinor.optional(),
+    field: z.enum(["goals", "assists", "ownGoals", "unattributedGoals"]),
+    delta: z.union([z.literal(1), z.literal(-1)]),
+    playerId: id.optional(),
+    teamId: id.optional(),
   }),
   z.object({
     type: z.literal("updatePaid"),
     ...versioned,
     playerId: id,
-    paidMinor: nonnegativeMinor,
+    paidMinor: z
+      .string()
+      .regex(/^\d+$/)
+      .transform((value) => BigInt(value)),
   }),
   z.object({ type: z.literal("closeMatch"), ...versioned }),
-  z.object({
-    type: z.literal("reopenMatch"),
-    ...versioned,
-    reason: z.string().trim().min(1),
-  }),
+  z.object({ type: z.literal("reopenMatch"), ...versioned }),
   z.object({
     type: z.literal("cancelMatch"),
     ...versioned,
-    reason: z.string().trim().min(1),
+    reason: z.string().trim().min(1).max(500).optional(),
   }),
-  z.object({
-    type: z.literal("restoreMatch"),
-    ...versioned,
-    reason: z.string().trim().min(1),
-  }),
+  z.object({ type: z.literal("restoreMatch"), ...versioned }),
   z.object({
     type: z.literal("transferOrganizer"),
     ...versioned,

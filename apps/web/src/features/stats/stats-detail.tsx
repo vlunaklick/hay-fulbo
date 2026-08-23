@@ -4,13 +4,7 @@ import type { PlayerStats, StatsFilters, StatsMatchDetail } from "@hay-fulbo/db/
 import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { buttonVariants } from "@hay-fulbo/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@hay-fulbo/ui/components/card";
 import { Separator } from "@hay-fulbo/ui/components/separator";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import {
@@ -28,7 +22,6 @@ import {
   CalendarDaysIcon,
   LockKeyholeIcon,
   MapPinIcon,
-  ShieldCheckIcon,
   TrophyIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -194,26 +187,11 @@ function PlayerStatsContent({
             <Metric label="Perdidos" value={data.aggregate.losses} />
             <Metric label="Puntos" value={data.aggregate.points} />
           </section>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <Card size="sm">
-              <CardHeader>
-                <CardDescription>Rendimiento</CardDescription>
-                <CardTitle>{formatRate(data.aggregate.winPercentage)}% victorias</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card size="sm">
-              <CardHeader>
-                <CardDescription>Promedio G+A</CardDescription>
-                <CardTitle>{formatRate(data.aggregate.contributionsPerMatch)}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card size="sm">
-              <CardHeader>
-                <CardDescription>Diferencia de gol</CardDescription>
-                <CardTitle>{signed(data.aggregate.goalDifference)}</CardTitle>
-              </CardHeader>
-            </Card>
-          </div>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {formatRate(data.aggregate.winPercentage)}% victorias ·{" "}
+            {formatRate(data.aggregate.contributionsPerMatch)} G+A por partido ·{" "}
+            {signed(data.aggregate.goalDifference)} de gol
+          </p>
         </>
       ) : (
         <Card className="mt-8">
@@ -346,25 +324,20 @@ function MatchStatsContent({
         </div>
       </header>
 
-      <section aria-label="Equipos" className="mt-8 grid gap-4 sm:grid-cols-2">
-        {data.teams.map((team) => (
-          <Card key={team.id}>
-            <CardHeader>
-              <CardDescription>Equipo {team.slot}</CardDescription>
-              <CardTitle className="flex items-center justify-between gap-3">
-                <span className="truncate">{team.displayName}</span>
-                <span className="text-3xl tabular-nums">{team.goals}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {team.captainName ? (
-                <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <ShieldCheckIcon className="size-4" />
-                  Capitán: {team.captainName}
-                </p>
-              ) : null}
-            </CardContent>
-          </Card>
+      <section aria-label="Equipos" className="mt-8 overflow-hidden rounded-lg border">
+        {data.teams.map((team, index) => (
+          <div
+            key={team.id}
+            className={cn(
+              "flex items-center justify-between gap-4 px-4 py-3 sm:px-5",
+              index > 0 && "border-t",
+            )}
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{team.displayName}</p>
+            </div>
+            <span className="text-2xl font-bold tabular-nums">{team.goals}</span>
+          </div>
         ))}
       </section>
 

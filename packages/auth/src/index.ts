@@ -36,7 +36,13 @@ export function createAuth() {
 
       schema: schema,
     }),
-    trustedOrigins: [env.CORS_ORIGIN, "hay-fulbo://", "exp://", "http://localhost:8081"],
+    trustedOrigins: [
+      env.CORS_ORIGIN,
+      "hay-fulbo://",
+      "exp://",
+      "http://localhost:8081",
+      "http://localhost:8444",
+    ],
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: emailDeliveryConfigured,

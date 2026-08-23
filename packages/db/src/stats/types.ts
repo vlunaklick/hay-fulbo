@@ -43,8 +43,6 @@ export type StatsSourceTeam = {
   id: string;
   slot: number;
   displayName: string;
-  color: string | null;
-  captainName: string | null;
   unattributedGoals: number;
   appearances: readonly {
     playerId: string;
@@ -89,8 +87,6 @@ export type StatsMatchListItem = {
     id: string;
     slot: number;
     displayName: string;
-    color: string | null;
-    captainName: string | null;
     goals: number;
   }[];
 };

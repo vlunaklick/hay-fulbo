@@ -6,7 +6,7 @@ product
 
 ## Users
 
-Grupos de amigos que organizan partidos informales, principalmente desde el teléfono. El Organizador necesita cerrar la fecha completa; los Capitanes arman equipos y cargan datos; el resto consulta partidos, deudas y estadísticas sin registrarse.
+Grupos de amigos que organizan partidos informales, principalmente desde el teléfono. El Organizador necesita cerrar la fecha completa; el resto consulta partidos, deudas y estadísticas sin registrarse, y se suma a la convocatoria con un enlace.
 
 ## Product Purpose
 

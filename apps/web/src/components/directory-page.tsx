@@ -5,14 +5,6 @@ import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -29,6 +21,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
+import { cn } from "@hay-fulbo/ui/lib/utils";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
 import {
@@ -280,9 +273,12 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
       ) : null}
 
       {directory.isPending || (isPlayers && stats.isPending) ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="flex flex-col">
           {Array.from({ length: 6 }, (_, index) => (
-            <Skeleton key={index} className="h-32 w-full" />
+            <Skeleton
+              key={index}
+              className="h-14 w-full rounded-none first:rounded-t-md last:rounded-b-md"
+            />
           ))}
         </div>
       ) : directory.isError || (isPlayers && stats.isError) ? (
@@ -323,19 +319,22 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
           </EmptyContent>
         </Empty>
       ) : isPlayers ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {visiblePlayers.map((player) => (
+        <div className="overflow-hidden rounded-lg border">
+          {visiblePlayers.map((player, index) => (
             <Button
               key={player.id}
               aria-label={`Ver detalle de ${player.displayName}`}
-              className="h-auto w-full justify-start p-0 text-left whitespace-normal"
+              className={cn(
+                "h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal sm:px-5",
+                index > 0 && "border-t",
+              )}
               onClick={() => {
                 setError(null);
                 setSelectedId(player.id);
               }}
               variant="ghost"
             >
-              <PlayerCard
+              <PlayerRow
                 player={player}
                 stats={rankingByPlayer.get(player.id) ?? EMPTY_PLAYER_STATS}
               />
@@ -343,19 +342,22 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
           ))}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {courts.map((court) => (
+        <div className="overflow-hidden rounded-lg border">
+          {courts.map((court, index) => (
             <Button
               key={court.id}
               aria-label={`Ver detalle de ${court.name}`}
-              className="h-auto w-full justify-start p-0 text-left whitespace-normal"
+              className={cn(
+                "h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal sm:px-5",
+                index > 0 && "border-t",
+              )}
               onClick={() => {
                 setError(null);
                 setSelectedId(court.id);
               }}
               variant="ghost"
             >
-              <CourtCard court={court} />
+              <CourtRow court={court} />
             </Button>
           ))}
         </div>
@@ -416,56 +418,49 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
   );
 }
 
-function PlayerCard({ player, stats }: { player: PlayerRow; stats: PlayerAggregate }) {
+function PlayerRow({ player, stats }: { player: PlayerRow; stats: PlayerAggregate }) {
   return (
-    <Card className="w-full transition-colors group-hover/button:bg-accent/50" size="sm">
-      <CardHeader className="flex flex-row items-center gap-3">
-        <Avatar size="lg">
-          <AvatarFallback>{initials(player.displayName)}</AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <CardTitle className="truncate text-base">{player.displayName}</CardTitle>
-          <CardDescription>
-            {stats.played} {stats.played === 1 ? "partido" : "partidos"}
-          </CardDescription>
-        </div>
-        {player.archivedAt ? (
-          <Badge variant={player.archivedAt ? "secondary" : "outline"}>Archivado</Badge>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        <dl className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-          <div className="flex items-baseline justify-between gap-2">
-            <dt>Goles</dt>
-            <dd className="font-semibold tabular-nums text-foreground">{stats.goals}</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <dt>Asistencias</dt>
-            <dd className="font-semibold tabular-nums text-foreground">{stats.assists}</dd>
-          </div>
-        </dl>
-      </CardContent>
-    </Card>
+    <span className="flex min-w-0 flex-1 items-center gap-3">
+      <Avatar>
+        <AvatarFallback>{initials(player.displayName)}</AvatarFallback>
+      </Avatar>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="truncate text-sm font-medium">{player.displayName}</span>
+          {player.archivedAt ? <Badge variant="secondary">Archivado</Badge> : null}
+        </span>
+        <span className="block text-xs text-muted-foreground">
+          {stats.played} {stats.played === 1 ? "partido" : "partidos"}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-baseline gap-3 text-sm tabular-nums">
+        <span aria-label="Goles">
+          <span className="text-xs text-muted-foreground">G</span> <strong>{stats.goals}</strong>
+        </span>
+        <span aria-label="Asistencias">
+          <span className="text-xs text-muted-foreground">A</span> <strong>{stats.assists}</strong>
+        </span>
+      </span>
+    </span>
   );
 }
 
-function CourtCard({ court }: { court: CourtRow }) {
+function CourtRow({ court }: { court: CourtRow }) {
   return (
-    <Card className="w-full transition-colors group-hover/button:bg-accent/50" size="sm">
-      <CardHeader>
-        <CardTitle className="text-base">{court.name}</CardTitle>
-        <CardDescription className="line-clamp-2">{court.address}</CardDescription>
-        <CardAction>
+    <span className="flex min-w-0 flex-1 items-center gap-3">
+      <span className="flex size-9 shrink-0 items-center justify-center bg-muted text-muted-foreground">
+        <MapPinIcon className="size-4" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="truncate text-sm font-medium">{court.name}</span>
           <Badge variant={court.archivedAt ? "secondary" : "outline"}>
             {court.archivedAt ? "Archivada" : "Activa"}
           </Badge>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="flex items-center gap-2 text-xs text-muted-foreground">
-        <MapPinIcon aria-hidden="true" />
-        Ver ubicación y editar datos
-      </CardContent>
-    </Card>
+        </span>
+        <span className="block truncate text-xs text-muted-foreground">{court.address}</span>
+      </span>
+    </span>
   );
 }
 
@@ -947,9 +942,9 @@ function CourtFields({
 
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="flex flex-col gap-1 rounded-md border p-3">
+    <div className="flex flex-col gap-1">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-xl font-semibold">{value}</dd>
+      <dd className="text-xl font-semibold tabular-nums">{value}</dd>
     </div>
   );
 }

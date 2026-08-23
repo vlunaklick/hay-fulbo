@@ -66,50 +66,20 @@ test("an organizer can create a group and its first match", async ({ page }, tes
   await activate(page.locator('a[href="/dashboard/partidos/nuevo"]:visible').first(), page);
 
   await expect(page).toHaveURL(/\/dashboard\/partidos\/nuevo$/);
-  await page.getByLabel("Precio total de la cancha").fill("48000");
   await page.getByRole("button", { name: "Crear partido" }).click();
 
   await expect(page).toHaveURL(/\/dashboard\/partidos\/[0-9a-f-]{36}$/);
-  await expect(page.getByText("Oscuros", { exact: true })).toBeVisible();
-  await expect(page.getByText("Claros", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Convocatoria/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Ficha/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Plantel/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Caja/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Juego/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Cómo llegan/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Revisar cierre/ })).toBeVisible();
+  await expect(page.getByText("Equipo 1", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Equipo 2", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Los equipos")).toBeVisible();
+  await expect(page.getByText("El partido")).toBeVisible();
+  await expect(page.getByText("El cierre")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Cerrar partido/ })).toBeDisabled();
 
-  const sheetTriggers = [
-    { button: /^Convocatoria/, heading: "Convocatoria" },
-    { button: /^Ficha/, heading: "Ficha del partido" },
-    { button: /^Plantel/, heading: "Plantel" },
-    { button: /^Caja/, heading: "Caja" },
-    { button: /^Juego/, heading: "Juego" },
-    { button: /^Cómo llegan/, heading: "Cómo llegan" },
-  ];
-  for (const item of sheetTriggers) {
-    const trigger = page.getByRole("button", { name: item.button });
-    await trigger.focus();
-    await page.keyboard.press("Enter");
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("heading", { name: item.heading }).first()).toBeVisible();
-    await expect
-      .poll(() => dialog.evaluate((node) => node.contains(document.activeElement)))
-      .toBe(true);
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
-    await expect(trigger).toBeFocused();
-  }
-
-  const closureTrigger = page.getByRole("button", { name: /^Revisar cierre/ });
-  await closureTrigger.focus();
+  const closeButton = page.getByRole("button", { name: /Cerrar partido/ });
+  await closeButton.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Revisar cierre" })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(page.getByText("Falta elegir una cancha.").first()).toBeVisible();
 
   await expectNoHorizontalOverflow(page);
   if (desktop) await expectNoDocumentScroll(page);

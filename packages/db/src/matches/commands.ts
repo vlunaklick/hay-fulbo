@@ -1,11 +1,10 @@
-import { and, asc, eq, max, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, max, sql } from "drizzle-orm";
 
 import {
   court,
   match,
   matchAppearance,
   matchOrganizerTransfer,
-  matchRsvp,
   matchTeam,
   matchTransition,
   member,
@@ -33,7 +32,6 @@ export type {
 } from "./types";
 
 type LockedMatch = typeof match.$inferSelect;
-type TeamRow = typeof matchTeam.$inferSelect;
 type AppearanceRow = typeof matchAppearance.$inferSelect;
 
 export type MatchCommands = {
@@ -42,6 +40,8 @@ export type MatchCommands = {
     command: TCommand,
   ): Promise<MatchCommandResultFor<TCommand>>;
 };
+
+const defaultTeamNames = ["Equipo 1", "Equipo 2"] as const;
 
 export function createMatchCommands(
   database: MatchDatabase,
@@ -92,34 +92,28 @@ export function createMatchCommands(
         switch (command.type) {
           case "updateMatch":
             return updateMatch(transaction, scope, locked, command);
-          case "updateTeam":
-            return updateTeam(transaction, scope, locked, command);
-          case "setCaptain":
-            return setCaptain(transaction, scope, locked, command);
+          case "renameTeam":
+            return renameTeam(transaction, scope, locked, command);
           case "addParticipant":
             return addParticipant(transaction, scope, locked, command);
           case "createAndAddParticipant":
             return createAndAddParticipant(transaction, scope, locked, command);
           case "removeParticipant":
             return removeParticipant(transaction, scope, locked, command);
-          case "assignParticipantTeam":
-            return assignParticipantTeam(transaction, scope, locked, command);
-          case "updateAppearance":
-            return updateAppearance(transaction, scope, locked, command);
-          case "setUnattributedGoals":
-            return setUnattributedGoals(transaction, scope, locked, command);
-          case "setExpectedContribution":
-            return setExpectedContribution(transaction, scope, locked, command);
+          case "moveParticipant":
+            return moveParticipant(transaction, scope, locked, command);
+          case "adjustStat":
+            return adjustStat(transaction, scope, locked, command);
           case "updatePaid":
             return updatePaid(transaction, scope, locked, command, now());
           case "closeMatch":
             return closeMatch(transaction, scope, locked, now());
           case "reopenMatch":
-            return reopenMatch(transaction, scope, locked, command.reason);
+            return reopenMatch(transaction, scope, locked);
           case "cancelMatch":
-            return cancelMatch(transaction, scope, locked, command.reason);
+            return cancelMatch(transaction, scope, locked, command.reason ?? null);
           case "restoreMatch":
-            return restoreMatch(transaction, scope, locked, command.reason);
+            return restoreMatch(transaction, scope, locked);
           case "transferOrganizer":
             return transferOrganizer(transaction, scope, locked, command);
         }
@@ -155,19 +149,6 @@ async function createMatch(
   command: Extract<MatchCommand, { type: "createMatch" }>,
 ) {
   assertDate(command.scheduledAt);
-  if (command.teams.length !== 2) {
-    throw new MatchCommandError("invalid_input", "Exactly two teams are required");
-  }
-  for (const team of command.teams) {
-    assertNonempty(team.displayName);
-  }
-  if (command.courtCostMinor !== undefined && command.courtCostMinor !== null) {
-    assertNonnegativeMoney(command.courtCostMinor);
-  }
-  if (command.capacity !== undefined) assertCapacity(command.capacity);
-  if (command.courtId) {
-    await requireActiveCourt(transaction, scope.groupId, command.courtId);
-  }
 
   const [created] = await transaction
     .insert(match)
@@ -175,9 +156,6 @@ async function createMatch(
       groupId: scope.groupId,
       organizerUserId: scope.actorUserId,
       scheduledAt: command.scheduledAt,
-      courtId: command.courtId ?? null,
-      courtCostMinor: command.courtCostMinor ?? null,
-      capacity: command.capacity ?? 10,
     })
     .returning({ id: match.id, lockVersion: match.lockVersion });
   if (!created) {
@@ -187,12 +165,11 @@ async function createMatch(
   const teams = await transaction
     .insert(matchTeam)
     .values(
-      command.teams.map((team, index) => ({
+      defaultTeamNames.map((displayName, index) => ({
         groupId: scope.groupId,
         matchId: created.id,
         slot: index + 1,
-        displayName: team.displayName.trim(),
-        color: team.color ?? null,
+        displayName,
       })),
     )
     .returning({ id: matchTeam.id, slot: matchTeam.slot });
@@ -361,7 +338,6 @@ async function updateMatch(
   if (command.courtCostMinor !== undefined && command.courtCostMinor !== null) {
     assertNonnegativeMoney(command.courtCostMinor);
   }
-  if (command.capacity !== undefined) assertCapacity(command.capacity);
   if (command.courtId) {
     await requireActiveCourt(transaction, scope.groupId, command.courtId);
   }
@@ -371,7 +347,6 @@ async function updateMatch(
       ...(command.scheduledAt !== undefined ? { scheduledAt: command.scheduledAt } : {}),
       ...(command.courtId !== undefined ? { courtId: command.courtId } : {}),
       ...(command.courtCostMinor !== undefined ? { courtCostMinor: command.courtCostMinor } : {}),
-      ...(command.capacity !== undefined ? { capacity: command.capacity } : {}),
     })
     .where(and(eq(match.groupId, scope.groupId), eq(match.id, locked.id)));
   if (command.courtCostMinor !== undefined) {
@@ -380,11 +355,11 @@ async function updateMatch(
   return bumpVersion(transaction, scope.groupId, locked);
 }
 
-async function updateTeam(
+async function renameTeam(
   transaction: MatchTransaction,
   scope: MatchScope,
   locked: LockedMatch,
-  command: Extract<MatchCommand, { type: "updateTeam" }>,
+  command: Extract<MatchCommand, { type: "renameTeam" }>,
 ) {
   requireOrganizer(locked, scope);
   requireOpen(locked);
@@ -392,32 +367,7 @@ async function updateTeam(
   await requireTeam(transaction, scope.groupId, locked.id, command.teamId);
   await transaction
     .update(matchTeam)
-    .set({ displayName: command.displayName.trim(), color: command.color ?? null })
-    .where(
-      and(
-        eq(matchTeam.groupId, scope.groupId),
-        eq(matchTeam.matchId, locked.id),
-        eq(matchTeam.id, command.teamId),
-      ),
-    );
-  return bumpVersion(transaction, scope.groupId, locked);
-}
-
-async function setCaptain(
-  transaction: MatchTransaction,
-  scope: MatchScope,
-  locked: LockedMatch,
-  command: Extract<MatchCommand, { type: "setCaptain" }>,
-) {
-  requireOrganizer(locked, scope);
-  requireOpen(locked);
-  await requireTeam(transaction, scope.groupId, locked.id, command.teamId);
-  if (command.captainUserId) {
-    await requireMember(transaction, scope.groupId, command.captainUserId);
-  }
-  await transaction
-    .update(matchTeam)
-    .set({ captainUserId: command.captainUserId })
+    .set({ displayName: command.displayName.trim() })
     .where(
       and(
         eq(matchTeam.groupId, scope.groupId),
@@ -434,9 +384,9 @@ async function addParticipant(
   locked: LockedMatch,
   command: Extract<MatchCommand, { type: "addParticipant" }>,
 ) {
+  requireOrganizer(locked, scope);
   requireOpen(locked);
-  const team = await requireTeam(transaction, scope.groupId, locked.id, command.teamId);
-  requireTeamAuthority(locked, team, scope);
+  await requireTeam(transaction, scope.groupId, locked.id, command.teamId);
   await requireActivePlayer(transaction, scope.groupId, command.playerId);
   const [order] = await transaction
     .select({ highest: max(matchAppearance.joinedOrder) })
@@ -449,22 +399,6 @@ async function addParticipant(
     teamId: command.teamId,
     joinedOrder: (order?.highest ?? 0) + 1,
   });
-  await transaction
-    .insert(matchRsvp)
-    .values({
-      groupId: scope.groupId,
-      matchId: locked.id,
-      playerId: command.playerId,
-      response: "yes",
-    })
-    .onConflictDoUpdate({
-      target: [matchRsvp.groupId, matchRsvp.matchId, matchRsvp.playerId],
-      set: {
-        response: "yes",
-        respondedAt: sql`case when ${matchRsvp.response} = 'yes' then ${matchRsvp.respondedAt} else now() end`,
-        updatedAt: new Date(),
-      },
-    });
   await recalculateContributions(transaction, scope.groupId, locked.id, locked.courtCostMinor);
   return bumpVersion(transaction, scope.groupId, locked);
 }
@@ -475,10 +409,10 @@ async function createAndAddParticipant(
   locked: LockedMatch,
   command: Extract<MatchCommand, { type: "createAndAddParticipant" }>,
 ) {
+  requireOrganizer(locked, scope);
   requireOpen(locked);
   assertNonempty(command.displayName);
-  const team = await requireTeam(transaction, scope.groupId, locked.id, command.teamId);
-  requireTeamAuthority(locked, team, scope);
+  await requireTeam(transaction, scope.groupId, locked.id, command.teamId);
   const [created] = await transaction
     .insert(player)
     .values({
@@ -505,15 +439,9 @@ async function removeParticipant(
   locked: LockedMatch,
   command: Extract<MatchCommand, { type: "removeParticipant" }>,
 ) {
+  requireOrganizer(locked, scope);
   requireOpen(locked);
-  const appearance = await requireAppearance(
-    transaction,
-    scope.groupId,
-    locked.id,
-    command.playerId,
-  );
-  const team = await requireTeam(transaction, scope.groupId, locked.id, appearance.teamId);
-  requireTeamAuthority(locked, team, scope);
+  await requireAppearance(transaction, scope.groupId, locked.id, command.playerId);
   await transaction
     .delete(matchAppearance)
     .where(
@@ -523,24 +451,15 @@ async function removeParticipant(
         eq(matchAppearance.playerId, command.playerId),
       ),
     );
-  await transaction
-    .delete(matchRsvp)
-    .where(
-      and(
-        eq(matchRsvp.groupId, scope.groupId),
-        eq(matchRsvp.matchId, locked.id),
-        eq(matchRsvp.playerId, command.playerId),
-      ),
-    );
   await recalculateContributions(transaction, scope.groupId, locked.id, locked.courtCostMinor);
   return bumpVersion(transaction, scope.groupId, locked);
 }
 
-async function assignParticipantTeam(
+async function moveParticipant(
   transaction: MatchTransaction,
   scope: MatchScope,
   locked: LockedMatch,
-  command: Extract<MatchCommand, { type: "assignParticipantTeam" }>,
+  command: Extract<MatchCommand, { type: "moveParticipant" }>,
 ) {
   requireOrganizer(locked, scope);
   requireOpen(locked);
@@ -559,31 +478,64 @@ async function assignParticipantTeam(
   return bumpVersion(transaction, scope.groupId, locked);
 }
 
-async function updateAppearance(
+async function adjustStat(
   transaction: MatchTransaction,
   scope: MatchScope,
   locked: LockedMatch,
-  command: Extract<MatchCommand, { type: "updateAppearance" }>,
+  command: Extract<MatchCommand, { type: "adjustStat" }>,
 ) {
+  requireOrganizer(locked, scope);
   requireOpen(locked);
-  assertSportingTotal(command.goals);
-  assertSportingTotal(command.assists);
-  assertSportingTotal(command.ownGoals);
+  if (command.delta !== 1 && command.delta !== -1) {
+    throw new MatchCommandError("invalid_input", "Invalid stat delta");
+  }
+
+  if (command.field === "unattributedGoals") {
+    if (!command.teamId || command.playerId) {
+      throw new MatchCommandError("invalid_input", "unattributedGoals needs a team");
+    }
+    const team = await requireTeam(transaction, scope.groupId, locked.id, command.teamId);
+    const next = team.unattributedGoals + command.delta;
+    if (next < 0) throw new MatchCommandError("invalid_input", "Stat cannot go below zero");
+    await transaction
+      .update(matchTeam)
+      .set({ unattributedGoals: next })
+      .where(
+        and(
+          eq(matchTeam.groupId, scope.groupId),
+          eq(matchTeam.matchId, locked.id),
+          eq(matchTeam.id, command.teamId),
+        ),
+      );
+    return bumpVersion(transaction, scope.groupId, locked);
+  }
+
+  if (!command.playerId || command.teamId) {
+    throw new MatchCommandError("invalid_input", "Player stats need a player");
+  }
   const appearance = await requireAppearance(
     transaction,
     scope.groupId,
     locked.id,
     command.playerId,
   );
-  const team = await requireTeam(transaction, scope.groupId, locked.id, appearance.teamId);
-  requireTeamAuthority(locked, team, scope);
+  const current =
+    command.field === "goals"
+      ? appearance.goals
+      : command.field === "assists"
+        ? appearance.assists
+        : appearance.ownGoals;
+  const next = current + command.delta;
+  if (next < 0) throw new MatchCommandError("invalid_input", "Stat cannot go below zero");
   await transaction
     .update(matchAppearance)
-    .set({
-      goals: command.goals,
-      assists: command.assists,
-      ownGoals: command.ownGoals,
-    })
+    .set(
+      command.field === "goals"
+        ? { goals: next }
+        : command.field === "assists"
+          ? { assists: next }
+          : { ownGoals: next },
+    )
     .where(
       and(
         eq(matchAppearance.groupId, scope.groupId),
@@ -591,61 +543,6 @@ async function updateAppearance(
         eq(matchAppearance.playerId, command.playerId),
       ),
     );
-  return bumpVersion(transaction, scope.groupId, locked);
-}
-
-async function setUnattributedGoals(
-  transaction: MatchTransaction,
-  scope: MatchScope,
-  locked: LockedMatch,
-  command: Extract<MatchCommand, { type: "setUnattributedGoals" }>,
-) {
-  requireOpen(locked);
-  assertSportingTotal(command.goals);
-  const team = await requireTeam(transaction, scope.groupId, locked.id, command.teamId);
-  requireTeamAuthority(locked, team, scope);
-  await transaction
-    .update(matchTeam)
-    .set({ unattributedGoals: command.goals })
-    .where(
-      and(
-        eq(matchTeam.groupId, scope.groupId),
-        eq(matchTeam.matchId, locked.id),
-        eq(matchTeam.id, command.teamId),
-      ),
-    );
-  return bumpVersion(transaction, scope.groupId, locked);
-}
-
-async function setExpectedContribution(
-  transaction: MatchTransaction,
-  scope: MatchScope,
-  locked: LockedMatch,
-  command: Extract<MatchCommand, { type: "setExpectedContribution" }>,
-) {
-  requireOrganizer(locked, scope);
-  requireOpen(locked);
-  await requireAppearance(transaction, scope.groupId, locked.id, command.playerId);
-  if (command.kind === "fixed") {
-    if (command.expectedMinor === undefined) {
-      throw new MatchCommandError("invalid_input", "A fixed contribution needs an amount");
-    }
-    assertNonnegativeMoney(command.expectedMinor);
-  }
-  await transaction
-    .update(matchAppearance)
-    .set({
-      expectedKind: command.kind,
-      ...(command.kind === "fixed" ? { expectedMinor: command.expectedMinor } : {}),
-    })
-    .where(
-      and(
-        eq(matchAppearance.groupId, scope.groupId),
-        eq(matchAppearance.matchId, locked.id),
-        eq(matchAppearance.playerId, command.playerId),
-      ),
-    );
-  await recalculateContributions(transaction, scope.groupId, locked.id, locked.courtCostMinor);
   return bumpVersion(transaction, scope.groupId, locked);
 }
 
@@ -657,16 +554,9 @@ async function updatePaid(
   changedAt: Date,
 ) {
   if (locked.status === "cancelled") throw new MatchCommandError("match_not_open");
+  requireOrganizer(locked, scope);
   assertNonnegativeMoney(command.paidMinor);
-  const appearance = await requireAppearance(
-    transaction,
-    scope.groupId,
-    locked.id,
-    command.playerId,
-    true,
-  );
-  const team = await requireTeam(transaction, scope.groupId, locked.id, appearance.teamId, true);
-  requireTeamAuthority(locked, team, scope);
+  await requireAppearance(transaction, scope.groupId, locked.id, command.playerId, true);
   await transaction
     .update(matchAppearance)
     .set({
@@ -732,21 +622,14 @@ async function closeMatch(
   return bumpVersion(transaction, scope.groupId, locked);
 }
 
-async function reopenMatch(
-  transaction: MatchTransaction,
-  scope: MatchScope,
-  locked: LockedMatch,
-  reason: string,
-) {
+async function reopenMatch(transaction: MatchTransaction, scope: MatchScope, locked: LockedMatch) {
   requireOrganizer(locked, scope);
   if (locked.status !== "closed") throw new MatchCommandError("match_not_closed");
-  assertReason(reason);
   await transaction
     .update(match)
     .set({ status: "open" })
     .where(and(eq(match.groupId, scope.groupId), eq(match.id, locked.id)));
-  await clearStaleCaptains(transaction, scope.groupId, locked.id);
-  await appendTransition(transaction, scope, locked.id, "closed", "open", reason);
+  await appendTransition(transaction, scope, locked.id, "closed", "open", null);
   return bumpVersion(transaction, scope.groupId, locked);
 }
 
@@ -754,11 +637,10 @@ async function cancelMatch(
   transaction: MatchTransaction,
   scope: MatchScope,
   locked: LockedMatch,
-  reason: string,
+  reason: string | null,
 ) {
   requireOrganizer(locked, scope);
   requireOpen(locked);
-  assertReason(reason);
   await transaction
     .update(match)
     .set({ status: "cancelled" })
@@ -767,21 +649,14 @@ async function cancelMatch(
   return bumpVersion(transaction, scope.groupId, locked);
 }
 
-async function restoreMatch(
-  transaction: MatchTransaction,
-  scope: MatchScope,
-  locked: LockedMatch,
-  reason: string,
-) {
+async function restoreMatch(transaction: MatchTransaction, scope: MatchScope, locked: LockedMatch) {
   requireOrganizer(locked, scope);
   if (locked.status !== "cancelled") throw new MatchCommandError("match_not_cancelled");
-  assertReason(reason);
   await transaction
     .update(match)
     .set({ status: "open" })
     .where(and(eq(match.groupId, scope.groupId), eq(match.id, locked.id)));
-  await clearStaleCaptains(transaction, scope.groupId, locked.id);
-  await appendTransition(transaction, scope, locked.id, "cancelled", "open", reason);
+  await appendTransition(transaction, scope, locked.id, "cancelled", "open", null);
   return bumpVersion(transaction, scope.groupId, locked);
 }
 
@@ -831,20 +706,10 @@ async function recalculateContributions(
   try {
     const amounts = calculateExpectedContributions({
       courtCostMinor: courtCostMinor ?? 0n,
-      contributions: appearances.map((appearance) =>
-        appearance.expectedKind === "fixed"
-          ? {
-              playerId: appearance.playerId,
-              joinedOrder: appearance.joinedOrder,
-              kind: "fixed" as const,
-              expectedMinor: appearance.expectedMinor,
-            }
-          : {
-              playerId: appearance.playerId,
-              joinedOrder: appearance.joinedOrder,
-              kind: "automatic" as const,
-            },
-      ),
+      contributions: appearances.map((appearance) => ({
+        playerId: appearance.playerId,
+        joinedOrder: appearance.joinedOrder,
+      })),
     });
     for (const amount of amounts) {
       await transaction
@@ -908,32 +773,6 @@ async function appendTransition(
     actorUserId: scope.actorUserId,
     reason,
   });
-}
-
-async function clearStaleCaptains(transaction: MatchTransaction, groupId: string, matchId: string) {
-  const activeCaptainRows = await transaction
-    .select({ userId: member.userId })
-    .from(member)
-    .where(eq(member.organizationId, groupId));
-  const activeIds = activeCaptainRows.map((row) => row.userId);
-  if (activeIds.length === 0) {
-    await transaction
-      .update(matchTeam)
-      .set({ captainUserId: null })
-      .where(and(eq(matchTeam.groupId, groupId), eq(matchTeam.matchId, matchId)));
-    return;
-  }
-  await transaction
-    .update(matchTeam)
-    .set({ captainUserId: null })
-    .where(
-      and(
-        eq(matchTeam.groupId, groupId),
-        eq(matchTeam.matchId, matchId),
-        sql`${matchTeam.captainUserId} is not null`,
-        notInArray(matchTeam.captainUserId, activeIds),
-      ),
-    );
 }
 
 async function loadAppearances(transaction: MatchTransaction, groupId: string, matchId: string) {
@@ -1038,17 +877,6 @@ function requireManager(access: { role: string }) {
   }
 }
 
-function requireTeamAuthority(locked: LockedMatch, team: TeamRow, scope: MatchScope) {
-  if (
-    locked.organizerUserId !== scope.actorUserId &&
-    team.captainUserId !== scope.actorUserId &&
-    scope.role !== "owner" &&
-    scope.role !== "leader"
-  ) {
-    throw new MatchCommandError("forbidden");
-  }
-}
-
 function requireOpen(locked: LockedMatch) {
   if (locked.status !== "open") throw new MatchCommandError("match_not_open");
 }
@@ -1063,18 +891,6 @@ function assertReason(value: string) {
 
 function assertDate(value: Date) {
   if (Number.isNaN(value.getTime())) throw new MatchCommandError("invalid_input");
-}
-
-function assertCapacity(value: number) {
-  if (!Number.isInteger(value) || value < 2 || value > 40) {
-    throw new MatchCommandError("invalid_input");
-  }
-}
-
-function assertSportingTotal(value: number) {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new MatchCommandError("invalid_input");
-  }
 }
 
 function assertNonnegativeMoney(value: bigint) {

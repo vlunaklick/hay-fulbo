@@ -1,8 +1,4 @@
-export type MatchRuleErrorCode =
-  | "negative_amount"
-  | "duplicate_joined_order"
-  | "fixed_amounts_exceed_cost"
-  | "unallocated_remainder";
+export type MatchRuleErrorCode = "negative_amount" | "duplicate_joined_order";
 
 export class MatchRuleError extends Error {
   constructor(readonly code: MatchRuleErrorCode) {
@@ -11,18 +7,10 @@ export class MatchRuleError extends Error {
   }
 }
 
-type Contribution =
-  | {
-      playerId: string;
-      joinedOrder: number;
-      kind: "automatic";
-    }
-  | {
-      playerId: string;
-      joinedOrder: number;
-      kind: "fixed";
-      expectedMinor: bigint;
-    };
+type Contribution = {
+  playerId: string;
+  joinedOrder: number;
+};
 
 export function calculateExpectedContributions(input: {
   courtCostMinor: bigint;
@@ -33,50 +21,34 @@ export function calculateExpectedContributions(input: {
   }
 
   const joinedOrders = new Set<number>();
-  let fixedTotal = 0n;
-  const automatic = input.contributions
-    .filter((contribution) => {
-      if (joinedOrders.has(contribution.joinedOrder)) {
-        throw new MatchRuleError("duplicate_joined_order");
-      }
-      joinedOrders.add(contribution.joinedOrder);
-
-      if (contribution.kind === "fixed") {
-        if (contribution.expectedMinor < 0n) {
-          throw new MatchRuleError("negative_amount");
-        }
-        fixedTotal += contribution.expectedMinor;
-        return false;
-      }
-      return true;
-    })
-    .toSorted((left, right) => left.joinedOrder - right.joinedOrder);
-
-  if (fixedTotal > input.courtCostMinor) {
-    throw new MatchRuleError("fixed_amounts_exceed_cost");
+  for (const contribution of input.contributions) {
+    if (joinedOrders.has(contribution.joinedOrder)) {
+      throw new MatchRuleError("duplicate_joined_order");
+    }
+    joinedOrders.add(contribution.joinedOrder);
   }
 
-  const remainder = input.courtCostMinor - fixedTotal;
-  if (automatic.length === 0 && remainder > 0n) {
-    throw new MatchRuleError("unallocated_remainder");
+  const participants = BigInt(input.contributions.length);
+  if (participants === 0n || input.courtCostMinor === 0n) {
+    return input.contributions.map((contribution) => ({
+      playerId: contribution.playerId,
+      expectedMinor: 0n,
+    }));
   }
 
-  const automaticCount = BigInt(automatic.length);
-  const quotient = automaticCount === 0n ? 0n : remainder / automaticCount;
-  const residualUnits = automaticCount === 0n ? 0n : remainder % automaticCount;
-  const automaticAmounts = new Map(
-    automatic.map((contribution, index) => [
-      contribution.playerId,
-      quotient + (BigInt(index) < residualUnits ? 1n : 0n),
-    ]),
+  const quotient = input.courtCostMinor / participants;
+  const residualUnits = input.courtCostMinor % participants;
+  const amounts = new Map(
+    input.contributions
+      .toSorted((left, right) => left.joinedOrder - right.joinedOrder)
+      .map((contribution, index) => [
+        contribution.playerId,
+        quotient + (BigInt(index) < residualUnits ? 1n : 0n),
+      ]),
   );
-
   return input.contributions.map((contribution) => ({
     playerId: contribution.playerId,
-    expectedMinor:
-      contribution.kind === "fixed"
-        ? contribution.expectedMinor
-        : (automaticAmounts.get(contribution.playerId) ?? 0n),
+    expectedMinor: amounts.get(contribution.playerId)!,
   }));
 }
 

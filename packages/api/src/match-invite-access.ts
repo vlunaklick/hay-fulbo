@@ -1,7 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type MatchInviteResponse = "yes" | "maybe" | "no";
-
 export type MatchInvitationSource = {
   group: {
     currency: string;
@@ -9,7 +7,6 @@ export type MatchInvitationSource = {
     timeZone: string;
   };
   match: {
-    capacity: number;
     court: { address: string; mapsUrl: string; name: string } | null;
     courtCostMinor: bigint | null;
     id: string;
@@ -22,8 +19,7 @@ export type MatchInvitationSource = {
     displayName: string;
     id: string;
     normalizedName: string;
-    respondedAt: Date | null;
-    response: MatchInviteResponse | null;
+    joinedTeamId: string | null;
   }[];
 };
 
@@ -36,26 +32,20 @@ export type MatchInvitation = {
   players: {
     displayName: string;
     id: string;
-    place: "playing" | "waitlist" | null;
-    respondedAt: Date | null;
-    response: MatchInviteResponse | null;
+    joined: boolean;
   }[];
   summary: {
-    maybe: number;
-    no: number;
     playing: number;
-    remaining: number;
-    waitlisted: number;
   };
 };
 
 export interface MatchInviteRepository {
   read(input: { groupId: string; matchId: string }): Promise<MatchInvitationSource | null>;
-  respond(input: {
+  join(input: {
     groupId: string;
     matchId: string;
     playerId: string;
-    response: MatchInviteResponse;
+    joined: boolean;
   }): Promise<MatchInvitationSource | null>;
 }
 
@@ -136,26 +126,7 @@ export function toMatchInvitation(source: MatchInvitationSource): MatchInvitatio
         left.normalizedName.localeCompare(right.normalizedName, "es") ||
         left.id.localeCompare(right.id),
     );
-  const positive = activePlayers
-    .filter(
-      (
-        item,
-      ): item is typeof item & {
-        respondedAt: Date;
-        response: "yes";
-      } => item.response === "yes" && item.respondedAt !== null,
-    )
-    .toSorted(
-      (left, right) =>
-        left.respondedAt.getTime() - right.respondedAt.getTime() || left.id.localeCompare(right.id),
-    );
-  const places = new Map(
-    positive.map((item, index) => [
-      item.id,
-      index < source.match.capacity ? ("playing" as const) : ("waitlist" as const),
-    ]),
-  );
-  const playing = Math.min(positive.length, source.match.capacity);
+  const playing = activePlayers.filter((item) => item.joinedTeamId !== null).length;
 
   return {
     group: source.group,
@@ -166,23 +137,17 @@ export function toMatchInvitation(source: MatchInvitationSource): MatchInvitatio
         source.match.courtCostMinor === null
           ? null
           : (
-              (source.match.courtCostMinor + BigInt(source.match.capacity) - 1n) /
-              BigInt(source.match.capacity)
+              (source.match.courtCostMinor + BigInt(Math.max(playing, 1)) - 1n) /
+              BigInt(Math.max(playing, 1))
             ).toString(),
     },
     players: activePlayers.map((item) => ({
       displayName: item.displayName,
       id: item.id,
-      place: places.get(item.id) ?? null,
-      respondedAt: item.respondedAt,
-      response: item.response,
+      joined: item.joinedTeamId !== null,
     })),
     summary: {
-      maybe: activePlayers.filter((item) => item.response === "maybe").length,
-      no: activePlayers.filter((item) => item.response === "no").length,
       playing,
-      remaining: Math.max(source.match.capacity - playing, 0),
-      waitlisted: Math.max(positive.length - source.match.capacity, 0),
     },
   };
 }
@@ -220,7 +185,7 @@ export function createMatchInviteAccess({
       return toMatchInvitation(source);
     },
 
-    async respond(token: string, playerId: string, response: MatchInviteResponse) {
+    async join(token: string, playerId: string, joined: boolean) {
       const { payload, source } = await resolve(token);
       if (source.match.status !== "open") {
         throw new MatchInviteError("MATCH_NOT_OPEN", "La convocatoria ya está cerrada");
@@ -228,7 +193,7 @@ export function createMatchInviteAccess({
       if (!source.players.some((player) => !player.archived && player.id === playerId)) {
         throw new MatchInviteError("PLAYER_NOT_FOUND", "El jugador no está disponible");
       }
-      const updated = await repository.respond({ ...payload, playerId, response });
+      const updated = await repository.join({ ...payload, playerId, joined });
       if (!updated) {
         throw new MatchInviteError("MATCH_INVITE_NOT_FOUND", "Este partido ya no está disponible");
       }

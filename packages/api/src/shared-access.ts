@@ -38,7 +38,6 @@ export type SharedGroupSnapshot = {
       id: string;
       slot: number;
       displayName: string;
-      color: string | null;
       unattributedGoals: number;
     }>;
     appearances: Array<{

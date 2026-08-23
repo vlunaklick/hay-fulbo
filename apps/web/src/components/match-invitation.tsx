@@ -19,19 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
-import {
-  CalendarPlusIcon,
-  CircleHelpIcon,
-  MapPinIcon,
-  MessageCircleIcon,
-  ThumbsDownIcon,
-  ThumbsUpIcon,
-} from "lucide-react";
+import { CalendarPlusIcon, MapPinIcon, MessageCircleIcon, UsersIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { AttendanceMeter } from "@/components/attendance-meter";
 import { LogoMark } from "@/components/logo-mark";
 import {
   buildCalendarIcs,
@@ -53,8 +46,8 @@ export function MatchInvitation({
   const [invitation, setInvitation] = useState(initialInvitation);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const selected = invitation.players.find((player) => player.id === playerId) ?? null;
-  const respond = useMutation(
-    trpc.matchInvite.respond.mutationOptions({
+  const join = useMutation(
+    trpc.matchInvite.join.mutationOptions({
       onSuccess: (next) => {
         setInvitation({
           ...next,
@@ -62,12 +55,8 @@ export function MatchInvitation({
             ...next.match,
             scheduledAt: new Date(next.match.scheduledAt),
           },
-          players: next.players.map((player) => ({
-            ...player,
-            respondedAt: player.respondedAt ? new Date(player.respondedAt) : null,
-          })),
         });
-        toast.success("Respuesta guardada");
+        toast.success("Listo");
       },
       onError: (error) =>
         toast.error("No pudimos guardar tu respuesta", { description: error.message }),
@@ -78,7 +67,6 @@ export function MatchInvitation({
     value: player.id,
   }));
   const shareMessage = buildMatchMessage({
-    capacity: invitation.match.capacity,
     court: invitation.match.court,
     currency: invitation.group.currency,
     estimatedPerPlayerMinor: invitation.match.estimatedPerPlayerMinor,
@@ -89,14 +77,14 @@ export function MatchInvitation({
     timeZone: invitation.group.timeZone,
   });
 
-  function answer(response: "yes" | "maybe" | "no") {
+  function answer(joined: boolean) {
     if (!playerId) return;
-    respond.mutate({ playerId, response, token });
+    join.mutate({ joined, playerId, token });
   }
 
   function addToCalendar() {
     const contents = buildCalendarIcs({
-      description: `Confirmá tu lugar: ${invitationUrl}`,
+      description: `Sumate: ${invitationUrl}`,
       location: invitation.match.court
         ? `${invitation.match.court.name}, ${invitation.match.court.address}`
         : undefined,
@@ -137,7 +125,11 @@ export function MatchInvitation({
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6 py-6 sm:grid-cols-[1fr_0.85fr]">
-            <AttendanceMeter {...invitation.summary} capacity={invitation.match.capacity} />
+            <p className="flex items-center gap-3 text-lg font-semibold">
+              <UsersIcon className="size-5 text-primary" aria-hidden="true" />
+              {invitation.summary.playing}{" "}
+              {invitation.summary.playing === 1 ? "anotado" : "anotados"}
+            </p>
             <div className="flex flex-col justify-center gap-3 border-t pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
               {invitation.match.court ? (
                 <a
@@ -172,9 +164,7 @@ export function MatchInvitation({
           <Card>
             <CardHeader>
               <CardTitle>¿Jugás?</CardTitle>
-              <CardDescription>
-                Elegí tu nombre y respondé. No necesitás una cuenta.
-              </CardDescription>
+              <CardDescription>Elegí tu nombre y anotate. No necesitás una cuenta.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <Field>
@@ -187,48 +177,32 @@ export function MatchInvitation({
                     <SelectGroup>
                       {invitation.players.map((player) => (
                         <SelectItem key={player.id} value={player.id}>
-                          {player.displayName}
-                          {player.place === "waitlist" ? " · En espera" : ""}
+                          <span className={cn(player.joined && "font-semibold")}>
+                            {player.displayName}
+                            {player.joined ? " · Anotado" : ""}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
               </Field>
-              {selected?.response ? (
+              {selected?.joined ? (
                 <p className="text-sm text-muted-foreground">
-                  Tu respuesta actual:{" "}
-                  <strong className="text-foreground">
-                    {selected.response === "yes"
-                      ? selected.place === "waitlist"
-                        ? "Juego · en lista de espera"
-                        : "Juego · lugar confirmado"
-                      : selected.response === "maybe"
-                        ? "Estoy en duda"
-                        : "No puedo"}
-                  </strong>
+                  Ya estás anotado. Si algo cambió, podés bajarte.
                 </p>
               ) : null}
-              <div className="grid gap-2 sm:grid-cols-3">
-                <Button disabled={!playerId || respond.isPending} onClick={() => answer("yes")}>
-                  <ThumbsUpIcon data-icon="inline-start" aria-hidden="true" />
-                  Juego
+              <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
+                <Button disabled={!playerId || join.isPending} onClick={() => answer(true)}>
+                  Me sumo
                 </Button>
                 <Button
-                  disabled={!playerId || respond.isPending}
-                  onClick={() => answer("maybe")}
-                  variant="outline"
-                >
-                  <CircleHelpIcon data-icon="inline-start" aria-hidden="true" />
-                  En duda
-                </Button>
-                <Button
-                  disabled={!playerId || respond.isPending}
-                  onClick={() => answer("no")}
+                  disabled={!playerId || !selected?.joined || join.isPending}
+                  onClick={() => answer(false)}
                   variant="ghost"
                 >
-                  <ThumbsDownIcon data-icon="inline-start" aria-hidden="true" />
-                  No puedo
+                  <XIcon data-icon="inline-start" aria-hidden="true" />
+                  Bajarme
                 </Button>
               </div>
             </CardContent>
