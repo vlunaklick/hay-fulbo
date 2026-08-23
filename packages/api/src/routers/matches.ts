@@ -30,6 +30,8 @@ const commandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("createMatch"),
     scheduledAt: z.coerce.date(),
+    courtId: id.optional(),
+    courtCostMinor: optionalMinor.optional(),
   }),
   z.object({
     type: z.literal("upsertPlayer"),

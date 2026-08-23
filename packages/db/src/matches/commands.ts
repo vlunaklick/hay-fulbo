@@ -149,6 +149,12 @@ async function createMatch(
   command: Extract<MatchCommand, { type: "createMatch" }>,
 ) {
   assertDate(command.scheduledAt);
+  if (command.courtCostMinor !== undefined && command.courtCostMinor !== null) {
+    assertNonnegativeMoney(command.courtCostMinor);
+  }
+  if (command.courtId) {
+    await requireActiveCourt(transaction, scope.groupId, command.courtId);
+  }
 
   const [created] = await transaction
     .insert(match)
@@ -156,6 +162,8 @@ async function createMatch(
       groupId: scope.groupId,
       organizerUserId: scope.actorUserId,
       scheduledAt: command.scheduledAt,
+      ...(command.courtId ? { courtId: command.courtId } : {}),
+      ...(command.courtCostMinor !== undefined ? { courtCostMinor: command.courtCostMinor } : {}),
     })
     .returning({ id: match.id, lockVersion: match.lockVersion });
   if (!created) {

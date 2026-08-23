@@ -51,7 +51,12 @@ export type MatchMutationResult = {
 export type StatField = "goals" | "assists" | "ownGoals" | "unattributedGoals";
 
 export type MatchCommand =
-  | { type: "createMatch"; scheduledAt: Date }
+  | {
+      type: "createMatch";
+      scheduledAt: Date;
+      courtId?: string;
+      courtCostMinor?: bigint | null;
+    }
   | {
       type: "upsertPlayer";
       playerId?: string;
