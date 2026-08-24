@@ -1,10 +1,13 @@
 import type { GroupActor, GroupAuthorization } from "./group-access";
 
+export type RatingQuorumSetting = "all_voted" | "half_plus_one" | "first_vote";
+
 export type GroupSettings = {
   id: string;
   name: string;
   slug: string;
   publicVisibility: boolean;
+  ratingQuorum: RatingQuorumSetting;
 };
 
 export interface GroupSettingsRepository {
@@ -12,6 +15,10 @@ export interface GroupSettingsRepository {
   updateVisibility(input: {
     groupId: string;
     publicVisibility: boolean;
+  }): Promise<GroupSettings | null>;
+  updateRatingQuorum(input: {
+    groupId: string;
+    ratingQuorum: RatingQuorumSetting;
   }): Promise<GroupSettings | null>;
 }
 
@@ -34,6 +41,18 @@ export function createGroupSettings({
     ) {
       await authorizeOwner(actor, input.groupId);
       const updated = await repository.updateVisibility(input);
+      if (!updated) {
+        throw new Error("Group not found");
+      }
+      return updated;
+    },
+
+    async updateRatingQuorum(
+      actor: GroupActor,
+      input: { groupId: string; ratingQuorum: RatingQuorumSetting },
+    ) {
+      await authorizeOwner(actor, input.groupId);
+      const updated = await repository.updateRatingQuorum(input);
       if (!updated) {
         throw new Error("Group not found");
       }

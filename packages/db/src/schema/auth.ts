@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   index,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -12,6 +13,8 @@ import {
 import { sql } from "drizzle-orm";
 
 const instant = (name: string) => timestamp(name, { withTimezone: true });
+
+export const ratingQuorum = pgEnum("rating_quorum", ["all_voted", "half_plus_one", "first_vote"]);
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -102,6 +105,7 @@ export const organization = pgTable(
     currencyCode: varchar("currency_code", { length: 3 }).default("ARS").notNull(),
     timeZone: text("time_zone").default("America/Argentina/Buenos_Aires").notNull(),
     publicVisibility: boolean("public_visibility").default(false).notNull(),
+    ratingQuorum: ratingQuorum("rating_quorum").default("all_voted").notNull(),
     archivedAt: instant("archived_at"),
   },
   (table) => [

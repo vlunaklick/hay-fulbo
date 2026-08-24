@@ -32,7 +32,7 @@ integration("MatchCommands public seam", () => {
     await pool.query(`
       truncate table
         group_shared_link_event, group_shared_link, match_organizer_transfer,
-        match_transition, match_appearance, match_team, match, court, player,
+        match_transition, match_rating, match_appearance, match_team, match, court, player,
         invitation, member, session, account, verification, organization, "user"
       restart identity cascade
     `);

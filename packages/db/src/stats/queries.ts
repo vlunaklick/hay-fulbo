@@ -7,6 +7,7 @@ import {
   groupSharedLink,
   match,
   matchAppearance,
+  matchRating,
   matchTeam,
   member,
   organization,
@@ -105,6 +106,7 @@ async function loadAuthorizedSource(
       currency: organization.currencyCode,
       id: organization.id,
       name: organization.name,
+      ratingQuorum: organization.ratingQuorum,
       timeZone: organization.timeZone,
     })
     .from(organization)
@@ -117,6 +119,7 @@ async function loadAuthorizedSource(
       archivedAt: player.archivedAt,
       displayName: player.displayName,
       id: player.id,
+      linkedUserId: player.linkedUserId,
       normalizedName: player.normalizedName,
     })
     .from(player)
@@ -183,6 +186,21 @@ async function loadAuthorizedSource(
           )
           .orderBy(asc(matchAppearance.matchId), asc(matchAppearance.joinedOrder));
 
+  const ratings =
+    matchIds.length === 0
+      ? []
+      : await transaction
+          .select({
+            matchId: matchRating.matchId,
+            raterPlayerId: matchRating.raterPlayerId,
+            ratedPlayerId: matchRating.ratedPlayerId,
+            score: matchRating.score,
+          })
+          .from(matchRating)
+          .where(
+            and(eq(matchRating.groupId, access.groupId), inArray(matchRating.matchId, matchIds)),
+          );
+
   return {
     group,
     courts,
@@ -191,7 +209,9 @@ async function loadAuthorizedSource(
       displayName: item.displayName,
       normalizedName: item.normalizedName,
       archived: item.archivedAt !== null,
+      linkedUserId: item.linkedUserId,
     })),
+    ratings,
     matches: matches.map((item) => ({
       id: item.id,
       courtId: item.courtId,

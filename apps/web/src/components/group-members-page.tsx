@@ -21,6 +21,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -126,6 +127,18 @@ export function GroupMembersPage() {
       },
       onError: (error) =>
         toast.error("No pudimos cambiar la visibilidad", { description: error.message }),
+    }),
+  );
+  const updateRatingQuorum = useMutation(
+    trpc.group.settings.updateRatingQuorum.mutationOptions({
+      onSuccess: async () => {
+        toast.success("Regla de notas actualizada");
+        await queryClient.invalidateQueries({
+          queryKey: trpc.group.settings.read.queryKey({ groupId: activeGroupId }),
+        });
+      },
+      onError: (error) =>
+        toast.error("No pudimos cambiar la regla de notas", { description: error.message }),
     }),
   );
 
@@ -327,6 +340,55 @@ export function GroupMembersPage() {
             </div>
           )}
         </div>
+      </section>
+
+      <Separator />
+
+      <section className="flex flex-col gap-3" aria-labelledby="rating-quorum-title">
+        <div className="flex flex-col gap-1">
+          <h2
+            id="rating-quorum-title"
+            className="flex items-center gap-2 text-lg font-bold tracking-tight"
+          >
+            Notas entre jugadores
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Después de cada partido cerrado, los que jugaron pueden ponerle una nota del 1 al 10 a
+            sus compañeros. Los votos son anónimos y los promedios se revelan según el quórum que
+            elijas.
+          </p>
+        </div>
+        {settings.isPending ? (
+          <Skeleton className="h-11 w-full" />
+        ) : settings.isError ? (
+          <Alert variant="destructive">
+            <CircleAlertIcon aria-hidden="true" />
+            <AlertTitle>No pudimos cargar la configuración</AlertTitle>
+            <AlertDescription>{settings.error.message}</AlertDescription>
+          </Alert>
+        ) : (
+          <Select
+            disabled={updateRatingQuorum.isPending}
+            value={settings.data?.ratingQuorum ?? "all_voted"}
+            onValueChange={(next) => {
+              if (next !== "all_voted" && next !== "half_plus_one" && next !== "first_vote") {
+                return;
+              }
+              updateRatingQuorum.mutate({ groupId: activeGroupId, ratingQuorum: next });
+            }}
+          >
+            <SelectTrigger aria-label="Quórum para revelar notas" className="w-full sm:w-96">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="all_voted">Revelar cuando voten todos</SelectItem>
+                <SelectItem value="half_plus_one">Revelar con mitad más uno</SelectItem>
+                <SelectItem value="first_vote">Revelar con el primer voto completo</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        )}
       </section>
 
       <Separator />

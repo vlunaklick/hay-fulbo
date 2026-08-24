@@ -47,6 +47,7 @@ import { toast } from "sonner";
 
 import { useAppContext } from "@/components/app-shell";
 import { MatchParityCard } from "@/components/match-parity-card";
+import { MatchRatings } from "@/components/match-ratings";
 import { MatchResultCard } from "@/components/match-result-card";
 import { MatchScoreboard } from "@/components/match-scoreboard";
 import { MatchShareRow } from "@/components/match-share-row";
@@ -277,6 +278,11 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
               onClose={closeMatch}
             />
           </Section>
+          {detail.status === "closed" ? (
+            <Section title="Las notas">
+              <MatchRatings matchId={detail.id} teams={detail.teams} />
+            </Section>
+          ) : null}
           {manager ? (
             <div className="flex justify-center">
               <Button onClick={reopen} variant="outline">

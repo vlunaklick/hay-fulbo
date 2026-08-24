@@ -7,6 +7,11 @@ import {
   type MatchDetail,
   type MatchListItem,
 } from "@hay-fulbo/db/matches";
+import {
+  createRatingCommands,
+  createRatingQueries,
+  RatingCommandError,
+} from "@hay-fulbo/db/ratings";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -14,6 +19,8 @@ import { protectedProcedure, router } from "../index";
 
 const commands = createMatchCommands(db);
 const queries = createMatchQueries(db);
+const ratingCommands = createRatingCommands(db);
+const ratingQueries = createRatingQueries(db);
 
 const id = z.string().uuid();
 const versioned = {
@@ -185,6 +192,32 @@ export const matchesRouter = router({
         throw asTrpcError(error);
       }
     }),
+
+  ratings: protectedProcedure.input(z.object({ matchId: id })).query(async ({ ctx, input }) => {
+    try {
+      return await ratingQueries.state(scopeFromSession(ctx.session), input.matchId);
+    } catch (error) {
+      throw asRatingTrpcError(error);
+    }
+  }),
+
+  rate: protectedProcedure
+    .input(
+      z.object({
+        matchId: id,
+        scores: z
+          .array(z.object({ playerId: id, score: z.number().int().min(1).max(10) }))
+          .min(1)
+          .max(40),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await ratingCommands.submit(scopeFromSession(ctx.session), input);
+      } catch (error) {
+        throw asRatingTrpcError(error);
+      }
+    }),
 });
 
 function scopeFromSession(session: {
@@ -219,6 +252,23 @@ function asTrpcError(error: unknown) {
     code,
     message: error.message,
     cause: { domainCode: error.code, details: error.details },
+  });
+}
+
+function asRatingTrpcError(error: unknown) {
+  if (!(error instanceof RatingCommandError)) return error;
+  const code =
+    error.code === "not_found"
+      ? "NOT_FOUND"
+      : error.code === "match_not_closed"
+        ? "CONFLICT"
+        : error.code === "not_participant" || error.code === "membership_required"
+          ? "FORBIDDEN"
+          : "BAD_REQUEST";
+  return new TRPCError({
+    code,
+    message: error.message,
+    cause: { domainCode: error.code },
   });
 }
 

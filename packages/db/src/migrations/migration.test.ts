@@ -24,6 +24,7 @@ describe("database enforcement migration", () => {
       "match_team",
       "match_appearance",
       "match_rsvp",
+      "match_rating",
       "match_transition",
       "match_organizer_transfer",
       "group_shared_link",
@@ -45,6 +46,11 @@ describe("database enforcement migration", () => {
   test("freezes sporting data but permits payment updates after closure", () => {
     expect(migrationSql).toContain("hay_fulbo_guard_appearance_mutation");
     expect(migrationSql).toContain("only payment fields may change on a closed match");
+  });
+
+  test("allows ratings only on closed matches", () => {
+    expect(migrationSql).toContain("hay_fulbo_guard_rating_mutation");
+    expect(migrationSql).toContain("ratings may only be written on a closed match");
   });
 
   test("keeps audit tables append-only", () => {

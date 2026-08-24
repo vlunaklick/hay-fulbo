@@ -931,6 +931,7 @@ const groupSettingsRepository = {
         id: organization.id,
         name: organization.name,
         publicVisibility: organization.publicVisibility,
+        ratingQuorum: organization.ratingQuorum,
         slug: organization.slug,
       })
       .from(organization)
@@ -956,6 +957,31 @@ const groupSettingsRepository = {
           id: organization.id,
           name: organization.name,
           publicVisibility: organization.publicVisibility,
+          ratingQuorum: organization.ratingQuorum,
+          slug: organization.slug,
+        });
+      return updated ?? null;
+    });
+  },
+
+  async updateRatingQuorum({
+    groupId,
+    ratingQuorum,
+  }: {
+    groupId: string;
+    ratingQuorum: "all_voted" | "half_plus_one" | "first_vote";
+  }) {
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
+      const [updated] = await tx
+        .update(organization)
+        .set({ ratingQuorum, updatedAt: new Date() })
+        .where(eq(organization.id, groupId))
+        .returning({
+          id: organization.id,
+          name: organization.name,
+          publicVisibility: organization.publicVisibility,
+          ratingQuorum: organization.ratingQuorum,
           slug: organization.slug,
         });
       return updated ?? null;

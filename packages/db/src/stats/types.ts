@@ -8,12 +8,21 @@ export type StatsFilters = {
   result?: StatsResultFilter;
 };
 
+export type StatsRatingQuorum = "all_voted" | "half_plus_one" | "first_vote";
+
+export type StatsFigure = {
+  playerId: string;
+  displayName: string;
+  average: number;
+};
+
 export type StatsSource = {
   group: {
     id: string;
     name: string;
     timeZone: string;
     currency: string;
+    ratingQuorum?: StatsRatingQuorum;
   };
   courts: readonly {
     id: string;
@@ -26,8 +35,15 @@ export type StatsSource = {
     displayName: string;
     normalizedName: string;
     archived: boolean;
+    linkedUserId?: string | null;
   }[];
   matches: readonly StatsSourceMatch[];
+  ratings?: readonly {
+    matchId: string;
+    raterPlayerId: string;
+    ratedPlayerId: string;
+    score: number;
+  }[];
 };
 
 export type StatsSourceMatch = {
@@ -76,6 +92,8 @@ export type StatsAggregate = {
   goalsAgainst: number;
   goalDifference: number;
   ownGoals: number;
+  ratingAverage: number | null;
+  ratingMatchCount: number;
 };
 
 export type StatsMatchListItem = {
@@ -83,6 +101,7 @@ export type StatsMatchListItem = {
   scheduledAt: Date;
   status: StatsMatchStatus;
   court: StatsSource["courts"][number] | null;
+  figure?: StatsFigure | null;
   teams: readonly {
     id: string;
     slot: number;

@@ -187,6 +187,18 @@ const groupRouter = router({
           ctx.groupSettings.updateVisibility(actorFromContext(ctx), input),
         ),
       ),
+    updateRatingQuorum: protectedProcedure
+      .input(
+        z.object({
+          groupId: z.string().min(1),
+          ratingQuorum: z.enum(["all_voted", "half_plus_one", "first_vote"]),
+        }),
+      )
+      .mutation(({ ctx, input }) =>
+        translateAccessError(() =>
+          ctx.groupSettings.updateRatingQuorum(actorFromContext(ctx), input),
+        ),
+      ),
   }),
   joinLink: router({
     status: protectedProcedure

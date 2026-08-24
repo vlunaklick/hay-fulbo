@@ -606,6 +606,11 @@ function Ranking({
                 <span className="mt-1 block text-xs text-muted-foreground">
                   {row.played} PJ · {row.goals} G · {row.assists} A · {row.wins}G {row.draws}E{" "}
                   {row.losses}P
+                  {row.ratingAverage !== null
+                    ? ` · ${row.ratingAverage} nota en ${row.ratingMatchCount} ${
+                        row.ratingMatchCount === 1 ? "partido" : "partidos"
+                      }`
+                    : ""}
                 </span>
               </span>
               <span className="text-right">
@@ -629,6 +634,7 @@ function Ranking({
               <TableHead className="text-right">A</TableHead>
               <TableHead className="text-right">G+A</TableHead>
               <TableHead className="text-right">Prom.</TableHead>
+              <TableHead className="text-right">Nota</TableHead>
               <TableHead className="text-right">G-E-P</TableHead>
               <TableHead className="w-12">
                 <span className="sr-only">Detalle</span>
@@ -656,6 +662,11 @@ function Ranking({
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatRate(row.contributionsPerMatch)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {row.ratingAverage !== null
+                    ? `${row.ratingAverage} (${row.ratingMatchCount})`
+                    : "—"}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {row.wins}-{row.draws}-{row.losses}

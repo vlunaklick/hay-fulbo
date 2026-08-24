@@ -2,6 +2,7 @@ import type {
   PlayerStats,
   StatsAggregate,
   StatsDashboard,
+  StatsFigure,
   StatsFilters,
   StatsMatchDetail,
   StatsMatchListItem,
@@ -9,12 +10,23 @@ import type {
   StatsSourceMatch,
   StatsSourceTeam,
 } from "./types";
+import {
+  completeVoteCount,
+  isRatingRevealed,
+  ratingAverages,
+  type RatingParticipant,
+} from "../ratings/rules";
 import { deriveSocieties } from "./insights";
 
 type ScoredMatch = {
   match: StatsSourceMatch;
   teams: readonly [StatsSourceTeam, StatsSourceTeam];
   scores: ReadonlyMap<string, number>;
+};
+
+type RatingInsight = {
+  revealed: boolean;
+  averages: Map<string, { sum: number; votes: number; average: number }>;
 };
 
 export function deriveStatsDashboard(
@@ -156,8 +168,20 @@ export function deriveStatsMatch(source: StatsSource, matchId: string): StatsMat
 function buildRanking(source: StatsSource, matches: readonly ScoredMatch[]): StatsAggregate[] {
   const players = new Map(source.players.map((player) => [player.id, player]));
   const rows = new Map<string, StatsAggregate>();
+  const ratingAccum = new Map<string, { sum: number; votes: number; matches: Set<string> }>();
 
   for (const scored of matches) {
+    const insight = ratingInsightFor(source, scored.match);
+    if (insight.revealed) {
+      for (const [playerId, average] of insight.averages) {
+        if (average.votes === 0) continue;
+        const acc = ratingAccum.get(playerId) ?? { matches: new Set<string>(), sum: 0, votes: 0 };
+        acc.sum += average.sum;
+        acc.votes += average.votes;
+        acc.matches.add(scored.match.id);
+        ratingAccum.set(playerId, acc);
+      }
+    }
     for (const team of scored.teams) {
       const opponent = scored.teams.find((candidate) => candidate.id !== team.id);
       if (!opponent) continue;
@@ -191,6 +215,8 @@ function buildRanking(source: StatsSource, matches: readonly ScoredMatch[]): Sta
             goalsAgainst: 0,
             goalDifference: 0,
             ownGoals: 0,
+            ratingAverage: null,
+            ratingMatchCount: 0,
           } satisfies StatsAggregate);
         row.played += 1;
         row.wins += result === "win" ? 1 : 0;
@@ -210,14 +236,60 @@ function buildRanking(source: StatsSource, matches: readonly ScoredMatch[]): Sta
   }
 
   return [...rows.values()]
-    .map((row) => ({
-      ...row,
-      winPercentage: ratio(row.wins * 100, row.played),
-      goalsPerMatch: ratio(row.goals, row.played),
-      assistsPerMatch: ratio(row.assists, row.played),
-      contributionsPerMatch: ratio(row.contributions, row.played),
-    }))
+    .map((row) => {
+      const acc = ratingAccum.get(row.playerId);
+      return {
+        ...row,
+        winPercentage: ratio(row.wins * 100, row.played),
+        goalsPerMatch: ratio(row.goals, row.played),
+        assistsPerMatch: ratio(row.assists, row.played),
+        contributionsPerMatch: ratio(row.contributions, row.played),
+        ratingAverage: acc && acc.votes > 0 ? ratio(acc.sum, acc.votes) : null,
+        ratingMatchCount: acc?.matches.size ?? 0,
+      };
+    })
     .sort(compareRanking);
+}
+
+function ratingInsightFor(source: StatsSource, match: StatsSourceMatch): RatingInsight {
+  if (match.status !== "closed" || !source.ratings || source.ratings.length === 0) {
+    return { averages: new Map(), revealed: false };
+  }
+  const linkedUsers = new Map(
+    source.players.map((player) => [player.id, player.linkedUserId ?? null]),
+  );
+  const participants: RatingParticipant[] = match.teams.flatMap((team) =>
+    team.appearances.map((appearance) => ({
+      linkedUserId: linkedUsers.get(appearance.playerId) ?? null,
+      playerId: appearance.playerId,
+    })),
+  );
+  const ratings = source.ratings.filter((rating) => rating.matchId === match.id);
+  const eligibleVoters = participants.filter((p) => p.linkedUserId !== null).length;
+  const quorum = source.group.ratingQuorum ?? "all_voted";
+  const revealed = isRatingRevealed(
+    quorum,
+    eligibleVoters,
+    completeVoteCount(participants, ratings),
+  );
+  if (!revealed) return { averages: new Map(), revealed: false };
+  return { averages: ratingAverages(participants, ratings), revealed: true };
+}
+
+function figureFor(source: StatsSource, insight: RatingInsight): StatsFigure | null {
+  const players = new Map(source.players.map((player) => [player.id, player]));
+  let figure: StatsFigure | null = null;
+  for (const [playerId, average] of insight.averages) {
+    if (average.votes === 0) continue;
+    if (figure === null || average.average > figure.average) {
+      figure = {
+        average: average.average,
+        displayName: players.get(playerId)?.displayName ?? "Jugador desconocido",
+        playerId,
+      };
+    }
+  }
+  return figure;
 }
 
 function buildFinances(source: StatsSource, scored: ScoredMatch): StatsDashboard["finances"] {
@@ -272,11 +344,13 @@ function scoreMatch(match: StatsSourceMatch): ScoredMatch | null {
 
 function toListItem(source: StatsSource, scored: ScoredMatch): StatsMatchListItem {
   const court = source.courts.find((candidate) => candidate.id === scored.match.courtId) ?? null;
+  const insight = ratingInsightFor(source, scored.match);
   return {
     matchId: scored.match.id,
     scheduledAt: scored.match.scheduledAt,
     status: scored.match.status,
     court,
+    figure: insight.revealed ? figureFor(source, insight) : null,
     teams: scored.teams.map((team) => ({
       id: team.id,
       slot: team.slot,

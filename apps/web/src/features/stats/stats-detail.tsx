@@ -191,6 +191,11 @@ function PlayerStatsContent({
             {formatRate(data.aggregate.winPercentage)}% victorias ·{" "}
             {formatRate(data.aggregate.contributionsPerMatch)} G+A por partido ·{" "}
             {signed(data.aggregate.goalDifference)} de gol
+            {data.aggregate.ratingAverage !== null
+              ? ` · nota ${formatRate(data.aggregate.ratingAverage)} en ${data.aggregate.ratingMatchCount} ${
+                  data.aggregate.ratingMatchCount === 1 ? "partido" : "partidos"
+                }`
+              : ""}
           </p>
         </>
       ) : (
@@ -300,7 +305,13 @@ function MatchStatsContent({
 
       <header>
         <Badge variant="secondary">{statusLabel(data.status)}</Badge>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+        {data.figure ? (
+          <span className="mt-3 flex w-fit items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            <TrophyIcon className="size-3.5" aria-hidden="true" />
+            Figura: {data.figure.displayName} · {data.figure.average}
+          </span>
+        ) : null}
+        <h1 className={cn("text-3xl font-semibold tracking-tight", data.figure && "mt-3")}>
           {data.teams[0]?.displayName} {data.teams[0]?.goals} – {data.teams[1]?.goals}{" "}
           {data.teams[1]?.displayName}
         </h1>

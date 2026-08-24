@@ -362,3 +362,66 @@ describe("derivePlayerStats", () => {
     expect(derivePlayerStats(source, "foreign-player", {})).toBeNull();
   });
 });
+
+describe("deriveStatsDashboard with ratings", () => {
+  const ratedSource: StatsSource = {
+    ...source,
+    group: { ...source.group, ratingQuorum: "all_voted" },
+    players: source.players.map((player) => ({
+      ...player,
+      linkedUserId:
+        player.id === "player-a" ? "user-a" : player.id === "player-b" ? "user-b" : null,
+    })),
+    ratings: [
+      // player-a rated everyone else in closed-win
+      { matchId: "closed-win", raterPlayerId: "player-a", ratedPlayerId: "player-b", score: 7 },
+      { matchId: "closed-win", raterPlayerId: "player-a", ratedPlayerId: "player-c", score: 9 },
+      // player-b only rated one rival, so their vote is incomplete
+      { matchId: "closed-win", raterPlayerId: "player-b", ratedPlayerId: "player-a", score: 10 },
+      // vote from a non-participant must be ignored
+      { matchId: "closed-win", raterPlayerId: "player-zero", ratedPlayerId: "player-a", score: 1 },
+      // orphaned target after a hypothetical reopen must be ignored
+      { matchId: "closed-win", raterPlayerId: "player-a", ratedPlayerId: "gone", score: 5 },
+      // ratings on a non-closed match never count
+      { matchId: "open-next", raterPlayerId: "player-a", ratedPlayerId: "player-b", score: 2 },
+    ],
+  };
+
+  test("keeps averages hidden until every eligible voter completed their ballot", () => {
+    const dashboard = deriveStatsDashboard(ratedSource, {}, new Date("2026-07-29T12:00:00.000Z"));
+
+    expect(dashboard.ranking.every((row) => row.ratingAverage === null)).toBe(true);
+    expect(dashboard.ranking.every((row) => row.ratingMatchCount === 0)).toBe(true);
+    expect(dashboard.history.map((item) => item.figure ?? null)).toContain(null);
+  });
+
+  test("reveals averages and the figure once the quorum is met", () => {
+    const revealedSource: StatsSource = {
+      ...ratedSource,
+      ratings: [
+        ...ratedSource.ratings!,
+        { matchId: "closed-win", raterPlayerId: "player-b", ratedPlayerId: "player-c", score: 6 },
+        { matchId: "closed-draw", raterPlayerId: "player-a", ratedPlayerId: "player-b", score: 8 },
+      ],
+      group: { ...ratedSource.group, ratingQuorum: "half_plus_one" },
+    };
+    const dashboard = deriveStatsDashboard(
+      revealedSource,
+      {},
+      new Date("2026-07-29T12:00:00.000Z"),
+    );
+
+    const cami = dashboard.ranking.find((row) => row.playerId === "player-c");
+    expect(cami).toMatchObject({ ratingAverage: 7.5, ratingMatchCount: 1 });
+
+    const win = dashboard.history.find((item) => item.matchId === "closed-win");
+    expect(win?.figure).toEqual({
+      playerId: "player-a",
+      displayName: "Alex",
+      average: 10,
+    });
+
+    const draw = dashboard.history.find((item) => item.matchId === "closed-draw");
+    expect(draw?.figure).toBeNull();
+  });
+});

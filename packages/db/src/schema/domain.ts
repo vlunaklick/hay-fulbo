@@ -296,6 +296,44 @@ export const matchOrganizerTransfer = pgTable(
   ],
 );
 
+export const matchRating = pgTable(
+  "match_rating",
+  {
+    groupId: text("group_id").notNull(),
+    matchId: uuid("match_id").notNull(),
+    raterPlayerId: uuid("rater_player_id").notNull(),
+    ratedPlayerId: uuid("rated_player_id").notNull(),
+    score: smallint("score").notNull(),
+    createdAt: instant("created_at").defaultNow().notNull(),
+    updatedAt: updatedInstant(),
+  },
+  (table) => [
+    primaryKey({
+      name: "match_rating_pk",
+      columns: [table.groupId, table.matchId, table.raterPlayerId, table.ratedPlayerId],
+    }),
+    foreignKey({
+      name: "match_rating_group_match_fk",
+      columns: [table.groupId, table.matchId],
+      foreignColumns: [match.groupId, match.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "match_rating_group_rater_fk",
+      columns: [table.groupId, table.raterPlayerId],
+      foreignColumns: [player.groupId, player.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "match_rating_group_rated_fk",
+      columns: [table.groupId, table.ratedPlayerId],
+      foreignColumns: [player.groupId, player.id],
+    }).onDelete("restrict"),
+    check("match_rating_score_allowed", sql`${table.score} between 1 and 10`),
+    check("match_rating_players_different", sql`${table.raterPlayerId} <> ${table.ratedPlayerId}`),
+    index("match_rating_group_match_idx").on(table.groupId, table.matchId),
+    index("match_rating_group_rated_idx").on(table.groupId, table.ratedPlayerId),
+  ],
+);
+
 export const groupSharedLink = pgTable(
   "group_shared_link",
   {
