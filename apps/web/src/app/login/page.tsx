@@ -25,6 +25,10 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 
+import { AuroraText } from "@hay-fulbo/ui/components/aurora-text";
+import { GridPattern } from "@hay-fulbo/ui/components/grid-pattern";
+import { WordRotate } from "@hay-fulbo/ui/components/word-rotate";
+
 export default function LoginPage() {
   const router = useRouter();
   const { isPending } = authClient.useSession();
@@ -79,20 +83,37 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-svh place-items-center px-4 py-10">
+    <main className="relative grid min-h-svh place-items-center overflow-hidden px-4 py-10">
+      <GridPattern
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 -z-10 h-[480px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_0%,black,transparent)] stroke-primary/25"
+      />
+      <div
+        aria-hidden="true"
+        className="bg-noise pointer-events-none absolute inset-0 -z-10 opacity-[0.05]"
+      />
       <div className="flex w-full max-w-md flex-col gap-8">
         <header className="flex flex-col gap-3">
           <div className="flex items-center gap-2 text-primary">
             <ShieldCheckIcon aria-hidden="true" />
-            <span className="text-sm font-semibold uppercase tracking-[0.18em]">Hay Fulbo</span>
+            <span className="text-sm font-semibold uppercase tracking-[0.18em]">
+              <AuroraText colors={["#B7F34A", "#75D69C", "#F2F5EF"]}>Hay Fulbo</AuroraText>
+            </span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">El partido, bajo control.</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            El partido,{" "}
+            <WordRotate
+              words={["bajo control", "en orden", "sin cuentas pendientes"]}
+              className="text-primary"
+            />
+            .
+          </h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Armá equipos, cerrá el resultado y dejá las cuentas claras desde cualquier pantalla.
           </p>
         </header>
 
-        <Card>
+        <Card className="bg-noise bg-card/95 backdrop-blur">
           <CardHeader>
             <CardTitle>{mode === "signin" ? "Entrar al grupo" : "Crear tu cuenta"}</CardTitle>
             <CardDescription>

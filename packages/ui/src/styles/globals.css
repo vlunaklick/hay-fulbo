@@ -163,6 +163,125 @@
   }
 }
 
+@keyframes marquee-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-y {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
+}
+
+.animate-marquee-x {
+  animation: marquee-x var(--duration, 40s) linear infinite;
+}
+
+.animate-marquee-y {
+  animation: marquee-y var(--duration, 40s) linear infinite;
+}
+
+@keyframes meteor-effect {
+  0% {
+    transform: rotate(215deg) translateX(0);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(215deg) translateX(-600px);
+    opacity: 0;
+  }
+}
+
+.animate-meteor {
+  animation: meteor-effect 5s linear infinite;
+}
+
+@keyframes aurora {
+  0%,
+  100% {
+    background-position:
+      0% 50%,
+      50% 50%;
+  }
+  50% {
+    background-position:
+      100% 50%,
+      25% 75%;
+  }
+}
+
+.animate-aurora {
+  background-size: 200% 200%;
+  animation: aurora 8s ease-in-out infinite alternate;
+}
+
+@keyframes cool-particle-pop {
+  0% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: 12px -56px;
+    scale: 0.4;
+  }
+}
+
+.animate-cool-particle {
+  animation: cool-particle-pop 1200ms ease-out forwards;
+}
+
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+}
+
+.glare-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.glare-hover::after {
+  content: "";
+  position: absolute;
+  inset: -150%;
+  background: linear-gradient(to right, transparent 42%, oklch(1 0 0 / 9%) 50%, transparent 58%);
+  transform: translateX(-60%);
+  transition: none;
+  pointer-events: none;
+}
+
+.glare-hover:hover::after {
+  animation: glare-sweep 900ms ease;
+}
+
+@keyframes glare-sweep {
+  to {
+    transform: translateX(60%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee-x,
+  .animate-marquee-y,
+  .animate-meteor,
+  .animate-aurora,
+  .glare-hover:hover::after {
+    animation: none;
+  }
+}
+
 /* PROTOTYPE ONLY — shared dashboard visual directions. */
 .hf-variant-a {
   --background: oklch(0.975 0.016 82);
