@@ -112,40 +112,56 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
   const editable = isOpen && manager;
   const issues = closureIssues(detail);
   const readyToClose = issues.length === 0;
+  const detailKey = trpc.matches.detail.queryKey({ matchId: detail.id });
+  const [version, setVersion] = useState(detail.lockVersion);
+  const effectiveVersion = Math.max(version, detail.lockVersion);
 
   const execute = useMutation(
     trpc.matches.execute.mutationOptions({
-      onSuccess: () => {
-        toast.success("Listo");
-        queryClient.invalidateQueries({
-          queryKey: trpc.matches.detail.queryKey({ matchId: detail.id }),
-        });
+      onMutate: async (input) => {
+        await queryClient.cancelQueries({ queryKey: detailKey });
+        const previous = queryClient.getQueryData<Detail>(detailKey);
+        if (previous) {
+          const optimistic = optimisticDetail(previous, input);
+          if (optimistic !== previous) {
+            queryClient.setQueryData<Detail>(detailKey, optimistic);
+          }
+        }
+        return { previous };
+      },
+      onSuccess: (result, input) => {
+        if ("lockVersion" in result) {
+          setVersion((current) => Math.max(current, result.lockVersion));
+        }
+        toast.success(
+          input.type === "closeMatch"
+            ? "Partido cerrado"
+            : input.type === "reopenMatch"
+              ? "Partido reabierto"
+              : "Listo",
+        );
         queryClient.invalidateQueries({ queryKey: trpc.matches.list.queryKey() });
         queryClient.invalidateQueries({ queryKey: trpc.matches.directory.queryKey() });
       },
-      onError: (cause) => toast.error(cause.message),
+      onError: (cause, _input, context) => {
+        toast.error(cause.message);
+        if (context?.previous) {
+          queryClient.setQueryData(detailKey, context.previous);
+        }
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({ queryKey: detailKey });
+      },
     }),
   );
   const run = (action: MatchAction) =>
     execute.mutate({
       ...action,
-      expectedLockVersion: detail.lockVersion,
+      expectedLockVersion: effectiveVersion,
     } as ExecuteInput);
 
   function closeMatch() {
-    execute.mutate(
-      { type: "closeMatch", matchId: detail.id, expectedLockVersion: detail.lockVersion },
-      {
-        onSuccess: () => {
-          toast.success("Partido cerrado");
-          queryClient.invalidateQueries({
-            queryKey: trpc.matches.detail.queryKey({ matchId: detail.id }),
-          });
-          queryClient.invalidateQueries({ queryKey: trpc.matches.list.queryKey() });
-        },
-        onError: (cause) => toast.error(cause.message),
-      },
-    );
+    run({ type: "closeMatch", matchId: detail.id });
   }
   function reopen() {
     run({ type: "reopenMatch", matchId: detail.id });
@@ -237,17 +253,14 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
             <MatchScoreboard detail={detail} manager={manager} userId={user.id} />
           </Section>
 
-          <Section step="3" title="El cierre">
-            <ClosingSheet
-              detail={detail}
-              editable={editable}
-              pending={execute.isPending}
-              run={run}
-              readyToClose={readyToClose}
-              issues={issues}
-              onClose={closeMatch}
-            />
-          </Section>
+          <Planilla detail={detail} editable={editable} pending={execute.isPending} run={run} />
+
+          <ClosingBar
+            issues={issues}
+            pending={execute.isPending}
+            readyToClose={readyToClose}
+            onClose={closeMatch}
+          />
         </>
       ) : null}
 
@@ -268,29 +281,25 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
           />
           <Section title="Lo que quedó">
             <ReadOnlyStats detail={detail} />
-            <ClosingSheet
+            <PaymentsCard
               detail={detail}
-              editable={editable}
+              editable={manager}
               pending={execute.isPending}
               run={run}
-              readyToClose
-              issues={[]}
-              onClose={closeMatch}
             />
           </Section>
-          {detail.status === "closed" ? (
-            <Section title="Las notas">
-              <MatchRatings matchId={detail.id} teams={detail.teams} />
-            </Section>
-          ) : null}
-          {manager ? (
-            <div className="flex justify-center">
-              <Button onClick={reopen} variant="outline">
-                Corregir algo · reabrir
-              </Button>
-            </div>
-          ) : null}
+          <Section title="Las notas">
+            <MatchRatings matchId={detail.id} teams={detail.teams} />
+          </Section>
         </>
+      ) : null}
+
+      {manager ? (
+        <div className="flex justify-center">
+          <Button onClick={reopen} variant="outline">
+            Corregir algo · reabrir
+          </Button>
+        </div>
       ) : null}
     </div>
   );
@@ -625,12 +634,12 @@ function TeamRoster({
   run: (action: MatchAction) => void;
   team: Detail["teams"][number];
 }) {
-  const [playerId, setPlayerId] = useState<string | null>(null);
-  const accentBar = team.slot === 1 ? "bg-emerald-400" : "bg-sky-400";
-
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
-      <div className={cn("flex h-1", accentBar)} aria-hidden="true" />
+      <div
+        className={cn("flex h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
+        aria-hidden="true"
+      />
       <div className="flex flex-col gap-3 px-4 py-4">
         <div className="flex items-center justify-between gap-2">
           <TeamNameEditor
@@ -699,58 +708,42 @@ function TeamRoster({
 
         {editable ? (
           <div className="flex flex-col gap-2 border-t pt-3">
-            <Select
-              items={available.map((player) => ({ label: player.displayName, value: player.id }))}
-              value={playerId}
-              onValueChange={setPlayerId}
-            >
-              <SelectTrigger className="h-9 w-full" disabled={available.length === 0}>
-                <SelectValue
-                  placeholder={available.length === 0 ? "Todos están anotados" : "Sumar del grupo"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {available.map((player) => (
-                    <SelectItem key={player.id} value={player.id}>
-                      {player.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {playerId ? (
-              <Button
-                className="self-end"
-                disabled={pending}
-                onClick={() => {
-                  if (!playerId) return;
-                  run({
-                    type: "addParticipant",
-                    matchId: detail.id,
-                    playerId,
-                    teamId: team.id,
-                  });
-                  setPlayerId(null);
-                }}
-                size="sm"
-              >
-                <PlusIcon data-icon="inline-start" aria-hidden="true" />
-                Sumar
-              </Button>
+            {available.length > 0 ? (
+              <div className="-m-1 flex max-h-32 flex-wrap content-start gap-1.5 overflow-y-auto p-1">
+                {available.map((player) => (
+                  <button
+                    key={player.id}
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      run({
+                        type: "addParticipant",
+                        matchId: detail.id,
+                        playerId: player.id,
+                        teamId: team.id,
+                      })
+                    }
+                    className="flex min-h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <PlusIcon className="size-3 shrink-0" aria-hidden="true" />
+                    <span className="max-w-36 truncate">{player.displayName}</span>
+                  </button>
+                ))}
+              </div>
             ) : (
-              <NewPlayerInput
-                disabled={pending}
-                onAdd={(displayName) =>
-                  run({
-                    type: "createAndAddParticipant",
-                    displayName,
-                    matchId: detail.id,
-                    teamId: team.id,
-                  })
-                }
-              />
+              <p className="text-xs text-muted-foreground">Todos los del grupo están anotados.</p>
             )}
+            <NewPlayerInput
+              disabled={pending}
+              onAdd={(displayName) =>
+                run({
+                  type: "createAndAddParticipant",
+                  displayName,
+                  matchId: detail.id,
+                  teamId: team.id,
+                })
+              }
+            />
           </div>
         ) : null}
       </div>
@@ -799,30 +792,22 @@ function NewPlayerInput({
   );
 }
 
-function ClosingSheet({
+function Planilla({
   detail,
   editable,
-  issues,
-  onClose,
   pending,
-  readyToClose,
   run,
 }: {
   detail: Detail;
   editable: boolean;
-  issues: (keyof typeof issueText)[];
-  onClose: () => void;
   pending: boolean;
-  readyToClose: boolean;
   run: (action: MatchAction) => void;
 }) {
-  const rows = detail.teams.flatMap((team) =>
-    team.appearances.map((appearance) => ({ appearance, team })),
-  );
-  const showPayments = rows.length > 0 && detail.status !== "cancelled";
+  const rows = detail.teams.flatMap((team) => team.appearances);
+  const costKnown = detail.courtCostMinor !== null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <Section step="3" title="El cierre">
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Sumá jugadores a los equipos para cargar el cierre.
@@ -830,173 +815,256 @@ function ClosingSheet({
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {detail.teams.map((team) => (
-            <div key={team.id} className="overflow-hidden rounded-xl border bg-card">
-              <div
-                className={cn("h-1", team.slot === 1 ? "bg-emerald-400" : "bg-sky-400")}
-                aria-hidden="true"
-              />
-              <div className="flex flex-col divide-y px-4 py-3">
-                {team.appearances.map((appearance) => (
-                  <StatSteppers
-                    key={appearance.playerId}
-                    appearance={appearance}
-                    detail={detail}
-                    editable={editable && detail.status === "open"}
-                    pending={pending}
-                    run={run}
-                  />
-                ))}
-                {editable && detail.status === "open" ? (
-                  <UnattributedStepper detail={detail} pending={pending} run={run} team={team} />
-                ) : team.unattributedGoals > 0 ? (
-                  <div className="flex min-h-10 items-center justify-between py-2 text-sm text-muted-foreground">
-                    Goles sin autor
-                    <span className="font-mono font-bold tabular-nums">
-                      {team.unattributedGoals}
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-            </div>
+            <PlanillaCard
+              key={team.id}
+              detail={detail}
+              editable={editable}
+              costKnown={costKnown}
+              pending={pending}
+              run={run}
+              team={team}
+            />
           ))}
         </div>
       )}
+      {costKnown && rows.length ? (
+        <p className="text-sm text-muted-foreground">
+          Caja:{" "}
+          <strong className="font-mono tabular-nums text-foreground">
+            {formatMoney(rows.reduce((sum, row) => sum + BigInt(row.paidMinor), 0n))}
+          </strong>{" "}
+          de <span className="font-mono tabular-nums">{formatMoney(detail.courtCostMinor)}</span>
+        </p>
+      ) : null}
+    </Section>
+  );
+}
 
-      {showPayments ? (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <p className="border-b px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
-            La caja
+function PlanillaCard({
+  costKnown,
+  detail,
+  editable,
+  pending,
+  run,
+  team,
+}: {
+  costKnown: boolean;
+  detail: Detail;
+  editable: boolean;
+  pending: boolean;
+  run: (action: MatchAction) => void;
+  team: Detail["teams"][number];
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border bg-card">
+      <div
+        className={cn("h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
+        aria-hidden="true"
+      />
+      <div className="flex flex-col divide-y px-4 py-3">
+        {team.appearances.map((appearance) => (
+          <PlanillaRow
+            key={appearance.playerId}
+            appearance={appearance}
+            costKnown={costKnown}
+            detail={detail}
+            editableStats={editable && detail.status === "open"}
+            editablePayments={editable}
+            pending={pending}
+            run={run}
+          />
+        ))}
+        {editable && detail.status === "open" ? (
+          <UnattributedStepper detail={detail} pending={pending} run={run} team={team} />
+        ) : team.unattributedGoals > 0 ? (
+          <div className="flex min-h-10 items-center justify-between py-2 text-sm text-muted-foreground">
+            Goles sin autor
+            <span className="font-mono font-bold tabular-nums">{team.unattributedGoals}</span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function PlanillaRow({
+  appearance,
+  costKnown,
+  detail,
+  editablePayments,
+  editableStats,
+  pending,
+  run,
+}: {
+  appearance: Appearance;
+  costKnown: boolean;
+  detail: Detail;
+  editablePayments: boolean;
+  editableStats: boolean;
+  pending: boolean;
+  run: (action: MatchAction) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 py-2 md:flex-row md:items-center md:justify-between md:gap-4">
+      <span className="truncate text-sm font-medium">{appearance.playerDisplayName}</span>
+      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 md:justify-end">
+        <StatSteppers
+          appearance={appearance}
+          compact
+          detail={detail}
+          editable={editableStats}
+          pending={pending}
+          run={run}
+        />
+        {costKnown ? (
+          <PaymentCell
+            appearance={appearance}
+            detail={detail}
+            editable={editablePayments}
+            pending={pending}
+            run={run}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ClosingBar({
+  issues,
+  onClose,
+  pending,
+  readyToClose,
+}: {
+  issues: (keyof typeof issueText)[];
+  onClose: () => void;
+  pending: boolean;
+  readyToClose: boolean;
+}) {
+  return (
+    <div className="sticky bottom-20 z-10 md:bottom-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card/95 px-4 py-3 shadow-[0_12px_32px_rgb(0_0_0/28%)] backdrop-blur">
+        {readyToClose ? (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CheckIcon className="size-4 text-primary" aria-hidden="true" />
+            Todo listo para cerrar.
           </p>
-          <ul className="flex flex-col divide-y">
-            {rows.map(({ appearance }) => (
-              <PaymentRow
-                key={appearance.playerId}
-                appearance={appearance}
-                detail={detail}
-                editable={editable}
-                pending={pending}
-                run={run}
-              />
-            ))}
+        ) : (
+          <ul className="min-w-0 text-sm text-muted-foreground">
+            <li className="flex items-center gap-2">
+              <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
+              {issueText[issues[0]]}
+            </li>
+            {issues.length > 1 ? (
+              <li className="pl-6 text-xs">Y {issues.length - 1} pendiente más.</li>
+            ) : null}
           </ul>
-        </div>
-      ) : null}
-
-      {editable && detail.status === "open" ? (
-        <div className="flex flex-col items-start gap-3 rounded-xl border bg-muted/30 px-4 py-4">
-          {!readyToClose ? (
-            <ul className="flex flex-col gap-1.5 text-sm text-muted-foreground">
-              {issues.map((issue) => (
-                <li key={issue} className="flex items-center gap-2">
-                  <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
-                  {issueText[issue]}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <Button disabled={!readyToClose || pending} onClick={onClose} size="lg">
-            <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
-            Cerrar partido
-          </Button>
-        </div>
-      ) : null}
+        )}
+        <Button disabled={!readyToClose || pending} onClick={onClose} size="lg">
+          <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
+          Cerrar partido
+        </Button>
+      </div>
     </div>
   );
 }
 
 function StatSteppers({
   appearance,
+  compact = false,
   detail,
   editable,
   pending,
   run,
 }: {
   appearance: Appearance;
+  compact?: boolean;
   detail: Detail;
   editable: boolean;
   pending: boolean;
   run: (action: MatchAction) => void;
 }) {
   return (
-    <div className="flex min-h-11 items-center justify-between gap-3 py-1.5">
-      <span className="truncate text-sm font-medium">{appearance.playerDisplayName}</span>
-      <div className="flex shrink-0 items-center gap-4">
-        <Stepper
-          disabled={!editable || pending}
-          label={`Goles de ${appearance.playerDisplayName}`}
-          onDecrement={() =>
-            run({
-              type: "adjustStat",
-              field: "goals",
-              matchId: detail.id,
-              playerId: appearance.playerId,
-              delta: -1,
-            })
-          }
-          onIncrement={() =>
-            run({
-              type: "adjustStat",
-              field: "goals",
-              matchId: detail.id,
-              playerId: appearance.playerId,
-              delta: 1,
-            })
-          }
-          value={appearance.goals}
-        />
-        <Stepper
-          disabled={!editable || pending}
-          label={`Asistencias de ${appearance.playerDisplayName}`}
-          onDecrement={() =>
-            run({
-              type: "adjustStat",
-              field: "assists",
-              matchId: detail.id,
-              playerId: appearance.playerId,
-              delta: -1,
-            })
-          }
-          onIncrement={() =>
-            run({
-              type: "adjustStat",
-              field: "assists",
-              matchId: detail.id,
-              playerId: appearance.playerId,
-              delta: 1,
-            })
-          }
-          value={appearance.assists}
-        />
-        <Stepper
-          disabled={!editable || pending}
-          hideZero
-          label={`En contra de ${appearance.playerDisplayName}`}
-          onDecrement={() =>
-            run({
-              type: "adjustStat",
-              field: "ownGoals",
-              matchId: detail.id,
-              playerId: appearance.playerId,
-              delta: -1,
-            })
-          }
-          onIncrement={() =>
-            run({
-              type: "adjustStat",
-              field: "ownGoals",
-              matchId: detail.id,
-              playerId: appearance.playerId,
-              delta: 1,
-            })
-          }
-          value={appearance.ownGoals}
-        />
-      </div>
+    <div className="flex shrink-0 items-center justify-between gap-4">
+      <Stepper
+        compact={compact}
+        disabled={!editable || pending}
+        label={`Goles de ${appearance.playerDisplayName}`}
+        onDecrement={() =>
+          run({
+            type: "adjustStat",
+            field: "goals",
+            matchId: detail.id,
+            playerId: appearance.playerId,
+            delta: -1,
+          })
+        }
+        onIncrement={() =>
+          run({
+            type: "adjustStat",
+            field: "goals",
+            matchId: detail.id,
+            playerId: appearance.playerId,
+            delta: 1,
+          })
+        }
+        value={appearance.goals}
+      />
+      <Stepper
+        compact={compact}
+        disabled={!editable || pending}
+        label={`Asistencias de ${appearance.playerDisplayName}`}
+        onDecrement={() =>
+          run({
+            type: "adjustStat",
+            field: "assists",
+            matchId: detail.id,
+            playerId: appearance.playerId,
+            delta: -1,
+          })
+        }
+        onIncrement={() =>
+          run({
+            type: "adjustStat",
+            field: "assists",
+            matchId: detail.id,
+            playerId: appearance.playerId,
+            delta: 1,
+          })
+        }
+        value={appearance.assists}
+      />
+      <Stepper
+        compact={compact}
+        hideZero
+        disabled={!editable || pending}
+        label={`En contra de ${appearance.playerDisplayName}`}
+        onDecrement={() =>
+          run({
+            type: "adjustStat",
+            field: "ownGoals",
+            matchId: detail.id,
+            playerId: appearance.playerId,
+            delta: -1,
+          })
+        }
+        onIncrement={() =>
+          run({
+            type: "adjustStat",
+            field: "ownGoals",
+            matchId: detail.id,
+            playerId: appearance.playerId,
+            delta: 1,
+          })
+        }
+        value={appearance.ownGoals}
+      />
     </div>
   );
 }
 
 function Stepper({
+  compact = false,
   disabled,
   hideZero = false,
   label,
@@ -1004,6 +1072,7 @@ function Stepper({
   onIncrement,
   value,
 }: {
+  compact?: boolean;
   disabled: boolean;
   hideZero?: boolean;
   label: string;
@@ -1011,11 +1080,20 @@ function Stepper({
   onIncrement: () => void;
   value: number;
 }) {
+  const tag = label.startsWith("Asistencias") ? "A" : label.startsWith("En contra") ? "AG" : "G";
   if (hideZero && value === 0 && disabled) {
     return <span className="w-20" aria-hidden="true" />;
   }
   return (
-    <span className="flex w-20 items-center justify-between gap-1" role="group" aria-label={label}>
+    <span className="flex w-20 items-center justify-end gap-1" role="group" aria-label={label}>
+      {compact ? (
+        <span
+          aria-hidden="true"
+          className="w-3 text-center text-[0.65rem] font-bold uppercase text-muted-foreground"
+        >
+          {tag}
+        </span>
+      ) : null}
       <button
         type="button"
         aria-label={`${label}: restar`}
@@ -1097,7 +1175,68 @@ const statusStyles = {
   pending: "text-red-600 dark:text-red-400",
 } as const;
 
+function PaymentsCard({
+  detail,
+  editable,
+  pending,
+  run,
+}: {
+  detail: Detail;
+  editable: boolean;
+  pending: boolean;
+  run: (action: MatchAction) => void;
+}) {
+  const rows = detail.teams.flatMap((team) => team.appearances);
+  if (rows.length === 0) return null;
+  return (
+    <div className="overflow-hidden rounded-xl border bg-card">
+      <p className="border-b px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+        La caja
+      </p>
+      <ul className="flex flex-col divide-y">
+        {rows.map((appearance) => (
+          <PaymentRow
+            key={appearance.playerId}
+            appearance={appearance}
+            detail={detail}
+            editable={editable}
+            pending={pending}
+            run={run}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function PaymentRow({
+  appearance,
+  detail,
+  editable,
+  pending,
+  run,
+}: {
+  appearance: Appearance;
+  detail: Detail;
+  editable: boolean;
+  pending: boolean;
+  run: (action: MatchAction) => void;
+}) {
+  return (
+    <li className="flex min-h-12 items-center justify-between gap-3 px-4 py-2">
+      <span className="truncate text-sm">{appearance.playerDisplayName}</span>
+      <PaymentCell
+        appearance={appearance}
+        detail={detail}
+        editable={editable}
+        pending={pending}
+        run={run}
+      />
+    </li>
+  );
+}
+
+function PaymentCell({
   appearance,
   detail,
   editable,
@@ -1121,80 +1260,77 @@ function PaymentRow({
     setEditing(false);
   }
 
+  if (editing) {
+    return (
+      <form
+        className="flex shrink-0 items-center gap-1"
+        onSubmit={(event) => {
+          event.preventDefault();
+          save();
+        }}
+      >
+        <Input
+          autoFocus
+          aria-label={`Pagó ${appearance.playerDisplayName}`}
+          className="h-8 w-24"
+          inputMode="decimal"
+          value={amount}
+          onBlur={() => setEditing(false)}
+          onChange={(event) => setAmount(event.target.value)}
+        />
+        <Button aria-label="Confirmar pago" size="icon-xs" type="submit">
+          <CheckIcon aria-hidden="true" />
+        </Button>
+      </form>
+    );
+  }
+
   return (
-    <li className="flex min-h-12 items-center justify-between gap-3 px-4 py-2">
-      <span className="truncate text-sm">{appearance.playerDisplayName}</span>
-      <div className="flex shrink-0 items-center gap-3">
-        <span className="font-mono text-sm tabular-nums text-muted-foreground">
-          {formatMoney(appearance.expectedMinor)}
-        </span>
-        {editing ? (
-          <form
-            className="flex items-center gap-1"
-            onSubmit={(event) => {
-              event.preventDefault();
-              save();
-            }}
-          >
-            <Input
-              autoFocus
-              aria-label={`Pagó ${appearance.playerDisplayName}`}
-              className="h-8 w-24"
-              inputMode="decimal"
-              value={amount}
-              onBlur={() => setEditing(false)}
-              onChange={(event) => setAmount(event.target.value)}
-            />
-            <Button aria-label="Confirmar pago" size="icon-xs" type="submit">
-              <CheckIcon aria-hidden="true" />
-            </Button>
-          </form>
-        ) : (
-          <>
-            <strong
-              className={cn(
-                "min-w-16 text-right font-mono text-sm tabular-nums",
-                statusStyles[appearance.contributionStatus],
-              )}
-            >
-              {formatMoney(appearance.paidMinor)}
-            </strong>
-            {editable ? (
-              <>
-                <Button
-                  aria-label={`Marcar pago completo de ${appearance.playerDisplayName}`}
-                  disabled={pending || appearance.expectedMinor === appearance.paidMinor}
-                  onClick={() =>
-                    run({
-                      type: "updatePaid",
-                      matchId: detail.id,
-                      paidMinor: String(appearance.expectedMinor),
-                      playerId: appearance.playerId,
-                    })
-                  }
-                  size="icon-xs"
-                  variant="outline"
-                >
-                  <WalletIcon aria-hidden="true" />
-                </Button>
-                <Button
-                  aria-label={`Editar pago de ${appearance.playerDisplayName}`}
-                  disabled={pending}
-                  onClick={() => {
-                    setAmount(String(Number(appearance.paidMinor) / 100));
-                    setEditing(true);
-                  }}
-                  size="sm"
-                  variant="ghost"
-                >
-                  Editar
-                </Button>
-              </>
-            ) : null}
-          </>
+    <span className="flex shrink-0 items-center gap-3">
+      <span className="font-mono text-sm tabular-nums text-muted-foreground">
+        {formatMoney(appearance.expectedMinor)}
+      </span>
+      <strong
+        className={cn(
+          "min-w-16 text-right font-mono text-sm tabular-nums",
+          statusStyles[appearance.contributionStatus],
         )}
-      </div>
-    </li>
+      >
+        {formatMoney(appearance.paidMinor)}
+      </strong>
+      {editable ? (
+        <>
+          <Button
+            aria-label={`Marcar pago completo de ${appearance.playerDisplayName}`}
+            disabled={pending || appearance.expectedMinor === appearance.paidMinor}
+            onClick={() =>
+              run({
+                type: "updatePaid",
+                matchId: detail.id,
+                paidMinor: String(appearance.expectedMinor),
+                playerId: appearance.playerId,
+              })
+            }
+            size="icon-xs"
+            variant="outline"
+          >
+            <WalletIcon aria-hidden="true" />
+          </Button>
+          <Button
+            aria-label={`Editar pago de ${appearance.playerDisplayName}`}
+            disabled={pending}
+            onClick={() => {
+              setAmount(String(Number(appearance.paidMinor) / 100));
+              setEditing(true);
+            }}
+            size="sm"
+            variant="ghost"
+          >
+            Editar
+          </Button>
+        </>
+      ) : null}
+    </span>
   );
 }
 
@@ -1204,7 +1340,7 @@ function ReadOnlyStats({ detail }: { detail: Detail }) {
       {detail.teams.map((team) => (
         <div key={team.id} className="overflow-hidden rounded-xl border bg-card">
           <div
-            className={cn("h-1", team.slot === 1 ? "bg-emerald-400" : "bg-sky-400")}
+            className={cn("h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
             aria-hidden="true"
           />
           <div className="px-4 py-3">
@@ -1247,6 +1383,85 @@ function courtItemsFor(courts: Directory["courts"], currentCourtId: string | nul
 
 function scoreFor(detail: Detail, teamId?: string) {
   return detail.score.find((item) => item.teamId === teamId)?.goals ?? 0;
+}
+
+function paidStatus(
+  paidMinor: string,
+  expectedMinor: string | number,
+  previous: Appearance["contributionStatus"],
+): Appearance["contributionStatus"] {
+  const expected = BigInt(expectedMinor);
+  if (expected === 0n) return previous;
+  const paid = BigInt(paidMinor);
+  if (paid === expected) return "paid";
+  if (paid > expected) return "overpaid";
+  if (paid > 0n) return "partial";
+  return "pending";
+}
+
+function optimisticDetail(data: Detail, input: ExecuteInput): Detail {
+  if (input.type === "adjustStat") {
+    const { field } = input;
+    if (field === "unattributedGoals") {
+      const scoreTeamId = input.teamId;
+      return {
+        ...data,
+        teams: data.teams.map((team) =>
+          team.id === input.teamId
+            ? { ...team, unattributedGoals: team.unattributedGoals + input.delta }
+            : team,
+        ),
+        score: scoreTeamId
+          ? data.score.map((entry) =>
+              entry.teamId === scoreTeamId ? { ...entry, goals: entry.goals + input.delta } : entry,
+            )
+          : data.score,
+      };
+    }
+    const scorerTeam = data.teams.find((team) =>
+      team.appearances.some((row) => row.playerId === input.playerId),
+    );
+    const scoreTeamId =
+      field === "ownGoals"
+        ? data.teams.find((team) => team.id !== scorerTeam?.id)?.id
+        : scorerTeam?.id;
+    return {
+      ...data,
+      teams: data.teams.map((team) => ({
+        ...team,
+        appearances: team.appearances.map((row) =>
+          row.playerId === input.playerId ? { ...row, [field]: row[field] + input.delta } : row,
+        ),
+      })),
+      score: scoreTeamId
+        ? data.score.map((entry) =>
+            entry.teamId === scoreTeamId ? { ...entry, goals: entry.goals + input.delta } : entry,
+          )
+        : data.score,
+    };
+  }
+  if (input.type === "updatePaid") {
+    return {
+      ...data,
+      teams: data.teams.map((team) => ({
+        ...team,
+        appearances: team.appearances.map((row) =>
+          row.playerId === input.playerId
+            ? {
+                ...row,
+                paidMinor: input.paidMinor,
+                contributionStatus: paidStatus(
+                  input.paidMinor,
+                  row.expectedMinor,
+                  row.contributionStatus,
+                ),
+              }
+            : row,
+        ),
+      })),
+    };
+  }
+  return data;
 }
 
 function closureIssues(detail: Detail): (keyof typeof issueText)[] {

@@ -32,8 +32,10 @@ import {
 } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
+import { useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
+import { NewMatchDialog } from "@/components/new-match-dialog";
 import { formatDate, formatMoney } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
 
@@ -41,6 +43,7 @@ export function HomeDashboard() {
   const { groupName, role, user } = useAppContext();
   const stats = useQuery(trpc.stats.dashboard.queryOptions({}));
   const directory = useQuery(trpc.matches.directory.queryOptions());
+  const [createOpen, setCreateOpen] = useState(false);
 
   if (stats.isPending || directory.isPending) {
     return (
@@ -85,54 +88,55 @@ export function HomeDashboard() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">{groupName}</p>
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-          La fecha es tuya, organizá el próximo partido
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Resumen del grupo</h1>
       </header>
 
-      <NextMatchHero onEmptyCreate={role !== "member"} upcoming={dashboard.upcoming} />
+      <NextMatchHero
+        canCreate={role !== "member"}
+        onCreate={() => setCreateOpen(true)}
+        upcoming={dashboard.upcoming}
+      />
 
-      <section
-        aria-label="Tu resumen"
-        className="grid gap-px overflow-hidden border bg-border sm:grid-cols-3"
-      >
-        <PersonalMetric label="Tu deuda del último partido">
-          {myDebt ? (
-            myDebt.debtMinor === "0" ? (
-              <span className="flex items-center gap-2 text-lg">
-                <Badge variant="secondary">Al día</Badge>
-              </span>
+      <section aria-label="Tu resumen">
+        <dl className="grid gap-px overflow-hidden border bg-border sm:grid-cols-3">
+          <PersonalMetric label="Tu deuda del último partido">
+            {myDebt ? (
+              myDebt.debtMinor === "0" ? (
+                <span className="flex items-center gap-2 text-lg">
+                  <Badge variant="secondary">Al día</Badge>
+                </span>
+              ) : (
+                <strong className="text-xl font-bold tabular-nums text-destructive">
+                  {formatMoney(myDebt.debtMinor)}
+                </strong>
+              )
             ) : (
-              <strong className="text-xl font-bold tabular-nums text-destructive">
-                {formatMoney(myDebt.debtMinor)}
+              <span className="text-sm text-muted-foreground">Nada pendiente</span>
+            )}
+          </PersonalMetric>
+          <PersonalMetric label="Goles + asistencias">
+            {myStats ? (
+              <strong className="text-xl font-bold tabular-nums">
+                {myStats.contributions}
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  ({myStats.goals} G · {myStats.assists} A)
+                </span>
               </strong>
-            )
-          ) : (
-            <span className="text-sm text-muted-foreground">Nada pendiente</span>
-          )}
-        </PersonalMetric>
-        <PersonalMetric label="Goles + asistencias">
-          {myStats ? (
-            <strong className="text-xl font-bold tabular-nums">
-              {myStats.contributions}
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                ({myStats.goals} G · {myStats.assists} A)
-              </span>
-            </strong>
-          ) : (
-            <span className="text-sm text-muted-foreground">Todavía sin partidos cerrados</span>
-          )}
-        </PersonalMetric>
-        <PersonalMetric label="Caja del grupo">
-          {dashboard.finances ? (
-            <strong className="text-xl font-bold tabular-nums">
-              {dashboard.finances.paidCount}/{dashboard.finances.participantCount}
-              <span className="ml-2 text-sm font-normal text-muted-foreground">al día</span>
-            </strong>
-          ) : (
-            <span className="text-sm text-muted-foreground">Sin movimientos</span>
-          )}
-        </PersonalMetric>
+            ) : (
+              <span className="text-sm text-muted-foreground">Todavía sin partidos cerrados</span>
+            )}
+          </PersonalMetric>
+          <PersonalMetric label="Caja del grupo">
+            {dashboard.finances ? (
+              <strong className="text-xl font-bold tabular-nums">
+                {dashboard.finances.paidCount}/{dashboard.finances.participantCount}
+                <span className="ml-2 text-sm font-normal text-muted-foreground">al día</span>
+              </strong>
+            ) : (
+              <span className="text-sm text-muted-foreground">Sin movimientos</span>
+            )}
+          </PersonalMetric>
+        </dl>
       </section>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
@@ -231,15 +235,19 @@ export function HomeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <NewMatchDialog onOpenChange={setCreateOpen} open={createOpen} />
     </div>
   );
 }
 
 function NextMatchHero({
-  onEmptyCreate,
+  canCreate,
+  onCreate,
   upcoming,
 }: {
-  onEmptyCreate: boolean;
+  canCreate: boolean;
+  onCreate: () => void;
   upcoming: {
     matchId: string;
     scheduledAt: string | Date;
@@ -258,9 +266,9 @@ function NextMatchHero({
           <EmptyTitle>No hay próxima fecha</EmptyTitle>
           <EmptyDescription>Createla y empezá a convocar a los jugadores.</EmptyDescription>
         </EmptyHeader>
-        {onEmptyCreate ? (
+        {canCreate ? (
           <EmptyContent>
-            <Button render={<Link href="/dashboard/partidos/nuevo" />} nativeButton={false}>
+            <Button onClick={onCreate}>
               <PlusIcon data-icon="inline-start" aria-hidden="true" />
               Crear próximo partido
             </Button>

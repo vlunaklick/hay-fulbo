@@ -109,7 +109,7 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
             {teams.map((team) => (
               <div key={team.id} className="overflow-hidden rounded-xl border bg-card">
                 <div
-                  className={cn("h-1", team.slot === 1 ? "bg-emerald-400" : "bg-sky-400")}
+                  className={cn("h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
                   aria-hidden="true"
                 />
                 <div className="flex flex-col divide-y px-4 py-3">

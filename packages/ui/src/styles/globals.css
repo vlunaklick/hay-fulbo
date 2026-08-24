@@ -40,6 +40,10 @@
   --sidebar-accent-foreground: oklch(0.22 0.025 145);
   --sidebar-border: oklch(0.86 0.015 145);
   --sidebar-ring: oklch(0.68 0.19 126);
+  --team-blue: oklch(0.72 0.13 250);
+  --team-blue-ink: oklch(0.22 0.06 250);
+  --team-amber: oklch(0.83 0.12 75);
+  --team-amber-ink: oklch(0.26 0.07 70);
 }
 
 .dark {
@@ -79,6 +83,10 @@
 }
 
 @theme inline {
+  --color-team-blue: var(--team-blue);
+  --color-team-blue-ink: var(--team-blue-ink);
+  --color-team-amber: var(--team-amber);
+  --color-team-amber-ink: var(--team-amber-ink);
   --font-sans: var(--font-manrope), sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);

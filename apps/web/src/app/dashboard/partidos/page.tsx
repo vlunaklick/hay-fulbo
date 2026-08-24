@@ -16,8 +16,10 @@ import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightIcon, CalendarDaysIcon, CircleAlertIcon, PlusIcon } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
+import { NewMatchDialog } from "@/components/new-match-dialog";
 import { formatDate } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
 
@@ -26,6 +28,8 @@ const statusLabel = { open: "Abierto", closed: "Cerrado", cancelled: "Cancelado"
 export default function DashboardPage() {
   const { role } = useAppContext();
   const matches = useQuery(trpc.matches.list.queryOptions({ limit: 50 }));
+  const [createOpen, setCreateOpen] = useState(false);
+  const canManage = role !== "member";
 
   return (
     <div className="flex flex-col gap-6">
@@ -35,24 +39,14 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Partidos</h1>
           <p className="text-sm text-muted-foreground">Lo próximo y lo que ya quedó cerrado.</p>
         </div>
-        {role !== "member" ? (
-          <Button render={<Link href="/dashboard/partidos/nuevo" />} nativeButton={false}>
+        {canManage ? (
+          <Button onClick={() => setCreateOpen(true)}>
             <PlusIcon data-icon="inline-start" aria-hidden="true" />
             <span className="hidden sm:inline">Nuevo partido</span>
             <span className="sm:hidden">Nuevo</span>
           </Button>
         ) : null}
       </header>
-
-      {role === "member" ? (
-        <Alert>
-          <CircleAlertIcon aria-hidden="true" />
-          <AlertTitle>Vista de consulta</AlertTitle>
-          <AlertDescription>
-            Podés ver toda la información. Si sos capitán, también podés administrar tu equipo.
-          </AlertDescription>
-        </Alert>
-      ) : null}
 
       {matches.isPending ? (
         <div className="flex flex-col">
@@ -80,11 +74,9 @@ export default function DashboardPage() {
               Cargá la fecha, la cancha y los dos equipos para arrancar.
             </EmptyDescription>
           </EmptyHeader>
-          {role !== "member" ? (
+          {canManage ? (
             <EmptyContent>
-              <Button render={<Link href="/dashboard/partidos/nuevo" />} nativeButton={false}>
-                Crear el primero
-              </Button>
+              <Button onClick={() => setCreateOpen(true)}>Crear el primero</Button>
             </EmptyContent>
           ) : null}
         </Empty>
@@ -133,6 +125,8 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
+
+      <NewMatchDialog onOpenChange={setCreateOpen} open={createOpen} />
     </div>
   );
 }

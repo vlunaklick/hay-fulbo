@@ -22,14 +22,14 @@ type MatchAction = WithoutVersion<ExecuteInput>;
 
 const teamAccent = {
   1: {
-    chip: "bg-emerald-400 text-zinc-950 hover:bg-emerald-300",
-    bar: "bg-emerald-400",
-    panel: "border-emerald-400/30 bg-emerald-950/40",
+    chip: "bg-team-blue text-team-blue-ink hover:bg-team-blue/90",
+    bar: "bg-team-blue",
+    panel: "border-team-blue/30 bg-team-blue/5",
   },
   2: {
-    chip: "bg-sky-400 text-zinc-950 hover:bg-sky-300",
-    bar: "bg-sky-400",
-    panel: "border-sky-400/30 bg-sky-950/40",
+    chip: "bg-team-amber text-team-amber-ink hover:bg-team-amber/90",
+    bar: "bg-team-amber",
+    panel: "border-team-amber/30 bg-team-amber/5",
   },
 } as const;
 
@@ -129,7 +129,7 @@ export function MatchScoreboard({
                   </Button>
                 </div>
               ) : (
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-400">
                   {detail.status === "open" ? "Solo el organizador edita" : "Marcador cerrado"}
                 </p>
               )}
@@ -189,7 +189,7 @@ export function MatchScoreboard({
       </div>
 
       {editable ? (
-        <p className="border-t border-white/10 px-4 py-2 text-center text-[0.65rem] uppercase tracking-[0.24em] text-zinc-500">
+        <p className="border-t border-white/10 px-4 py-2 text-center text-[0.65rem] uppercase tracking-[0.24em] text-zinc-400">
           Cada gol se atribuye al toque
         </p>
       ) : null}
@@ -247,7 +247,7 @@ function GoalPicker({
       ) : null}
 
       {names.length === 0 ? (
-        <p className="py-4 text-center text-xs text-zinc-500">
+        <p className="py-4 text-center text-xs text-zinc-400">
           {mode === "scored"
             ? "Este equipo no tiene jugadores."
             : "El otro equipo no tiene jugadores."}

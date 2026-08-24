@@ -73,7 +73,7 @@ function PitchShell({ detail }: { detail: Detail }) {
           Salir
         </Button>
         <div className="text-center">
-          <p className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-emerald-400">
+          <p className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-primary">
             Modo cancha
           </p>
           <p className="text-xs text-zinc-400">Toque grande, guardado inmediato</p>
