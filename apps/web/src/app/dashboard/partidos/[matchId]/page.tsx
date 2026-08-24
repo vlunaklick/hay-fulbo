@@ -22,6 +22,15 @@ import {
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@hay-fulbo/ui/components/sheet";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
@@ -281,7 +290,7 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
           />
           <Section title="Lo que quedó">
             <ReadOnlyStats detail={detail} />
-            <PaymentsCard
+            <PaymentsSheet
               detail={detail}
               editable={manager}
               pending={execute.isPending}
@@ -1167,7 +1176,7 @@ const statusStyles = {
   pending: "text-red-600 dark:text-red-400",
 } as const;
 
-function PaymentsCard({
+function PaymentsSheet({
   detail,
   editable,
   pending,
@@ -1180,24 +1189,49 @@ function PaymentsCard({
 }) {
   const rows = detail.teams.flatMap((team) => team.appearances);
   if (rows.length === 0) return null;
+  const settled = rows.filter(
+    (row) => row.contributionStatus === "paid" || row.contributionStatus === "overpaid",
+  ).length;
+  const collected = rows.reduce((acc, row) => acc + BigInt(row.paidMinor), 0n);
+  const expected = rows.reduce((acc, row) => acc + BigInt(row.expectedMinor), 0n);
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <p className="border-b px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
-        La caja
-      </p>
-      <ul className="flex flex-col divide-y">
-        {rows.map((appearance) => (
-          <PaymentRow
-            key={appearance.playerId}
-            appearance={appearance}
-            detail={detail}
-            editable={editable}
-            pending={pending}
-            run={run}
-          />
-        ))}
-      </ul>
-    </div>
+    <Sheet>
+      <SheetTrigger
+        render={
+          <Button className="h-auto w-full justify-between px-4 py-3" variant="outline">
+            <span className="flex items-center gap-2 text-sm font-semibold">
+              <WalletIcon aria-hidden="true" />
+              La caja
+            </span>
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+              {settled}/{rows.length} · {formatMoney(collected)} de {formatMoney(expected)}
+            </span>
+          </Button>
+        }
+      />
+      <SheetContent side="right">
+        <SheetHeader>
+          <SheetTitle>La caja</SheetTitle>
+          <SheetDescription>
+            {settled} de {rows.length} pagaron · {formatMoney(collected)} de {formatMoney(expected)}
+          </SheetDescription>
+        </SheetHeader>
+        <SheetBody className="px-0 py-0">
+          <ul className="flex flex-col divide-y">
+            {rows.map((appearance) => (
+              <PaymentRow
+                key={appearance.playerId}
+                appearance={appearance}
+                detail={detail}
+                editable={editable}
+                pending={pending}
+                run={run}
+              />
+            ))}
+          </ul>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
   );
 }
 
