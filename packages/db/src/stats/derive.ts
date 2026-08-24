@@ -169,6 +169,12 @@ function buildRanking(source: StatsSource, matches: readonly ScoredMatch[]): Sta
   const players = new Map(source.players.map((player) => [player.id, player]));
   const rows = new Map<string, StatsAggregate>();
   const ratingAccum = new Map<string, { sum: number; votes: number; matches: Set<string> }>();
+  const matchIds = new Set(matches.map((scored) => scored.match.id));
+  const absenceCount = new Map<string, number>();
+  for (const absence of source.absences ?? []) {
+    if (!matchIds.has(absence.matchId)) continue;
+    absenceCount.set(absence.playerId, (absenceCount.get(absence.playerId) ?? 0) + 1);
+  }
 
   for (const scored of matches) {
     const insight = ratingInsightFor(source, scored.match);
@@ -215,6 +221,7 @@ function buildRanking(source: StatsSource, matches: readonly ScoredMatch[]): Sta
             goalsAgainst: 0,
             goalDifference: 0,
             ownGoals: 0,
+            absences: 0,
             ratingAverage: null,
             ratingMatchCount: 0,
           } satisfies StatsAggregate);
@@ -240,6 +247,7 @@ function buildRanking(source: StatsSource, matches: readonly ScoredMatch[]): Sta
       const acc = ratingAccum.get(row.playerId);
       return {
         ...row,
+        absences: absenceCount.get(row.playerId) ?? 0,
         winPercentage: ratio(row.wins * 100, row.played),
         goalsPerMatch: ratio(row.goals, row.played),
         assistsPerMatch: ratio(row.assists, row.played),

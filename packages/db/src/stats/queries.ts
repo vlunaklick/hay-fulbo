@@ -6,6 +6,7 @@ import {
   court,
   groupSharedLink,
   match,
+  matchAbsence,
   matchAppearance,
   matchRating,
   matchTeam,
@@ -201,6 +202,27 @@ async function loadAuthorizedSource(
             and(eq(matchRating.groupId, access.groupId), inArray(matchRating.matchId, matchIds)),
           );
 
+  const absences =
+    matchIds.length === 0
+      ? []
+      : (
+          await transaction
+            .select({
+              matchId: matchAbsence.matchId,
+              playerId: matchAbsence.playerId,
+            })
+            .from(matchAbsence)
+            .where(
+              and(
+                eq(matchAbsence.groupId, access.groupId),
+                inArray(matchAbsence.matchId, matchIds),
+              ),
+            )
+        ).filter((absence) => {
+          const matchStatus = matches.find((item) => item.id === absence.matchId)?.status;
+          return matchStatus === "closed";
+        });
+
   return {
     group,
     courts,
@@ -238,6 +260,7 @@ async function loadAuthorizedSource(
             })),
         })),
     })),
+    absences,
   };
 }
 

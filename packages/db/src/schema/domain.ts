@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   check,
   customType,
   foreignKey,
@@ -218,6 +219,57 @@ export const matchAppearance = pgTable(
       table.matchId,
     ),
     index("match_appearance_group_match_team_idx").on(table.groupId, table.matchId, table.teamId),
+  ],
+);
+
+export const matchAbsence = pgTable(
+  "match_absence",
+  {
+    groupId: text("group_id").notNull(),
+    matchId: uuid("match_id").notNull(),
+    playerId: uuid("player_id").notNull(),
+    joinedOrder: integer("joined_order").notNull(),
+    owesContribution: boolean("owes_contribution").default(false).notNull(),
+    expectedMinor: bigint("expected_minor", { mode: "bigint" })
+      .default(sql`0`)
+      .notNull(),
+    paidMinor: bigint("paid_minor", { mode: "bigint" })
+      .default(sql`0`)
+      .notNull(),
+    paidUpdatedAt: instant("paid_updated_at"),
+    paidUpdatedByUserId: text("paid_updated_by_user_id").references(() => user.id, {
+      onDelete: "restrict",
+    }),
+    markedByUserId: text("marked_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    createdAt: instant("created_at").defaultNow().notNull(),
+    updatedAt: updatedInstant(),
+  },
+  (table) => [
+    primaryKey({
+      name: "match_absence_pk",
+      columns: [table.groupId, table.matchId, table.playerId],
+    }),
+    foreignKey({
+      name: "match_absence_group_match_fk",
+      columns: [table.groupId, table.matchId],
+      foreignColumns: [match.groupId, match.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "match_absence_group_player_fk",
+      columns: [table.groupId, table.playerId],
+      foreignColumns: [player.groupId, player.id],
+    }).onDelete("restrict"),
+    unique("match_absence_group_match_joined_order_unique").on(
+      table.groupId,
+      table.matchId,
+      table.joinedOrder,
+    ),
+    check("match_absence_joined_order_positive", sql`${table.joinedOrder} > 0`),
+    check("match_absence_expected_minor_nonnegative", sql`${table.expectedMinor} >= 0`),
+    check("match_absence_paid_minor_nonnegative", sql`${table.paidMinor} >= 0`),
+    index("match_absence_group_player_idx").on(table.groupId, table.playerId),
   ],
 );
 

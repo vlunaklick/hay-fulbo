@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import {
   court,
   match,
+  matchAbsence,
   matchAppearance,
   matchTeam,
   member,
@@ -179,6 +180,18 @@ async function loadDetail(
     )
     .where(and(eq(matchAppearance.groupId, groupId), eq(matchAppearance.matchId, matchId)))
     .orderBy(asc(matchAppearance.joinedOrder));
+  const absences = await transaction
+    .select({
+      row: matchAbsence,
+      playerDisplayName: player.displayName,
+    })
+    .from(matchAbsence)
+    .innerJoin(
+      player,
+      and(eq(player.groupId, matchAbsence.groupId), eq(player.id, matchAbsence.playerId)),
+    )
+    .where(and(eq(matchAbsence.groupId, groupId), eq(matchAbsence.matchId, matchId)))
+    .orderBy(asc(matchAbsence.joinedOrder));
   const score = calculateScore({
     teams: teams.map((team) => ({
       id: team.id,
@@ -218,6 +231,17 @@ async function loadDetail(
           debtMinor: row.expectedMinor > row.paidMinor ? row.expectedMinor - row.paidMinor : 0n,
           overpaidMinor: row.paidMinor > row.expectedMinor ? row.paidMinor - row.expectedMinor : 0n,
         })),
+    })),
+    absences: absences.map(({ row, playerDisplayName }) => ({
+      playerId: row.playerId,
+      playerDisplayName,
+      joinedOrder: row.joinedOrder,
+      owesContribution: row.owesContribution,
+      expectedMinor: row.expectedMinor,
+      paidMinor: row.paidMinor,
+      contributionStatus: contributionStatus(row.expectedMinor, row.paidMinor),
+      debtMinor: row.expectedMinor > row.paidMinor ? row.expectedMinor - row.paidMinor : 0n,
+      overpaidMinor: row.paidMinor > row.expectedMinor ? row.paidMinor - row.expectedMinor : 0n,
     })),
   };
 }

@@ -35,6 +35,7 @@ import {
   MapPinIcon,
   Maximize2Icon,
   PlusIcon,
+  UserXIcon,
   WalletIcon,
   XIcon,
 } from "lucide-react";
@@ -44,6 +45,10 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+
+import { BorderBeam } from "@hay-fulbo/ui/components/border-beam";
+import { fireGoalConfetti } from "@hay-fulbo/ui/components/confetti";
+import { CoolMode } from "@hay-fulbo/ui/components/cool-mode";
 
 import { useAppContext } from "@/components/app-shell";
 import { MatchParityCard } from "@/components/match-parity-card";
@@ -64,6 +69,10 @@ type WithoutVersion<T> = T extends { expectedLockVersion: number }
   : T;
 type MatchAction = WithoutVersion<ExecuteInput>;
 type Appearance = Detail["teams"][number]["appearances"][number];
+type PaymentSubject = Pick<
+  Appearance,
+  "playerId" | "playerDisplayName" | "expectedMinor" | "paidMinor" | "contributionStatus"
+>;
 
 const issueText = {
   match_not_started: "La hora del partido todavía no pasó.",
@@ -140,6 +149,9 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
               ? "Partido reabierto"
               : "Listo",
         );
+        if (input.type === "closeMatch") {
+          fireGoalConfetti();
+        }
         queryClient.invalidateQueries({ queryKey: trpc.matches.list.queryKey() });
         queryClient.invalidateQueries({ queryKey: trpc.matches.directory.queryKey() });
       },
@@ -374,8 +386,9 @@ function Cover({
   return (
     <section
       aria-labelledby="match-overview-title"
-      className="overflow-hidden rounded-2xl border bg-card"
+      className="relative overflow-hidden rounded-2xl border bg-card"
     >
+      {editable ? <BorderBeam duration={8} size={56} /> : null}
       <div className="flex flex-col gap-4 px-5 py-5">
         <div className="flex items-center justify-between gap-3 text-xs font-medium text-muted-foreground">
           <span className="flex items-center gap-2">
@@ -580,8 +593,9 @@ function RosterGrid({
   const assigned = new Set(
     detail.teams.flatMap((team) => team.appearances.map((row) => row.playerId)),
   );
+  const absent = new Set(detail.absences.map((row) => row.playerId));
   const available = directory.players.filter(
-    (player) => !player.archivedAt && !assigned.has(player.id),
+    (player) => !player.archivedAt && !assigned.has(player.id) && !absent.has(player.id),
   );
 
   if (!editable && detail.teams.every((team) => team.appearances.length === 0)) {
@@ -595,18 +609,85 @@ function RosterGrid({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {detail.teams.map((team) => (
-        <TeamRoster
-          key={team.id}
-          available={available}
-          detail={detail}
-          editable={editable}
-          pending={pending}
-          run={run}
-          team={team}
-        />
-      ))}
+    <>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {detail.teams.map((team) => (
+          <TeamRoster
+            key={team.id}
+            available={available}
+            detail={detail}
+            editable={editable}
+            pending={pending}
+            run={run}
+            team={team}
+          />
+        ))}
+      </div>
+      {detail.absences.length > 0 ? (
+        <AbsencesList detail={detail} editable={editable} pending={pending} run={run} />
+      ) : null}
+    </>
+  );
+}
+
+function AbsencesList({
+  detail,
+  editable,
+  pending,
+  run,
+}: {
+  detail: Detail;
+  editable: boolean;
+  pending: boolean;
+  run: (action: MatchAction) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-dashed bg-card">
+      <p className="border-b px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+        Dijeron que venían y no vinieron
+      </p>
+      <ul className="flex flex-col divide-y">
+        {detail.absences.map((absence) => (
+          <li
+            key={absence.playerId}
+            className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2"
+          >
+            <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+              <UserXIcon className="size-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">{absence.playerDisplayName}</span>
+              {absence.owesContribution ? <Badge variant="secondary">deja su aporte</Badge> : null}
+            </span>
+            {editable ? (
+              <span className="flex shrink-0 items-center gap-2">
+                {absence.owesContribution && detail.courtCostMinor !== null ? (
+                  <PaymentCell
+                    appearance={absence}
+                    detail={detail}
+                    editable
+                    pending={pending}
+                    run={run}
+                  />
+                ) : null}
+                <Button
+                  aria-label={`Quitar la marca de ausente de ${absence.playerDisplayName}`}
+                  disabled={pending}
+                  onClick={() =>
+                    run({
+                      type: "removeAbsence",
+                      matchId: detail.id,
+                      playerId: absence.playerId,
+                    })
+                  }
+                  size="sm"
+                  variant="ghost"
+                >
+                  Vino al final
+                </Button>
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -658,6 +739,13 @@ function TeamRoster({
                 <span className="truncate text-sm">{appearance.playerDisplayName}</span>
                 {editable ? (
                   <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                    <MarkAbsentCell
+                      detail={detail}
+                      pending={pending}
+                      playerId={appearance.playerId}
+                      playerName={appearance.playerDisplayName}
+                      run={run}
+                    />
                     <Button
                       aria-label={`Mover a ${appearance.playerDisplayName} al otro equipo`}
                       disabled={pending}
@@ -740,6 +828,54 @@ function TeamRoster({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function MarkAbsentCell({
+  detail,
+  pending,
+  playerId,
+  playerName,
+  run,
+}: {
+  detail: Detail;
+  pending: boolean;
+  playerId: string;
+  playerName: string;
+  run: (action: MatchAction) => void;
+}) {
+  const [asking, setAsking] = useState(false);
+
+  if (!asking) {
+    return (
+      <Button
+        aria-label={`Marcar que ${playerName} no vino`}
+        disabled={pending}
+        onClick={() => setAsking(true)}
+        size="icon-xs"
+        variant="ghost"
+      >
+        <UserXIcon aria-hidden="true" />
+      </Button>
+    );
+  }
+  const mark = (owesContribution: boolean) => {
+    run({ type: "markAbsent", matchId: detail.id, playerId, owesContribution });
+    setAsking(false);
+  };
+  return (
+    <span className="flex items-center gap-1">
+      <span className="whitespace-nowrap text-xs text-muted-foreground">¿Deja su aporte?</span>
+      <Button disabled={pending} onClick={() => mark(true)} size="sm" variant="outline">
+        Sí
+      </Button>
+      <Button disabled={pending} onClick={() => mark(false)} size="sm" variant="outline">
+        No
+      </Button>
+      <Button aria-label="Cancelar" onClick={() => setAsking(false)} size="icon-xs" variant="ghost">
+        <XIcon aria-hidden="true" />
+      </Button>
+    </span>
   );
 }
 
@@ -1235,7 +1371,7 @@ function PaymentCell({
   pending,
   run,
 }: {
-  appearance: Appearance;
+  appearance: PaymentSubject;
   detail: Detail;
   editable: boolean;
   pending: boolean;

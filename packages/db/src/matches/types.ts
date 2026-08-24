@@ -108,6 +108,19 @@ export type MatchCommand =
       playerId: string;
     }
   | {
+      type: "markAbsent";
+      matchId: string;
+      expectedLockVersion: number;
+      playerId: string;
+      owesContribution: boolean;
+    }
+  | {
+      type: "removeAbsence";
+      matchId: string;
+      expectedLockVersion: number;
+      playerId: string;
+    }
+  | {
       type: "moveParticipant";
       matchId: string;
       expectedLockVersion: number;
@@ -209,6 +222,17 @@ export type MatchDetail = {
       debtMinor: bigint;
       overpaidMinor: bigint;
     }[];
+  }[];
+  absences: readonly {
+    playerId: string;
+    playerDisplayName: string;
+    joinedOrder: number;
+    owesContribution: boolean;
+    expectedMinor: bigint;
+    paidMinor: bigint;
+    contributionStatus: ContributionStatus;
+    debtMinor: bigint;
+    overpaidMinor: bigint;
   }[];
 };
 

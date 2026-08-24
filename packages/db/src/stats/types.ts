@@ -44,6 +44,7 @@ export type StatsSource = {
     ratedPlayerId: string;
     score: number;
   }[];
+  absences?: readonly { matchId: string; playerId: string }[];
 };
 
 export type StatsSourceMatch = {
@@ -92,6 +93,7 @@ export type StatsAggregate = {
   goalsAgainst: number;
   goalDifference: number;
   ownGoals: number;
+  absences: number;
   ratingAverage: number | null;
   ratingMatchCount: number;
 };

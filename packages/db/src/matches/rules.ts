@@ -105,6 +105,7 @@ export function validateMatchClosure(input: {
     playerId: string;
     expectedMinor: bigint;
   })[];
+  absences?: readonly { expectedMinor: bigint }[];
 }): {
   ok: boolean;
   issues: ClosureIssue[];
@@ -155,7 +156,8 @@ export function validateMatchClosure(input: {
   }
   if (
     input.courtCostMinor !== null &&
-    input.appearances.reduce((total, appearance) => total + appearance.expectedMinor, 0n) !==
+    input.appearances.reduce((total, appearance) => total + appearance.expectedMinor, 0n) +
+      (input.absences ?? []).reduce((total, absence) => total + absence.expectedMinor, 0n) !==
       input.courtCostMinor
   ) {
     issues.push("expected_total_mismatch");

@@ -186,6 +186,7 @@ function PlayerStatsContent({
             <Metric label="Empatados" value={data.aggregate.draws} />
             <Metric label="Perdidos" value={data.aggregate.losses} />
             <Metric label="Puntos" value={data.aggregate.points} />
+            <Metric label="Ausencias" value={data.aggregate.absences} />
           </section>
           <p className="mt-3 text-sm text-muted-foreground">
             {formatRate(data.aggregate.winPercentage)}% victorias ·{" "}

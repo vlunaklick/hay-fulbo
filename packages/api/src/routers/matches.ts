@@ -94,6 +94,17 @@ const commandSchema = z.discriminatedUnion("type", [
     playerId: id,
   }),
   z.object({
+    type: z.literal("markAbsent"),
+    ...versioned,
+    playerId: id,
+    owesContribution: z.boolean(),
+  }),
+  z.object({
+    type: z.literal("removeAbsence"),
+    ...versioned,
+    playerId: id,
+  }),
+  z.object({
     type: z.literal("moveParticipant"),
     ...versioned,
     playerId: id,
@@ -285,6 +296,13 @@ function serializeDetail(detail: MatchDetail) {
         debtMinor: appearance.debtMinor.toString(),
         overpaidMinor: appearance.overpaidMinor.toString(),
       })),
+    })),
+    absences: detail.absences.map((absence) => ({
+      ...absence,
+      expectedMinor: absence.expectedMinor.toString(),
+      paidMinor: absence.paidMinor.toString(),
+      debtMinor: absence.debtMinor.toString(),
+      overpaidMinor: absence.overpaidMinor.toString(),
     })),
   };
 }

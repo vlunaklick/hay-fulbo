@@ -47,6 +47,11 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
+import { BlurFade } from "@hay-fulbo/ui/components/blur-fade";
+import { MagicCard } from "@hay-fulbo/ui/components/magic-card";
+import { Marquee } from "@hay-fulbo/ui/components/marquee";
+import { NumberTicker } from "@hay-fulbo/ui/components/number-ticker";
+
 import { initials } from "@/lib/initials";
 import { trpc, trpcHttpClient } from "@/utils/trpc";
 import { cn } from "@hay-fulbo/ui/lib/utils";
@@ -219,13 +224,36 @@ function StatsDashboardContent({
             <span className="absolute inline-flex size-full rounded-full bg-primary/35" />
             <span className="relative inline-flex size-2 rounded-full bg-primary" />
           </span>
-          <span className="font-semibold tabular-nums">{dashboard.summary.matchesPlayed} PJ</span>
+          <span className="font-semibold tabular-nums">
+            <NumberTicker value={dashboard.summary.matchesPlayed} /> PJ
+          </span>
           <span className="h-4 w-px bg-border" aria-hidden="true" />
           <span className="tabular-nums text-muted-foreground">
-            {dashboard.summary.totalGoals} goles
+            <NumberTicker value={dashboard.summary.totalGoals} /> goles
           </span>
         </div>
       </header>
+
+      {dashboard.history.length > 0 ? (
+        <BlurFade duration={0.5}>
+          <Marquee className="mb-3 rounded-lg border bg-card/50 py-1 [--gap:0.625rem]" duration="45s" pause>
+            {dashboard.history.slice(0, 10).map((match) => (
+              <span
+                key={match.matchId}
+                className="flex shrink-0 items-center gap-1.5 px-1.5 text-xs text-muted-foreground"
+              >
+                <span className="font-medium text-foreground">
+                  {match.teams[0]?.displayName}{" "}
+                  <strong className="tabular-nums text-primary">{match.teams[0]?.goals}</strong>
+                  <span className="px-0.5">–</span>
+                  <strong className="tabular-nums text-primary">{match.teams[1]?.goals}</strong>{" "}
+                  {match.teams[1]?.displayName}
+                </span>
+              </span>
+            ))}
+          </Marquee>
+        </BlurFade>
+      ) : null}
 
       <StatsFiltersBar dashboard={dashboard} filters={filters} />
 
@@ -243,7 +271,8 @@ function StatsDashboardContent({
         <TabsContent value="resumen">
           <section aria-labelledby="spotlight-title" className="pt-2">
             {figure ? (
-              <Card className="group/spotlight relative isolate gap-0 py-0">
+              <MagicCard className="rounded-xl" gradientSize={320}>
+                <Card className="group/spotlight relative isolate gap-0 rounded-xl border-none bg-transparent py-0">
                 <PitchMarkings />
                 <CardHeader className="relative z-10 flex min-h-16 flex-row items-center justify-between gap-4 border-b px-5 py-3">
                   <div className="min-w-0">
@@ -282,8 +311,8 @@ function StatsDashboardContent({
                       </div>
 
                       <dl className="mt-5 grid grid-cols-3 gap-3 border-y py-3">
-                        <SpotlightMetric label="Goles" value={figure.goals} />
-                        <SpotlightMetric label="Asist." value={figure.assists} />
+                        <SpotlightMetric label="Goles" value={figure.goals} ticker />
+                        <SpotlightMetric label="Asist." value={figure.assists} ticker />
                         <SpotlightMetric
                           label="Prom."
                           value={formatRate(figure.contributionsPerMatch)}
@@ -355,7 +384,8 @@ function StatsDashboardContent({
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+                </Card>
+              </MagicCard>
             ) : (
               <Empty className="border">
                 <EmptyHeader>
@@ -425,7 +455,7 @@ function StatsDashboardContent({
               ) : (
                 <div className="border">
                   {dashboard.history.map((match, index) => (
-                    <div key={match.matchId}>
+                    <BlurFade key={match.matchId} delay={Math.min(index, 6)} inView duration={0.3}>
                       {index > 0 ? <Separator /> : null}
                       <Link
                         className={buttonVariants({
@@ -452,7 +482,7 @@ function StatsDashboardContent({
                         </span>
                         <ArrowRightIcon className="size-4 text-muted-foreground" />
                       </Link>
-                    </div>
+                    </BlurFade>
                   ))}
                 </div>
               )}
@@ -606,6 +636,8 @@ function Ranking({
                 <span className="mt-1 block text-xs text-muted-foreground">
                   {row.played} PJ · {row.goals} G · {row.assists} A · {row.wins}G {row.draws}E{" "}
                   {row.losses}P
+                  {row.absences > 0 ? ` · ${row.absences} ausencia` : ""}
+                  {row.absences > 1 ? "s" : ""}
                   {row.ratingAverage !== null
                     ? ` · ${row.ratingAverage} nota en ${row.ratingMatchCount} ${
                         row.ratingMatchCount === 1 ? "partido" : "partidos"
@@ -634,6 +666,7 @@ function Ranking({
               <TableHead className="text-right">A</TableHead>
               <TableHead className="text-right">G+A</TableHead>
               <TableHead className="text-right">Prom.</TableHead>
+              <TableHead className="text-right">Aus.</TableHead>
               <TableHead className="text-right">Nota</TableHead>
               <TableHead className="text-right">G-E-P</TableHead>
               <TableHead className="w-12">
@@ -662,6 +695,9 @@ function Ranking({
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatRate(row.contributionsPerMatch)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {row.absences > 0 ? row.absences : "—"}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {row.ratingAverage !== null
@@ -758,13 +794,23 @@ function ContributionRace({
   );
 }
 
-function SpotlightMetric({ label, value }: { label: string; value: number | string }) {
+function SpotlightMetric({
+  label,
+  value,
+  ticker = false,
+}: {
+  label: string;
+  value: number | string;
+  ticker?: boolean;
+}) {
   return (
     <div>
       <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
-      <dd className="mt-0.5 text-xl font-bold tabular-nums">{value}</dd>
+      <dd className="mt-0.5 text-xl font-bold tabular-nums">
+        {ticker && typeof value === "number" ? <NumberTicker value={value} /> : value}
+      </dd>
     </div>
   );
 }

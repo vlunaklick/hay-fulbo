@@ -3,6 +3,7 @@ import { and, asc, eq, max, sql } from "drizzle-orm";
 import {
   court,
   match,
+  matchAbsence,
   matchAppearance,
   matchOrganizerTransfer,
   matchTeam,
@@ -100,6 +101,10 @@ export function createMatchCommands(
             return createAndAddParticipant(transaction, scope, locked, command);
           case "removeParticipant":
             return removeParticipant(transaction, scope, locked, command);
+          case "markAbsent":
+            return markAbsent(transaction, scope, locked, command);
+          case "removeAbsence":
+            return removeAbsence(transaction, scope, locked, command);
           case "moveParticipant":
             return moveParticipant(transaction, scope, locked, command);
           case "adjustStat":
@@ -396,16 +401,24 @@ async function addParticipant(
   requireOpen(locked);
   await requireTeam(transaction, scope.groupId, locked.id, command.teamId);
   await requireActivePlayer(transaction, scope.groupId, command.playerId);
-  const [order] = await transaction
-    .select({ highest: max(matchAppearance.joinedOrder) })
-    .from(matchAppearance)
-    .where(and(eq(matchAppearance.groupId, scope.groupId), eq(matchAppearance.matchId, locked.id)));
+  const [order, absenceOrder] = await Promise.all([
+    transaction
+      .select({ highest: max(matchAppearance.joinedOrder) })
+      .from(matchAppearance)
+      .where(
+        and(eq(matchAppearance.groupId, scope.groupId), eq(matchAppearance.matchId, locked.id)),
+      ),
+    transaction
+      .select({ highest: max(matchAbsence.joinedOrder) })
+      .from(matchAbsence)
+      .where(and(eq(matchAbsence.groupId, scope.groupId), eq(matchAbsence.matchId, locked.id))),
+  ]);
   await transaction.insert(matchAppearance).values({
     groupId: scope.groupId,
     matchId: locked.id,
     playerId: command.playerId,
     teamId: command.teamId,
-    joinedOrder: (order?.highest ?? 0) + 1,
+    joinedOrder: Math.max(order[0]?.highest ?? 0, absenceOrder[0]?.highest ?? 0) + 1,
   });
   await recalculateContributions(transaction, scope.groupId, locked.id, locked.courtCostMinor);
   return bumpVersion(transaction, scope.groupId, locked);
@@ -459,6 +472,74 @@ async function removeParticipant(
         eq(matchAppearance.playerId, command.playerId),
       ),
     );
+  await recalculateContributions(transaction, scope.groupId, locked.id, locked.courtCostMinor);
+  return bumpVersion(transaction, scope.groupId, locked);
+}
+
+async function markAbsent(
+  transaction: MatchTransaction,
+  scope: MatchScope,
+  locked: LockedMatch,
+  command: Extract<MatchCommand, { type: "markAbsent" }>,
+) {
+  requireOrganizer(locked, scope);
+  requireOpen(locked);
+  const appearance = await requireAppearance(
+    transaction,
+    scope.groupId,
+    locked.id,
+    command.playerId,
+  );
+  await transaction
+    .delete(matchAppearance)
+    .where(
+      and(
+        eq(matchAppearance.groupId, scope.groupId),
+        eq(matchAppearance.matchId, locked.id),
+        eq(matchAppearance.playerId, command.playerId),
+      ),
+    );
+  await transaction
+    .insert(matchAbsence)
+    .values({
+      groupId: scope.groupId,
+      matchId: locked.id,
+      playerId: command.playerId,
+      joinedOrder: appearance.joinedOrder,
+      owesContribution: command.owesContribution,
+      markedByUserId: scope.actorUserId,
+    })
+    .onConflictDoUpdate({
+      target: [matchAbsence.groupId, matchAbsence.matchId, matchAbsence.playerId],
+      set: {
+        joinedOrder: appearance.joinedOrder,
+        owesContribution: command.owesContribution,
+        markedByUserId: scope.actorUserId,
+      },
+    });
+  await recalculateContributions(transaction, scope.groupId, locked.id, locked.courtCostMinor);
+  return bumpVersion(transaction, scope.groupId, locked);
+}
+
+async function removeAbsence(
+  transaction: MatchTransaction,
+  scope: MatchScope,
+  locked: LockedMatch,
+  command: Extract<MatchCommand, { type: "removeAbsence" }>,
+) {
+  requireOrganizer(locked, scope);
+  requireOpen(locked);
+  const deleted = await transaction
+    .delete(matchAbsence)
+    .where(
+      and(
+        eq(matchAbsence.groupId, scope.groupId),
+        eq(matchAbsence.matchId, locked.id),
+        eq(matchAbsence.playerId, command.playerId),
+      ),
+    )
+    .returning({ playerId: matchAbsence.playerId });
+  if (deleted.length === 0) throw new MatchCommandError("not_found");
   await recalculateContributions(transaction, scope.groupId, locked.id, locked.courtCostMinor);
   return bumpVersion(transaction, scope.groupId, locked);
 }
@@ -564,9 +645,34 @@ async function updatePaid(
   if (locked.status === "cancelled") throw new MatchCommandError("match_not_open");
   requireOrganizer(locked, scope);
   assertNonnegativeMoney(command.paidMinor);
-  await requireAppearance(transaction, scope.groupId, locked.id, command.playerId, true);
+  const [appearance] = await transaction
+    .select({ playerId: matchAppearance.playerId })
+    .from(matchAppearance)
+    .where(
+      and(
+        eq(matchAppearance.groupId, scope.groupId),
+        eq(matchAppearance.matchId, locked.id),
+        eq(matchAppearance.playerId, command.playerId),
+      ),
+    )
+    .limit(1);
+  const [absence] = appearance
+    ? []
+    : await transaction
+        .select({ playerId: matchAbsence.playerId })
+        .from(matchAbsence)
+        .where(
+          and(
+            eq(matchAbsence.groupId, scope.groupId),
+            eq(matchAbsence.matchId, locked.id),
+            eq(matchAbsence.playerId, command.playerId),
+          ),
+        )
+        .limit(1);
+  if (!appearance && !absence) throw new MatchCommandError("not_found");
+  const table = appearance ? matchAppearance : matchAbsence;
   await transaction
-    .update(matchAppearance)
+    .update(table)
     .set({
       paidMinor: command.paidMinor,
       paidUpdatedAt: changedAt,
@@ -574,9 +680,9 @@ async function updatePaid(
     })
     .where(
       and(
-        eq(matchAppearance.groupId, scope.groupId),
-        eq(matchAppearance.matchId, locked.id),
-        eq(matchAppearance.playerId, command.playerId),
+        eq(table.groupId, scope.groupId),
+        eq(table.matchId, locked.id),
+        eq(table.playerId, command.playerId),
       ),
     );
   return bumpVersion(transaction, scope.groupId, locked);
@@ -611,6 +717,10 @@ async function closeMatch(
     appearances.length === 0
       ? appearances
       : await loadAppearances(transaction, scope.groupId, locked.id);
+  const absences = await transaction
+    .select({ expectedMinor: matchAbsence.expectedMinor })
+    .from(matchAbsence)
+    .where(and(eq(matchAbsence.groupId, scope.groupId), eq(matchAbsence.matchId, locked.id)));
   const closure = validateMatchClosure({
     now,
     scheduledAt: locked.scheduledAt,
@@ -618,6 +728,7 @@ async function closeMatch(
     courtCostMinor: locked.courtCostMinor,
     teams,
     appearances: refreshedAppearances,
+    absences,
   });
   if (!closure.ok) {
     throw new MatchCommandError("closure_invalid", "Match cannot be closed", closure.issues);
@@ -710,14 +821,26 @@ async function recalculateContributions(
   alreadyLoaded?: readonly AppearanceRow[],
 ) {
   const appearances = alreadyLoaded ?? (await loadAppearances(transaction, groupId, matchId));
-  if (appearances.length === 0) return;
+  const absences = await transaction
+    .select()
+    .from(matchAbsence)
+    .where(and(eq(matchAbsence.groupId, groupId), eq(matchAbsence.matchId, matchId)));
+  if (appearances.length === 0 && absences.length === 0) return;
   try {
     const amounts = calculateExpectedContributions({
       courtCostMinor: courtCostMinor ?? 0n,
-      contributions: appearances.map((appearance) => ({
-        playerId: appearance.playerId,
-        joinedOrder: appearance.joinedOrder,
-      })),
+      contributions: [
+        ...appearances.map((appearance) => ({
+          playerId: appearance.playerId,
+          joinedOrder: appearance.joinedOrder,
+        })),
+        ...absences
+          .filter((absence) => absence.owesContribution)
+          .map((absence) => ({
+            playerId: absence.playerId,
+            joinedOrder: absence.joinedOrder,
+          })),
+      ],
     });
     for (const amount of amounts) {
       await transaction
@@ -728,6 +851,28 @@ async function recalculateContributions(
             eq(matchAppearance.groupId, groupId),
             eq(matchAppearance.matchId, matchId),
             eq(matchAppearance.playerId, amount.playerId),
+          ),
+        );
+      await transaction
+        .update(matchAbsence)
+        .set({ expectedMinor: amount.expectedMinor })
+        .where(
+          and(
+            eq(matchAbsence.groupId, groupId),
+            eq(matchAbsence.matchId, matchId),
+            eq(matchAbsence.playerId, amount.playerId),
+          ),
+        );
+    }
+    for (const absence of absences.filter((candidate) => !candidate.owesContribution)) {
+      await transaction
+        .update(matchAbsence)
+        .set({ expectedMinor: 0n })
+        .where(
+          and(
+            eq(matchAbsence.groupId, groupId),
+            eq(matchAbsence.matchId, matchId),
+            eq(matchAbsence.playerId, absence.playerId),
           ),
         );
     }
