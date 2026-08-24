@@ -236,7 +236,11 @@ function StatsDashboardContent({
 
       {dashboard.history.length > 0 ? (
         <BlurFade duration={0.5}>
-          <Marquee className="mb-3 rounded-lg border bg-card/50 py-1 [--gap:0.625rem]" duration="45s" pause>
+          <Marquee
+            className="mb-3 rounded-lg border bg-card/50 py-1 [--gap:0.625rem]"
+            duration="45s"
+            pause
+          >
             {dashboard.history.slice(0, 10).map((match) => (
               <span
                 key={match.matchId}
@@ -246,7 +250,9 @@ function StatsDashboardContent({
                   {match.teams[0]?.displayName}{" "}
                   <strong className="tabular-nums text-primary">{match.teams[0]?.goals}</strong>
                   <span className="px-0.5">–</span>
-                  <strong className="tabular-nums text-primary">{match.teams[1]?.goals}</strong>{" "}
+                  <strong className="tabular-nums text-primary">
+                    {match.teams[1]?.goals}
+                  </strong>{" "}
                   {match.teams[1]?.displayName}
                 </span>
               </span>
@@ -273,117 +279,117 @@ function StatsDashboardContent({
             {figure ? (
               <MagicCard className="rounded-xl" gradientSize={320}>
                 <Card className="group/spotlight relative isolate gap-0 rounded-xl border-none bg-transparent py-0">
-                <PitchMarkings />
-                <CardHeader className="relative z-10 flex min-h-16 flex-row items-center justify-between gap-4 border-b px-5 py-3">
-                  <div className="min-w-0">
-                    <CardTitle className="text-base" id="spotlight-title">
-                      La carrera del grupo
-                    </CardTitle>
-                  </div>
-                  <Badge className="max-w-48 truncate" variant="secondary">
-                    Figura: {figure.displayName}
-                  </Badge>
-                </CardHeader>
+                  <PitchMarkings />
+                  <CardHeader className="relative z-10 flex min-h-16 flex-row items-center justify-between gap-4 border-b px-5 py-3">
+                    <div className="min-w-0">
+                      <CardTitle className="text-base" id="spotlight-title">
+                        La carrera del grupo
+                      </CardTitle>
+                    </div>
+                    <Badge className="max-w-48 truncate" variant="secondary">
+                      Figura: {figure.displayName}
+                    </Badge>
+                  </CardHeader>
 
-                <CardContent className="relative z-10 grid p-0 lg:grid-cols-[0.82fr_1.18fr_0.9fr]">
-                  <div className="flex flex-col justify-between gap-4 p-5 lg:min-h-64">
-                    <div>
-                      <div className="flex items-center gap-4">
-                        <Avatar className="size-14 ring-4 ring-primary/10 transition-transform duration-200 ease-out group-hover/spotlight:-rotate-2 group-hover/spotlight:scale-105 motion-reduce:transition-none">
-                          <AvatarFallback className="bg-primary text-base font-bold text-primary-foreground">
-                            {initials(figure.displayName)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                            La figura
-                          </p>
-                          <h2 className="truncate text-2xl font-bold tracking-[-0.03em]">
-                            {figure.displayName}
-                          </h2>
-                          <p className="text-sm text-muted-foreground">
-                            <span className="font-semibold tabular-nums text-foreground">
-                              {figure.contributions}
-                            </span>{" "}
-                            participaciones de gol
+                  <CardContent className="relative z-10 grid p-0 lg:grid-cols-[0.82fr_1.18fr_0.9fr]">
+                    <div className="flex flex-col justify-between gap-4 p-5 lg:min-h-64">
+                      <div>
+                        <div className="flex items-center gap-4">
+                          <Avatar className="size-14 ring-4 ring-primary/10 transition-transform duration-200 ease-out group-hover/spotlight:-rotate-2 group-hover/spotlight:scale-105 motion-reduce:transition-none">
+                            <AvatarFallback className="bg-primary text-base font-bold text-primary-foreground">
+                              {initials(figure.displayName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                              La figura
+                            </p>
+                            <h2 className="truncate text-2xl font-bold tracking-[-0.03em]">
+                              {figure.displayName}
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                              <span className="font-semibold tabular-nums text-foreground">
+                                {figure.contributions}
+                              </span>{" "}
+                              participaciones de gol
+                            </p>
+                          </div>
+                        </div>
+
+                        <dl className="mt-5 grid grid-cols-3 gap-3 border-y py-3">
+                          <SpotlightMetric label="Goles" value={figure.goals} ticker />
+                          <SpotlightMetric label="Asist." value={figure.assists} ticker />
+                          <SpotlightMetric
+                            label="Prom."
+                            value={formatRate(figure.contributionsPerMatch)}
+                          />
+                        </dl>
+                      </div>
+
+                      <Link
+                        className={buttonVariants({
+                          variant: "outline",
+                          size: "sm",
+                          className:
+                            "w-full justify-between bg-background/35 sm:w-fit sm:justify-center",
+                        })}
+                        href={playerHref(detailBase, figure.playerId, filters.query)}
+                      >
+                        Ver ficha
+                        <ArrowRightIcon
+                          className="transition-transform duration-200 ease-out group-hover/button:translate-x-0.5 motion-reduce:transition-none"
+                          data-icon="inline-end"
+                        />
+                      </Link>
+                    </div>
+
+                    <div className="border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
+                      <div className="mb-3 flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">Carrera G+A</p>
+                          <p className="text-xs text-muted-foreground">
+                            Goles y asistencias, cabeza a cabeza
                           </p>
                         </div>
+                        <span className="text-xs tabular-nums text-muted-foreground">Top 3</span>
                       </div>
+                      <ContributionRace
+                        detailBase={detailBase}
+                        players={dashboard.ranking.slice(0, 3)}
+                        query={filters.query}
+                      />
+                    </div>
 
-                      <dl className="mt-5 grid grid-cols-3 gap-3 border-y py-3">
-                        <SpotlightMetric label="Goles" value={figure.goals} ticker />
-                        <SpotlightMetric label="Asist." value={figure.assists} ticker />
-                        <SpotlightMetric
-                          label="Prom."
-                          value={formatRate(figure.contributionsPerMatch)}
+                    <div className="border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
+                      <p className="text-sm font-semibold">Dueños de la tabla</p>
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Los líderes del período elegido
+                      </p>
+                      <div className="divide-y">
+                        <HallLeader
+                          icon={<CrosshairIcon />}
+                          label="Goleador"
+                          player={scorer}
+                          suffix="goles"
+                          value={scorer?.goals ?? 0}
                         />
-                      </dl>
-                    </div>
-
-                    <Link
-                      className={buttonVariants({
-                        variant: "outline",
-                        size: "sm",
-                        className:
-                          "w-full justify-between bg-background/35 sm:w-fit sm:justify-center",
-                      })}
-                      href={playerHref(detailBase, figure.playerId, filters.query)}
-                    >
-                      Ver ficha
-                      <ArrowRightIcon
-                        className="transition-transform duration-200 ease-out group-hover/button:translate-x-0.5 motion-reduce:transition-none"
-                        data-icon="inline-end"
-                      />
-                    </Link>
-                  </div>
-
-                  <div className="border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
-                    <div className="mb-3 flex items-end justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold">Carrera G+A</p>
-                        <p className="text-xs text-muted-foreground">
-                          Goles y asistencias, cabeza a cabeza
-                        </p>
+                        <HallLeader
+                          icon={<SparklesIcon />}
+                          label="El que reparte"
+                          player={assister}
+                          suffix="asistencias"
+                          value={assister?.assists ?? 0}
+                        />
+                        <HallLeader
+                          icon={<FlameIcon />}
+                          label="Más ganador"
+                          player={winner}
+                          suffix="% victorias"
+                          value={winner ? Math.round(winner.winPercentage) : 0}
+                        />
                       </div>
-                      <span className="text-xs tabular-nums text-muted-foreground">Top 3</span>
                     </div>
-                    <ContributionRace
-                      detailBase={detailBase}
-                      players={dashboard.ranking.slice(0, 3)}
-                      query={filters.query}
-                    />
-                  </div>
-
-                  <div className="border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
-                    <p className="text-sm font-semibold">Dueños de la tabla</p>
-                    <p className="mb-2 text-xs text-muted-foreground">
-                      Los líderes del período elegido
-                    </p>
-                    <div className="divide-y">
-                      <HallLeader
-                        icon={<CrosshairIcon />}
-                        label="Goleador"
-                        player={scorer}
-                        suffix="goles"
-                        value={scorer?.goals ?? 0}
-                      />
-                      <HallLeader
-                        icon={<SparklesIcon />}
-                        label="El que reparte"
-                        player={assister}
-                        suffix="asistencias"
-                        value={assister?.assists ?? 0}
-                      />
-                      <HallLeader
-                        icon={<FlameIcon />}
-                        label="Más ganador"
-                        player={winner}
-                        suffix="% victorias"
-                        value={winner ? Math.round(winner.winPercentage) : 0}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
+                  </CardContent>
                 </Card>
               </MagicCard>
             ) : (
@@ -635,8 +641,7 @@ function Ranking({
                 </span>
                 <span className="mt-1 block text-xs text-muted-foreground">
                   {row.played} PJ · {row.goals} G · {row.assists} A · {row.wins}G {row.draws}E{" "}
-                  {row.losses}P
-                  {row.absences > 0 ? ` · ${row.absences} ausencia` : ""}
+                  {row.losses}P{row.absences > 0 ? ` · ${row.absences} ausencia` : ""}
                   {row.absences > 1 ? "s" : ""}
                   {row.ratingAverage !== null
                     ? ` · ${row.ratingAverage} nota en ${row.ratingMatchCount} ${

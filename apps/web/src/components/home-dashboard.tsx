@@ -34,6 +34,12 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
 
+import { BlurFade } from "@hay-fulbo/ui/components/blur-fade";
+import { BorderBeam } from "@hay-fulbo/ui/components/border-beam";
+import { MagicCard } from "@hay-fulbo/ui/components/magic-card";
+import { Meteors } from "@hay-fulbo/ui/components/meteors";
+import { NumberTicker } from "@hay-fulbo/ui/components/number-ticker";
+
 import { useAppContext } from "@/components/app-shell";
 import { NewMatchDialog } from "@/components/new-match-dialog";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -117,9 +123,10 @@ export function HomeDashboard() {
           <PersonalMetric label="Goles + asistencias">
             {myStats ? (
               <strong className="text-xl font-bold tabular-nums">
-                {myStats.contributions}
+                <NumberTicker value={myStats.contributions} />
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  ({myStats.goals} G · {myStats.assists} A)
+                  (<NumberTicker value={myStats.goals} className="text-base" /> G ·{" "}
+                  <NumberTicker value={myStats.assists} className="text-base" /> A)
                 </span>
               </strong>
             ) : (
@@ -129,7 +136,8 @@ export function HomeDashboard() {
           <PersonalMetric label="Caja del grupo">
             {dashboard.finances ? (
               <strong className="text-xl font-bold tabular-nums">
-                {dashboard.finances.paidCount}/{dashboard.finances.participantCount}
+                <NumberTicker value={dashboard.finances.paidCount} />/
+                {dashboard.finances.participantCount}
                 <span className="ml-2 text-sm font-normal text-muted-foreground">al día</span>
               </strong>
             ) : (
@@ -140,100 +148,104 @@ export function HomeDashboard() {
       </section>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <Card size="sm">
-          <CardHeader>
-            <CardTitle>Últimos resultados</CardTitle>
-            <CardAction>
-              <Button
-                variant="ghost"
-                size="sm"
-                render={<Link href="/dashboard/partidos" />}
-                nativeButton={false}
-              >
-                Ver todos
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            {latest.length ? (
-              <div>
-                {latest.map((match, index) => (
-                  <div key={match.matchId}>
-                    {index > 0 ? <Separator /> : null}
-                    <Link
-                      href={`/dashboard/partidos/${match.matchId}`}
-                      className="flex min-h-12 items-center justify-between gap-3 rounded-md px-2 py-1.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium">
-                          {match.teams[0]?.displayName ?? "Equipo 1"}{" "}
-                          <strong className="tabular-nums">{match.teams[0]?.goals ?? 0}</strong>
-                          <span className="px-1 text-muted-foreground">–</span>
-                          <strong className="tabular-nums">
-                            {match.teams[1]?.goals ?? 0}
-                          </strong>{" "}
-                          {match.teams[1]?.displayName ?? "Equipo 2"}
+        <MagicCard className="rounded-xl" gradientSize={260}>
+          <Card size="sm" className="border-none bg-transparent shadow-none">
+            <CardHeader>
+              <CardTitle>Últimos resultados</CardTitle>
+              <CardAction>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  render={<Link href="/dashboard/partidos" />}
+                  nativeButton={false}
+                >
+                  Ver todos
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              {latest.length ? (
+                <div>
+                  {latest.map((match, index) => (
+                    <BlurFade key={match.matchId} delay={index} inView duration={0.35}>
+                      {index > 0 ? <Separator /> : null}
+                      <Link
+                        href={`/dashboard/partidos/${match.matchId}`}
+                        className="flex min-h-12 items-center justify-between gap-3 rounded-md px-2 py-1.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">
+                            {match.teams[0]?.displayName ?? "Equipo 1"}{" "}
+                            <strong className="tabular-nums">{match.teams[0]?.goals ?? 0}</strong>
+                            <span className="px-1 text-muted-foreground">–</span>
+                            <strong className="tabular-nums">
+                              {match.teams[1]?.goals ?? 0}
+                            </strong>{" "}
+                            {match.teams[1]?.displayName ?? "Equipo 2"}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {formatDate(match.scheduledAt)}
+                          </span>
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {formatDate(match.scheduledAt)}
-                        </span>
-                      </span>
-                      <ArrowRightIcon aria-hidden="true" />
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <CompactEmpty
-                icon={<CalendarDaysIcon aria-hidden="true" />}
-                title="Sin resultados todavía"
-                description="Los partidos cerrados van a aparecer acá."
-              />
-            )}
-          </CardContent>
-        </Card>
+                        <ArrowRightIcon aria-hidden="true" />
+                      </Link>
+                    </BlurFade>
+                  ))}
+                </div>
+              ) : (
+                <CompactEmpty
+                  icon={<CalendarDaysIcon aria-hidden="true" />}
+                  title="Sin resultados todavía"
+                  description="Los partidos cerrados van a aparecer acá."
+                />
+              )}
+            </CardContent>
+          </Card>
+        </MagicCard>
 
-        <Card size="sm">
-          <CardHeader>
-            <CardTitle>Goleadores</CardTitle>
-            <CardAction>
-              <Button
-                variant="ghost"
-                size="sm"
-                render={<Link href="/dashboard/estadisticas" />}
-                nativeButton={false}
-              >
-                Ver tabla completa
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="pb-1">
-            {scorers.length ? (
-              <div>
-                {scorers.map((player, index) => (
-                  <div key={player.playerId}>
-                    {index > 0 ? <Separator /> : null}
-                    <div className="grid min-h-11 grid-cols-[auto_1fr_repeat(3,3rem)] items-center gap-2 px-2 text-sm">
-                      <span className="w-5 text-xs text-muted-foreground">{index + 1}</span>
-                      <span className="truncate font-medium">{player.displayName}</span>
-                      <span className="text-center tabular-nums">{player.goals}</span>
-                      <span className="text-center tabular-nums text-muted-foreground">
-                        {player.assists}
-                      </span>
-                      <strong className="text-center tabular-nums">{player.contributions}</strong>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <CompactEmpty
-                icon={<TrophyIcon aria-hidden="true" />}
-                title="Todavía no hay tabla"
-                description="Cerrá un partido para empezar a sumar."
-              />
-            )}
-          </CardContent>
-        </Card>
+        <MagicCard className="rounded-xl" gradientSize={260}>
+          <Card size="sm" className="border-none bg-transparent shadow-none">
+            <CardHeader>
+              <CardTitle>Goleadores</CardTitle>
+              <CardAction>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  render={<Link href="/dashboard/estadisticas" />}
+                  nativeButton={false}
+                >
+                  Ver tabla completa
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="pb-1">
+              {scorers.length ? (
+                <div>
+                  {scorers.map((player, index) => (
+                    <BlurFade key={player.playerId} delay={index} inView duration={0.35}>
+                      {index > 0 ? <Separator /> : null}
+                      <div className="grid min-h-11 grid-cols-[auto_1fr_repeat(3,3rem)] items-center gap-2 px-2 text-sm">
+                        <span className="w-5 text-xs text-muted-foreground">{index + 1}</span>
+                        <span className="truncate font-medium">{player.displayName}</span>
+                        <span className="text-center tabular-nums">{player.goals}</span>
+                        <span className="text-center tabular-nums text-muted-foreground">
+                          {player.assists}
+                        </span>
+                        <strong className="text-center tabular-nums">{player.contributions}</strong>
+                      </div>
+                    </BlurFade>
+                  ))}
+                </div>
+              ) : (
+                <CompactEmpty
+                  icon={<TrophyIcon aria-hidden="true" />}
+                  title="Todavía no hay tabla"
+                  description="Cerrá un partido para empezar a sumar."
+                />
+              )}
+            </CardContent>
+          </Card>
+        </MagicCard>
       </div>
 
       <NewMatchDialog onOpenChange={setCreateOpen} open={createOpen} />
@@ -284,11 +296,13 @@ function NextMatchHero({
       href={`/dashboard/partidos/${upcoming.matchId}` as Route}
       className="group relative block overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/40"
     >
+      <Meteors className="opacity-70" number={14} />
+      <BorderBeam duration={7} size={48} />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-primary/60 to-transparent"
       />
-      <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-primary">
             <CalendarDaysIcon className="size-4" aria-hidden="true" />

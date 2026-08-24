@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@hay-fulbo/ui/components/button";
+import { NumberTicker } from "@hay-fulbo/ui/components/number-ticker";
 import { DownloadIcon, Share2Icon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -61,7 +62,7 @@ export function MatchResultCard({
           Final
         </span>
       </header>
-      <div className="relative overflow-hidden rounded-lg border border-emerald-400/30 bg-zinc-950 px-4 py-5 text-zinc-50 shadow-inner">
+      <div className="glare-hover relative overflow-hidden rounded-lg border border-emerald-400/30 bg-zinc-950 px-4 py-5 text-zinc-50 shadow-inner">
         <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_49.8%,rgba(255,255,255,.06)_50%,transparent_50.2%)]" />
         <p className="relative truncate text-center text-[0.625rem] font-bold uppercase tracking-[0.22em] text-emerald-400">
           Hay Fulbo · {dateLabel}
@@ -70,14 +71,14 @@ export function MatchResultCard({
           <div className="min-w-0">
             <p className="truncate text-xs font-bold uppercase sm:text-sm">{left.name}</p>
             <strong className="font-mono text-5xl font-black tabular-nums sm:text-6xl">
-              {left.goals}
+              <NumberTicker value={left.goals} />
             </strong>
           </div>
           <span className="text-2xl font-black text-emerald-400">—</span>
           <div className="min-w-0">
             <p className="truncate text-xs font-bold uppercase sm:text-sm">{right.name}</p>
             <strong className="font-mono text-5xl font-black tabular-nums sm:text-6xl">
-              {right.goals}
+              <NumberTicker value={right.goals} delay={0.2} />
             </strong>
           </div>
         </div>

@@ -275,7 +275,11 @@ export function AppShell({
           </div>
         </aside>
 
-        <div className="md:col-start-2">
+        <div className="relative md:col-start-2">
+          <div
+            aria-hidden="true"
+            className="bg-noise pointer-events-none absolute inset-0 opacity-[0.04]"
+          />
           <header className="sticky top-0 z-10 border-b bg-background md:hidden">
             <div className="flex h-14 items-center justify-between gap-3 px-4">
               <GroupSwitcher activeGroup={group} groups={groups.data} role={context.role} />

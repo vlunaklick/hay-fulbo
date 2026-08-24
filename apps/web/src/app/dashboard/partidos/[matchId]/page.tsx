@@ -278,19 +278,21 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
 
       {detail.status === "closed" ? (
         <>
-          <MatchResultCard
-            dateLabel={formatDate(detail.scheduledAt)}
-            groupName={groupName}
-            left={{
-              goals: scoreFor(detail, detail.teams[0]?.id),
-              name: detail.teams[0]?.displayName ?? "Equipo 1",
-            }}
-            matchId={detail.id}
-            right={{
-              goals: scoreFor(detail, detail.teams[1]?.id),
-              name: detail.teams[1]?.displayName ?? "Equipo 2",
-            }}
-          />
+          <CoolMode>
+            <MatchResultCard
+              dateLabel={formatDate(detail.scheduledAt)}
+              groupName={groupName}
+              left={{
+                goals: scoreFor(detail, detail.teams[0]?.id),
+                name: detail.teams[0]?.displayName ?? "Equipo 1",
+              }}
+              matchId={detail.id}
+              right={{
+                goals: scoreFor(detail, detail.teams[1]?.id),
+                name: detail.teams[1]?.displayName ?? "Equipo 2",
+              }}
+            />
+          </CoolMode>
           <Section title="Lo que quedó">
             <ReadOnlyStats detail={detail} />
             <PaymentsCard
