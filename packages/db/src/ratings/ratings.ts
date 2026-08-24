@@ -26,6 +26,7 @@ export function createRatingCommands(database: RatingDatabase) {
     ): Promise<{ matchId: string }> {
       return database.transaction(async (transaction) => {
         await establishScope(transaction, scope);
+        await transaction.execute(sql`select set_config('app.group_id', ${scope.groupId}, true)`);
         const [root] = await transaction
           .select({ id: match.id, status: match.status })
           .from(match)
@@ -99,6 +100,7 @@ export function createRatingQueries(database: RatingDatabase) {
     async state(scope: RatingScope, matchId: string): Promise<MatchRatingsState> {
       return database.transaction(async (transaction) => {
         await establishScope(transaction, scope);
+        await transaction.execute(sql`select set_config('app.group_id', ${scope.groupId}, true)`);
         return loadState(transaction, scope.actorUserId, matchId);
       });
     },

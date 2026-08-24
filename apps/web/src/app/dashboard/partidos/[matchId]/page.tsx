@@ -293,14 +293,6 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
           </Section>
         </>
       ) : null}
-
-      {manager ? (
-        <div className="flex justify-center">
-          <Button onClick={reopen} variant="outline">
-            Corregir algo · reabrir
-          </Button>
-        </div>
-      ) : null}
     </div>
   );
 }
