@@ -1,139 +1,127 @@
-# hay-fulbo
+# Hay Fulbo
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Self, TRPC, and more.
+Hay Fulbo es una aplicación para organizar partidos de fútbol recurrentes.
+Permite administrar grupos, convocar jugadores, armar equipos, registrar cada
+partido y consultar las estadísticas del grupo.
 
-## Features
+El repositorio contiene la aplicación web, una app móvil en Expo y los paquetes
+compartidos del backend.
 
-- **TypeScript** - For type safety and improved developer experience
-- **Next.js** - Full-stack React framework
-- **React Native** - Build mobile apps using React
-- **Expo** - Tools for React Native development
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **tRPC** - End-to-end type-safe APIs
-- **Drizzle** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Authentication** - Better-Auth
-- **Oxlint** - Oxlint + Oxfmt (linting & formatting)
-- **PWA** - Progressive Web App support
-- **Turborepo** - Optimized monorepo build system
+## Qué incluye
 
-## Getting Started
+- Grupos con jugadores, canchas, permisos e invitaciones.
+- Partidos con asistencia, equipos, goles, rendimiento, pagos y resultados.
+- Historial, rankings y estadísticas por jugador o partido.
+- Páginas públicas para compartir grupos, jugadores y partidos.
 
-First, install the dependencies:
+## Stack
+
+Next.js, React, TypeScript, Tailwind CSS, Expo, React Native, tRPC, React Query,
+Better Auth, PostgreSQL, Drizzle ORM, Bun y Turborepo.
+
+## Desarrollo local
+
+Necesitas [Bun](https://bun.sh/) 1.3.3 o compatible y
+[Docker](https://docs.docker.com/get-docker/) para PostgreSQL. Para la app
+nativa, también necesitas Xcode o Android Studio.
+
+Desde la raíz del repositorio:
 
 ```bash
+cp .env.example .env
 bun install
+bun run db:start
+bun run db:migrate
+bun run dev:web
 ```
 
-## Database Setup
+Abre <http://localhost:3001>. `db:start` levanta PostgreSQL y `db:migrate`
+aplica las migraciones versionadas. Para levantar web y móvil al mismo tiempo,
+usa `bun run dev`.
 
-This project uses PostgreSQL with Drizzle ORM.
+### Variables de entorno
 
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/web/.env` file with your PostgreSQL connection details.
+Usa [.env.example](.env.example) como base. La aplicación necesita
+`DATABASE_URL`, `MIGRATION_DATABASE_URL`, `RUNTIME_DATABASE_PASSWORD`,
+`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` y `CORS_ORIGIN`. Las contraseñas y el
+secreto de autenticación deben tener al menos 32 caracteres.
 
-3. Apply the schema to your database:
+El correo es opcional. Configura `RESEND_API_KEY` y `EMAIL_FROM` para enviar
+verificaciones e invitaciones mediante Resend. Sin esas variables, las
+invitaciones se comparten mediante links.
+
+Para la app nativa, agrega `EXPO_PUBLIC_SERVER_URL`:
+
+```dotenv
+EXPO_PUBLIC_SERVER_URL=http://localhost:3001
+```
+
+En un emulador Android usa normalmente `http://10.0.2.2:3001`. En un teléfono,
+usa la IP local de tu máquina.
+
+## Comandos frecuentes
 
 ```bash
-bun run db:push
+bun run dev:web          # solo web
+bun run dev:native       # solo Expo
+bun run check            # lint, formato y tipos
+bun test                 # pruebas unitarias
+bun run test:integration # pruebas contra PostgreSQL
+bun run test:e2e         # pruebas E2E con Playwright
+bun run build            # build de todas las aplicaciones
 ```
 
-Then, run the development server:
+Para trabajar con la base de datos:
 
 ```bash
-bun run dev
+bun run db:generate  # generar una migración
+bun run db:migrate   # aplicar migraciones versionadas
+bun run db:push      # sincronizar el esquema en desarrollo
+bun run db:studio    # abrir Drizzle Studio
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the fullstack application.
-Use the Expo Go app to run the mobile application.
+Las pruebas de integración requieren `MATCH_TEST_DATABASE_URL`. Las pruebas E2E
+usan el puerto `3013` por defecto y aceptan una base alternativa mediante
+`E2E_DATABASE_URL`.
 
-### Email delivery
+## Estructura
 
-Set both `RESEND_API_KEY` and `EMAIL_FROM` to deliver verification and group invitation
-emails through Resend. Without them, invitations remain pending and the owner-facing API
-returns a shareable invitation link without claiming that an email was sent.
-
-## UI Customization
-
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
-
-```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
-```
-
-Import shared components like this:
-
-```tsx
-import { Button } from "@hay-fulbo/ui/components/button";
-```
-
-### Add app-specific blocks
-
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Deployment
-
-### Docker Compose
-
-- Target: web + server
-- Config: `docker-compose.yml` (app Dockerfiles live in `apps/*/Dockerfile`)
-- Build images: bun run docker:build
-- Start: bun run docker:up
-- Logs: bun run docker:logs
-- Stop: bun run docker:down
-
-Copy `.env.example` to `.env` to override the local ports and PostgreSQL
-passwords. Compose uses a schema-owner connection for idempotent migrations and
-a separate `NOSUPERUSER NOBYPASSRLS` connection for the web process. Production
-must provide the same split through `MIGRATION_DATABASE_URL`, `DATABASE_URL` and
-`RUNTIME_DATABASE_PASSWORD`. Startup creates or rotates the restricted role,
-serializes migrations, grants only the required privileges and removes the two
-elevated bootstrap values before starting Next.js. No connection is baked into
-the image.
-
-For more details, see the guide on [Deploying with Docker Compose](https://www.better-t-stack.dev/docs/guides/docker).
-
-## Git Hooks and Formatting
-
-- Run checks: `bun run check`
-
-## Project Structure
-
-```
+```text
 hay-fulbo/
 ├── apps/
-│   └── web/         # Fullstack application (Next.js)
-│   ├── native/      # Mobile application (React Native, Expo)
+│   ├── web/              # Aplicación Next.js
+│   └── native/           # Aplicación Expo / React Native
 ├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
+│   ├── api/              # Router tRPC y reglas de negocio
+│   ├── auth/             # Better Auth y correos
+│   ├── db/               # Esquema, migraciones y consultas
+│   ├── env/              # Variables de entorno
+│   └── ui/               # Componentes compartidos
+├── ops/                  # Automatización de Coolify y PostgreSQL
+├── docs/                 # Planes y documentación operativa
+├── docker-compose.yml    # PostgreSQL y web en Docker
+└── package.json          # Scripts del monorepo
 ```
 
-## Available Scripts
+Los prototipos descartables están bajo `apps/web/src/app/prototype`.
 
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run check-types`: Check TypeScript types across all apps
-- `bun run dev:native`: Start the React Native/Expo development server
-- `bun run db:push`: Push schema changes to database
-- `bun run db:generate`: Generate database client/types
-- `bun run db:migrate`: Run versioned migrations with `MIGRATION_DATABASE_URL`
-- `bun run db:studio`: Open database studio UI
-- `bun run check`: Run Oxlint and Oxfmt
-- `cd apps/web && bun run generate-pwa-assets`: Generate PWA assets
-- `bun run docker:build`: Build the Docker Compose images
-- `bun run docker:up`: Build and start the Docker Compose stack
-- `bun run docker:logs`: Tail logs from the Docker Compose stack
-- `bun run docker:down`: Stop the Docker Compose stack
+## Docker
+
+Para levantar PostgreSQL y la aplicación web en contenedores:
+
+```bash
+bun run docker:up
+```
+
+La aplicación queda disponible en <http://localhost:3001>. Usa
+`bun run docker:logs` para ver logs y `bun run docker:down` para detener el
+stack. El contenedor ejecuta las migraciones antes de iniciar Next.js.
+
+## Producción
+
+La operación de producción está documentada en
+[`ops/coolify/README.md`](ops/coolify/README.md). Ahí están el runbook, las
+variables de Coolify y los comandos para planificar, desplegar y verificar un
+release.
+
+No guardes secretos, tokens ni archivos `.env` en el repositorio.
