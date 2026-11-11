@@ -77,6 +77,7 @@ import {
   type RunMatchAction,
 } from "@/components/match-scoreboard";
 import { MatchShareRow } from "@/components/match-share-row";
+import { matchCommandErrorMessage } from "@/lib/match-command-error";
 import { formatDate, formatMoney, toMinor } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
 
@@ -122,7 +123,9 @@ export default function MatchPage() {
       <Alert variant="destructive">
         <CircleAlertIcon aria-hidden="true" />
         <AlertTitle>No pudimos abrir el partido</AlertTitle>
-        <AlertDescription>{detail.error?.message ?? directory.error?.message}</AlertDescription>
+        <AlertDescription>
+          {matchCommandErrorMessage(detail.error ?? directory.error)}
+        </AlertDescription>
       </Alert>
     );
   }
@@ -355,6 +358,7 @@ function Cover({
   run: RunMatchAction;
 }) {
   const [editing, setEditing] = useState(false);
+  const [expectedLockVersion, setExpectedLockVersion] = useState(detail.lockVersion);
   const localDate = toLocalInputValue(detail.scheduledAt);
   const [scheduledAt, setScheduledAt] = useState(localDate);
   const [courtId, setCourtId] = useState<string | null>(detail.courtId);
@@ -364,16 +368,19 @@ function Cover({
 
   async function save() {
     const courtCostMinor = cost.trim() ? toMinor(cost) : null;
-    const saved = await run({
-      type: "updateMatch",
-      matchId: detail.id,
-      ...(scheduledAt !== localDate ? { scheduledAt: new Date(scheduledAt) } : {}),
-      ...(courtId !== detail.courtId ? { courtId } : {}),
-      ...(() => {
-        const next = cost.trim() ? courtCostMinor : null;
-        return next !== detail.courtCostMinor ? { courtCostMinor: next } : {};
-      })(),
-    });
+    const saved = await run(
+      {
+        type: "updateMatch",
+        matchId: detail.id,
+        ...(scheduledAt !== localDate ? { scheduledAt: new Date(scheduledAt) } : {}),
+        ...(courtId !== detail.courtId ? { courtId } : {}),
+        ...(() => {
+          const next = cost.trim() ? courtCostMinor : null;
+          return next !== detail.courtCostMinor ? { courtCostMinor: next } : {};
+        })(),
+      },
+      { expectedLockVersion, onConflict: setExpectedLockVersion },
+    );
     if (saved) setEditing(false);
   }
 
@@ -392,6 +399,7 @@ function Cover({
             <Button
               onClick={() => {
                 if (!editing) {
+                  setExpectedLockVersion(detail.lockVersion);
                   setScheduledAt(toLocalInputValue(detail.scheduledAt));
                   setCourtId(detail.courtId);
                   setCost(
@@ -520,18 +528,19 @@ function Cover({
 
 function TeamNameEditor({
   editable,
-  matchId,
+  detail,
   pending,
   run,
   team,
 }: {
   editable: boolean;
-  matchId: string;
+  detail: Detail;
   pending: boolean;
   run: RunMatchAction;
   team: Detail["teams"][number];
 }) {
   const [editing, setEditing] = useState(false);
+  const [expectedLockVersion, setExpectedLockVersion] = useState(detail.lockVersion);
   const [name, setName] = useState(team.displayName);
 
   if (!editable) {
@@ -543,9 +552,10 @@ function TeamNameEditor({
         type="button"
         onClick={() => {
           setName(team.displayName);
+          setExpectedLockVersion(detail.lockVersion);
           setEditing(true);
         }}
-        className="rounded px-1 text-left underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 transition-colors hover:text-primary"
+        className="min-h-11 rounded px-1 text-left underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 transition-colors hover:text-primary"
       >
         {team.displayName}
       </button>
@@ -553,24 +563,28 @@ function TeamNameEditor({
   }
   return (
     <form
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
-        if (name.trim() && name !== team.displayName) {
-          run({
-            type: "renameTeam",
-            matchId,
-            teamId: team.id,
-            displayName: name,
-          });
-        }
-        setEditing(false);
+        if (!name.trim()) return;
+        if (
+          await run(
+            {
+              type: "renameTeam",
+              matchId: detail.id,
+              teamId: team.id,
+              displayName: name,
+            },
+            { expectedLockVersion, onConflict: setExpectedLockVersion },
+          )
+        )
+          setEditing(false);
       }}
       className="flex items-center gap-1"
     >
       <Input
         autoFocus
         aria-label="Nombre del equipo"
-        className="h-7 w-32 px-2 py-0 text-sm"
+        className="min-h-11 w-32 px-2 py-0 text-sm"
         value={name}
         onBlur={(event) => {
           if (event.target.value.trim() && event.target.value !== team.displayName) return;
@@ -727,7 +741,7 @@ function TeamRoster({
         <div className="flex items-center justify-between gap-2">
           <TeamNameEditor
             editable={editable}
-            matchId={detail.id}
+            detail={detail}
             pending={pending}
             run={run}
             team={team}
@@ -787,17 +801,7 @@ function TeamRoster({
             ) : (
               <p className="text-xs text-muted-foreground">Todos los del grupo están anotados.</p>
             )}
-            <NewPlayerInput
-              disabled={pending}
-              onAdd={(displayName) =>
-                run({
-                  type: "createAndAddParticipant",
-                  displayName,
-                  matchId: detail.id,
-                  teamId: team.id,
-                })
-              }
-            />
+            <NewPlayerInput detail={detail} disabled={pending} run={run} teamId={team.id} />
           </div>
         ) : null}
       </div>
@@ -818,6 +822,7 @@ function RosterActions({
 }) {
   const [asking, setAsking] = useState(false);
   const trigger = useRef<HTMLButtonElement | null>(null);
+  const otherTeam = detail.teams.find((team) => team.id !== appearance.teamId);
   async function mark(owesContribution: boolean) {
     if (
       await run({
@@ -848,12 +853,14 @@ function RosterActions({
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem onClick={() => setAsking(true)}>No vino</DropdownMenuItem>
           <DropdownMenuItem
+            disabled={!otherTeam}
             onClick={() =>
+              otherTeam &&
               run({
                 type: "moveParticipant",
                 matchId: detail.id,
                 playerId: appearance.playerId,
-                teamId: detail.teams.find((team) => team.id !== appearance.teamId)!.id,
+                teamId: otherTeam.id,
               })
             }
           >
@@ -893,20 +900,35 @@ function RosterActions({
 }
 
 function NewPlayerInput({
+  detail,
   disabled,
-  onAdd,
+  run,
+  teamId,
 }: {
+  detail: Detail;
   disabled: boolean;
-  onAdd: (displayName: string) => void;
+  run: RunMatchAction;
+  teamId: string;
 }) {
   const [name, setName] = useState("");
+  const [expectedLockVersion, setExpectedLockVersion] = useState(detail.lockVersion);
   return (
     <form
       className="flex items-center gap-2"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
-        if (name.trim()) {
-          onAdd(name);
+        if (
+          name.trim() &&
+          (await run(
+            {
+              type: "createAndAddParticipant",
+              displayName: name,
+              matchId: detail.id,
+              teamId,
+            },
+            { expectedLockVersion, onConflict: setExpectedLockVersion },
+          ))
+        ) {
           setName("");
         }
       }}
@@ -918,7 +940,10 @@ function NewPlayerInput({
         disabled={disabled}
         placeholder="O escribí un nombre nuevo…"
         value={name}
-        onChange={(event) => setName(event.target.value)}
+        onChange={(event) => {
+          if (!name) setExpectedLockVersion(detail.lockVersion);
+          setName(event.target.value);
+        }}
       />
       <Button
         aria-label="Crear y sumar jugador"
@@ -1057,7 +1082,6 @@ function PlanillaRow({
       <div className="flex flex-col gap-3">
         <StatSteppers
           appearance={appearance}
-          compact
           detail={detail}
           editable={editableStats}
           pending={pending}
@@ -1117,14 +1141,12 @@ function ClosingBar({
 
 function StatSteppers({
   appearance,
-  compact = false,
   detail,
   editable,
   pending,
   run,
 }: {
   appearance: Appearance;
-  compact?: boolean;
   detail: Detail;
   editable: boolean;
   pending: boolean;
@@ -1133,7 +1155,6 @@ function StatSteppers({
   return (
     <div className="flex flex-wrap items-center gap-4">
       <Stepper
-        compact={compact}
         disabled={!editable || pending}
         label={`Goles de ${appearance.playerDisplayName}`}
         onDecrement={() =>
@@ -1157,7 +1178,6 @@ function StatSteppers({
         value={appearance.goals}
       />
       <Stepper
-        compact={compact}
         disabled={!editable || pending}
         label={`Asistencias de ${appearance.playerDisplayName}`}
         onDecrement={() =>
@@ -1181,7 +1201,6 @@ function StatSteppers({
         value={appearance.assists}
       />
       <Stepper
-        compact={compact}
         hideZero
         disabled={!editable || pending}
         label={`En contra de ${appearance.playerDisplayName}`}
@@ -1217,7 +1236,6 @@ function Stepper({
   onIncrement,
   value,
 }: {
-  compact?: boolean;
   disabled: boolean;
   hideZero?: boolean;
   label: string;
@@ -1427,17 +1445,21 @@ function PaymentCell({
   run: RunMatchAction;
 }) {
   const [editing, setEditing] = useState(false);
+  const [expectedLockVersion, setExpectedLockVersion] = useState(detail.lockVersion);
   const [amount, setAmount] = useState(String(Number(appearance.paidMinor) / 100));
 
   async function save() {
     const paidMinor = toMinor(amount);
     if (paidMinor !== null) {
-      const saved = await run({
-        type: "updatePaid",
-        matchId: detail.id,
-        paidMinor,
-        playerId: appearance.playerId,
-      });
+      const saved = await run(
+        {
+          type: "updatePaid",
+          matchId: detail.id,
+          paidMinor,
+          playerId: appearance.playerId,
+        },
+        { expectedLockVersion, onConflict: setExpectedLockVersion },
+      );
       if (saved) setEditing(false);
     }
   }
@@ -1518,6 +1540,7 @@ function PaymentCell({
             disabled={pending}
             onClick={() => {
               setAmount(String(Number(appearance.paidMinor) / 100));
+              setExpectedLockVersion(detail.lockVersion);
               setEditing(true);
             }}
             size="sm"

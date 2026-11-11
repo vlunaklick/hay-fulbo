@@ -191,7 +191,7 @@ test("a designated planillero scores persisted goals without organizer permissio
     await page.goto(matchUrl);
     await expect(page.getByLabel("Planillero", { exact: true })).toBeVisible();
     await page.getByLabel("Planillero", { exact: true }).selectOption({ label: "Planillero E2E" });
-    await expect(page.getByText("Planilla: Planillero E2E", { exact: true })).toBeVisible();
+    await expect(page.getByText("Planillero: Planillero E2E", { exact: true })).toBeVisible();
     await scorer.goto(matchUrl);
     await expect(scorer.getByRole("button", { name: "Cerrar partido", exact: true })).toHaveCount(
       0,
@@ -252,9 +252,7 @@ test("a designated planillero scores persisted goals without organizer permissio
     );
     await plus.click();
     await scorer.getByRole("dialog").getByRole("button", { name: "Beto", exact: true }).click();
-    await expect(
-      scorer.getByText("Alguien actualizó el marcador, revisá y volvé a intentar"),
-    ).toBeVisible();
+    await expect(scorer.getByText(/Alguien cambió el partido/)).toBeVisible();
     await scorer.getByRole("dialog").getByRole("button", { name: "Beto", exact: true }).click();
     await expect(scorer.getByLabel("Marcador de Equipo 1", { exact: true })).toHaveText("1");
     await expect(page.getByLabel("Marcador de Equipo 1", { exact: true })).toHaveText("1", {
@@ -307,5 +305,75 @@ test("a designated planillero scores persisted goals without organizer permissio
     }
   } finally {
     await scorerContext.close();
+  }
+});
+
+test("a polled match preserves stale drafts until an explicit conflict retry", async ({
+  page,
+  browser,
+}, testInfo) => {
+  const runId = `conflict-${testInfo.project.name}-${Date.now()}`;
+  await register(page, "Organizador Conflicto", `${runId}@example.com`);
+  const group = await command<{ id: string }>(page, "group.create", { name: runId, slug: runId });
+  const link = await command<{ url: string }>(page, "group.joinLink.renew", { groupId: group.id });
+  const managerContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
+  try {
+    const manager = await managerContext.newPage();
+    await register(manager, "Responsable Conflicto", `manager-${runId}@example.com`);
+    await command(manager, "group.joinLink.accept", {
+      token: new URL(link.url).pathname.split("/").at(-1),
+    });
+    const membersResponse = await page.request.get(
+      `/api/auth/organization/list-members?organizationId=${group.id}`,
+    );
+    expect(membersResponse.ok()).toBe(true);
+    const { members } = await membersResponse.json();
+    const membership = members.find(
+      (member: { user: { name: string } }) => member.user.name === "Responsable Conflicto",
+    );
+    await command(page, "group.updateMemberRole", {
+      groupId: group.id,
+      membershipId: membership.id,
+      role: "leader",
+    });
+    const match = await command<{ matchId: string }>(page, "matches.execute", {
+      type: "createMatch",
+      scheduledAt: "2026-11-12T20:00:00Z",
+      courtCostMinor: "1000000",
+    });
+    const url = `/dashboard/partidos/${match.matchId}`;
+    await page.goto(url);
+    await manager.goto(url);
+    await page.getByRole("button", { name: "Editar datos", exact: true }).click();
+    await page.getByLabel("Precio total").fill("12000");
+    await manager.getByRole("button", { name: "Editar datos", exact: true }).click();
+    await manager.getByLabel("Precio total").fill("15000");
+    const polled = page.waitForResponse(async (response) => {
+      if (!response.url().includes("matches.detail") || !response.ok()) return false;
+      return (await response.text()).includes('"courtCostMinor":"1500000"');
+    });
+    await manager.getByRole("button", { name: "Guardar datos", exact: true }).click();
+    await expect(manager.getByRole("button", { name: "Editar datos", exact: true })).toBeVisible();
+    await polled;
+    await expect(page.getByLabel("Precio total")).toHaveValue("12000");
+    const conflict = page.waitForResponse(
+      (response) => response.url().includes("matches.execute") && response.status() === 409,
+    );
+    await page.getByRole("button", { name: "Guardar datos", exact: true }).click();
+    await conflict;
+    await expect(page.getByText(/Alguien cambió el partido/)).toBeVisible();
+    await expect(page.getByLabel("Precio total")).toHaveValue("12000");
+    const readCost = async () => {
+      const response = await manager.request.get(
+        `/api/trpc/matches.detail?input=${encodeURIComponent(JSON.stringify({ matchId: match.matchId }))}`,
+      );
+      return (await response.json()).result.data.courtCostMinor;
+    };
+    expect(await readCost()).toBe("1500000");
+    await page.getByRole("button", { name: "Guardar datos", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Editar datos", exact: true })).toBeVisible();
+    expect(await readCost()).toBe("1200000");
+  } finally {
+    await managerContext.close();
   }
 });

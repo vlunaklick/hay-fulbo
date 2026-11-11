@@ -85,6 +85,13 @@
       "when": 1794424603897,
       "tag": "0011_match_scorekeeper",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794426121824,
+      "tag": "0012_clear_scorekeeper_on_member_delete",
+      "breakpoints": true
     }
   ]
 }

@@ -144,7 +144,25 @@ integration("MatchCommands public seam", () => {
     ] as const) {
       await expect(commands.execute(scorer, command)).rejects.toMatchObject({ code: "forbidden" });
     }
-    await pool.query("delete from member where id = 'member-member'");
+    const client = await pool.connect();
+    try {
+      await client.query("begin");
+      const { rows } = await client.query(
+        "select 1 from pg_roles where rolname = 'hay_fulbo_runtime'",
+      );
+      if (rows.length) await client.query("set local role hay_fulbo_runtime");
+      // Better Auth deletes memberships without setting the domain tenant context.
+      await client.query("delete from member where id = 'member-member'");
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+    const afterRemoval = await queries.detail(organizer, created.matchId);
+    expect(afterRemoval.scorekeeperUserId).toBeNull();
+    expect(afterRemoval.lockVersion).toBe(current.lockVersion + 1);
     await expect(
       commands.execute(scorer, {
         ...versioned,
@@ -157,11 +175,7 @@ integration("MatchCommands public seam", () => {
     await database
       .insert(member)
       .values({ id: "member-member", organizationId: groupId, userId: memberId, role: "member" });
-    current = await commands.execute(organizer, {
-      ...versioned,
-      type: "setScorekeeper",
-      scorekeeperUserId: null,
-    });
+    current = { ...current, lockVersion: afterRemoval.lockVersion };
     await expect(
       commands.execute(scorer, {
         ...versioned,

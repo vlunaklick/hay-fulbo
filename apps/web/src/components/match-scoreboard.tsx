@@ -17,6 +17,8 @@ import { MinusIcon, PlusIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { matchCommandErrorMessage, isMatchConflict } from "@/lib/match-command-error";
+
 import { queryClient, trpc } from "@/utils/trpc";
 
 type Detail = inferRouterOutputs<AppRouter>["matches"]["detail"];
@@ -25,19 +27,16 @@ type WithoutVersion<T> = T extends { expectedLockVersion: number }
   ? Omit<T, "expectedLockVersion">
   : T;
 export type MatchAction = WithoutVersion<ExecuteInput>;
-export type RunMatchAction = (action: MatchAction) => Promise<boolean>;
+export type RunMatchAction = (
+  action: MatchAction,
+  options?: { expectedLockVersion: number; onConflict: (lockVersion: number) => void },
+) => Promise<boolean>;
 
 export function useMatchCommand(detail: Detail) {
   const inFlight = useRef(false);
   const detailKey = trpc.matches.detail.queryKey({ matchId: detail.id });
   const execute = useMutation(
     trpc.matches.execute.mutationOptions({
-      onError: (cause) =>
-        toast.error(
-          cause.data?.code === "CONFLICT"
-            ? "Alguien actualizó el marcador, revisá y volvé a intentar"
-            : cause.message,
-        ),
       onSettled: async () => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: detailKey }),
@@ -47,17 +46,22 @@ export function useMatchCommand(detail: Detail) {
       },
     }),
   );
-  const run: RunMatchAction = async (action) => {
+  const run: RunMatchAction = async (action, options) => {
     if (inFlight.current) return false;
     inFlight.current = true;
     try {
       const current = queryClient.getQueryData<Detail>(detailKey) ?? detail;
       await execute.mutateAsync({
         ...action,
-        expectedLockVersion: current.lockVersion,
+        expectedLockVersion: options?.expectedLockVersion ?? current.lockVersion,
       } as ExecuteInput);
       return true;
-    } catch {
+    } catch (cause) {
+      toast.error(matchCommandErrorMessage(cause, action));
+      if (options && isMatchConflict(cause)) {
+        const refreshed = queryClient.getQueryData<Detail>(detailKey);
+        if (refreshed) options.onConflict(refreshed.lockVersion);
+      }
       return false;
     } finally {
       inFlight.current = false;
@@ -117,7 +121,7 @@ export function MatchScoreboard({
   return (
     <div className="overflow-hidden rounded-xl border bg-background text-foreground">
       <p className="border-b px-4 py-3 text-sm text-muted-foreground">
-        Planilla: {detail.scorekeeperName ?? "Sin planillero"}
+        {detail.scorekeeperName ? `Planillero: ${detail.scorekeeperName}` : "Sin planillero"}
       </p>
       <div className="grid grid-cols-2 divide-x">
         {teams.map((team) => {

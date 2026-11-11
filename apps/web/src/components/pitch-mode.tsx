@@ -85,7 +85,7 @@ function PitchShell({ detail }: { detail: Detail }) {
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-primary">
             Modo cancha
           </p>
-          <p className="text-xs text-zinc-400">Toque grande, guardado inmediato</p>
+          <p className="text-xs text-zinc-400">Tocá Gol y elegí quién la hizo</p>
         </div>
         <Button
           aria-label="Alternar pantalla completa"

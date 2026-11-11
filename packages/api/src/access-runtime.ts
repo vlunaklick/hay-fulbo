@@ -223,24 +223,10 @@ const organizationGateway: OrganizationGateway = {
   },
 
   async removeMember({ groupId, headers, membershipId }) {
-    const [removed] = await db
-      .select({ userId: member.userId })
-      .from(member)
-      .where(and(eq(member.organizationId, groupId), eq(member.id, membershipId)))
-      .limit(1);
     await auth.api.removeMember({
       body: { memberIdOrEmail: membershipId, organizationId: groupId },
       headers,
     });
-    if (removed) {
-      await db.transaction(async (transaction) => {
-        await transaction.execute(sql`select set_config('app.group_id', ${groupId}, true)`);
-        await transaction
-          .update(match)
-          .set({ scorekeeperUserId: null, lockVersion: sql`${match.lockVersion} + 1` })
-          .where(and(eq(match.groupId, groupId), eq(match.scorekeeperUserId, removed.userId)));
-      });
-    }
   },
 
   async updateMemberRole({ groupId, headers, membershipId, role }) {

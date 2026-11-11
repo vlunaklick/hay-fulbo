@@ -76,9 +76,12 @@ export function HomeDashboard() {
   const dashboard = stats.data;
   const me = directory.data.players.find((player) => player.linkedUserId === user.id);
   const myStats = me ? (dashboard.ranking.find((row) => row.playerId === me.id) ?? null) : null;
-  const myAppearance = upcomingDetail.data?.teams
-    .flatMap((team) => team.appearances)
-    .find((appearance) => appearance.playerId === me?.id);
+  const myAppearance = upcomingDetail.data
+    ? [
+        ...upcomingDetail.data.teams.flatMap((team) => team.appearances),
+        ...upcomingDetail.data.absences.filter((absence) => absence.owesContribution),
+      ].find((appearance) => appearance.playerId === me?.id)
+    : undefined;
   const myDebt = myAppearance
     ? BigInt(myAppearance.expectedMinor) - BigInt(myAppearance.paidMinor)
     : null;
@@ -107,7 +110,13 @@ export function HomeDashboard() {
 
       <section aria-label="Tu resumen">
         <dl className="grid gap-px overflow-hidden border bg-border sm:grid-cols-3">
-          <PersonalMetric label="Tu aporte del próximo partido">
+          <PersonalMetric
+            label={
+              myDebt !== null && myDebt <= 0n && upcomingDetail.data?.courtCostMinor !== null
+                ? "Aporte al día"
+                : "Te falta aportar"
+            }
+          >
             {!me ? (
               <span className="text-sm text-muted-foreground">
                 Tu cuenta no está vinculada a un jugador.
