@@ -73,12 +73,19 @@ export function SharedPlayerStats({ playerId }: { playerId: string }) {
     retry: false,
   });
   if (capability.error)
-    return <StatsError message={capability.error.message} onRetry={capability.retry} />;
+    return (
+      <StatsError
+        message="No pudimos abrir el enlace privado. Revisá tu conexión o pedile al organizador el enlace más reciente."
+        onRetry={capability.retry}
+        exitHref="/compartido"
+      />
+    );
   if (capability.exchanging || query.isPending) return <StatsLoading />;
-  if (capability.error || query.error || !query.data) {
+  if (query.error || !query.data) {
     return (
       <StatsError
         message="El jugador no está disponible en este enlace."
+        exitHref="/compartido"
         onRetry={() => void query.refetch()}
       />
     );
@@ -106,12 +113,19 @@ export function SharedMatchStats({ matchId }: { matchId: string }) {
     retry: false,
   });
   if (capability.error)
-    return <StatsError message={capability.error.message} onRetry={capability.retry} />;
+    return (
+      <StatsError
+        message="No pudimos abrir el enlace privado. Revisá tu conexión o pedile al organizador el enlace más reciente."
+        onRetry={capability.retry}
+        exitHref="/compartido"
+      />
+    );
   if (capability.exchanging || query.isPending) return <StatsLoading />;
-  if (capability.error || query.error || !query.data) {
+  if (query.error || !query.data) {
     return (
       <StatsError
         message="El partido no está disponible en este enlace."
+        exitHref="/compartido"
         onRetry={() => void query.refetch()}
       />
     );
@@ -131,6 +145,7 @@ export function PublicPlayerStats({ playerId, slug }: { playerId: string; slug: 
     return (
       <StatsError
         message="Este grupo no está disponible públicamente."
+        exitHref={`/g/${slug}` as Route}
         onRetry={() => void query.refetch()}
       />
     );
@@ -149,6 +164,7 @@ export function PublicMatchStats({ matchId, slug }: { matchId: string; slug: str
     return (
       <StatsError
         message="Este grupo no está disponible públicamente."
+        exitHref={`/g/${slug}` as Route}
         onRetry={() => void query.refetch()}
       />
     );

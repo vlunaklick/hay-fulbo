@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+
+import { StatsLoading } from "@/features/stats/stats-loading";
 import { MemberMatchStats } from "@/features/stats/stats-detail";
 
 export default async function DashboardMatchStatsPage({
@@ -6,5 +9,9 @@ export default async function DashboardMatchStatsPage({
   params: Promise<{ matchId: string }>;
 }) {
   const { matchId } = await params;
-  return <MemberMatchStats matchId={matchId} />;
+  return (
+    <Suspense fallback={<StatsLoading />}>
+      <MemberMatchStats matchId={matchId} />
+    </Suspense>
+  );
 }

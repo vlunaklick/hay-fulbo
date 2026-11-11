@@ -155,6 +155,7 @@ test("a designated planillero scores persisted goals without organizer permissio
     baseURL: testInfo.project.use.baseURL,
     viewport: desktop ? { width: 1440, height: 900 } : { width: 375, height: 812 },
   });
+  await scorerContext.addInitScript(() => localStorage.setItem("hay-fulbo-theme", "light"));
   const scorer = await scorerContext.newPage();
   scorer.setDefaultTimeout(15000);
   try {
@@ -204,6 +205,15 @@ test("a designated planillero scores persisted goals without organizer permissio
     await expect(minus).toBeDisabled();
     for (const author of ["Beto", "Sin autor", "Autogol de Tito"]) {
       await plus.click();
+      await expect(scorer.locator("html")).toHaveClass(/light/);
+      await expect(scorer.getByRole("dialog")).toHaveCSS("color-scheme", "dark");
+      if (!desktop && author === "Beto" && process.env.MATCH_SCREENSHOT_DIR) {
+        await scorer.screenshot({
+          animations: "disabled",
+          scale: "css",
+          path: `${process.env.MATCH_SCREENSHOT_DIR}/r2-pitch-light-375.png`,
+        });
+      }
       await scorer.getByRole("dialog").getByRole("button", { name: author, exact: true }).click();
       await expect(scorer.getByRole("dialog")).toHaveCount(0);
       await expect(plus).toBeFocused();

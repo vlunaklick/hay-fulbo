@@ -73,11 +73,13 @@ export function useMatchCommand(detail: Detail) {
 export function MatchScoreboard({
   detail,
   canScore,
+  forceDark = false,
   pending,
   run,
 }: {
   detail: Detail;
   canScore: boolean;
+  forceDark?: boolean;
   pending: boolean;
   run: RunMatchAction;
 }) {
@@ -207,7 +209,7 @@ export function MatchScoreboard({
               false
             );
           }}
-          className="max-h-[85dvh]"
+          className={cn("max-h-[85dvh]", forceDark && "dark")}
         >
           <SheetHeader>
             <SheetTitle>

@@ -77,7 +77,7 @@ import {
   type RunMatchAction,
 } from "@/components/match-scoreboard";
 import { MatchShareRow } from "@/components/match-share-row";
-import { matchCommandErrorMessage } from "@/lib/match-command-error";
+import { matchReadErrorMessage } from "@/lib/match-command-error";
 import { formatDate, formatMoney, toMinor } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
 
@@ -124,7 +124,7 @@ export default function MatchPage() {
         <CircleAlertIcon aria-hidden="true" />
         <AlertTitle>No pudimos abrir el partido</AlertTitle>
         <AlertDescription>
-          {matchCommandErrorMessage(detail.error ?? directory.error)}
+          {matchReadErrorMessage(detail.error ?? directory.error)}
         </AlertDescription>
       </Alert>
     );
@@ -566,6 +566,10 @@ function TeamNameEditor({
       onSubmit={async (event) => {
         event.preventDefault();
         if (!name.trim()) return;
+        if (name.trim() === team.displayName) {
+          setEditing(false);
+          return;
+        }
         if (
           await run(
             {
@@ -911,7 +915,6 @@ function NewPlayerInput({
   teamId: string;
 }) {
   const [name, setName] = useState("");
-  const [expectedLockVersion, setExpectedLockVersion] = useState(detail.lockVersion);
   return (
     <form
       className="flex items-center gap-2"
@@ -919,15 +922,12 @@ function NewPlayerInput({
         event.preventDefault();
         if (
           name.trim() &&
-          (await run(
-            {
-              type: "createAndAddParticipant",
-              displayName: name,
-              matchId: detail.id,
-              teamId,
-            },
-            { expectedLockVersion, onConflict: setExpectedLockVersion },
-          ))
+          (await run({
+            type: "createAndAddParticipant",
+            displayName: name,
+            matchId: detail.id,
+            teamId,
+          }))
         ) {
           setName("");
         }
@@ -940,10 +940,7 @@ function NewPlayerInput({
         disabled={disabled}
         placeholder="O escribí un nombre nuevo…"
         value={name}
-        onChange={(event) => {
-          if (!name) setExpectedLockVersion(detail.lockVersion);
-          setName(event.target.value);
-        }}
+        onChange={(event) => setName(event.target.value)}
       />
       <Button
         aria-label="Crear y sumar jugador"

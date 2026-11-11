@@ -99,7 +99,13 @@ function PitchShell({ detail }: { detail: Detail }) {
       </header>
 
       <main className="grid flex-1 content-center gap-6 p-4 sm:p-8">
-        <MatchScoreboard detail={detail} canScore={canScore} pending={pending} run={run} />
+        <MatchScoreboard
+          forceDark
+          detail={detail}
+          canScore={canScore}
+          pending={pending}
+          run={run}
+        />
       </main>
     </div>
   );

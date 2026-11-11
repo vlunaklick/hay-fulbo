@@ -110,13 +110,7 @@ export function HomeDashboard() {
 
       <section aria-label="Tu resumen">
         <dl className="grid gap-px overflow-hidden border bg-border sm:grid-cols-3">
-          <PersonalMetric
-            label={
-              myDebt !== null && myDebt <= 0n && upcomingDetail.data?.courtCostMinor !== null
-                ? "Aporte al día"
-                : "Te falta aportar"
-            }
-          >
+          <PersonalMetric label="Tu aporte">
             {!me ? (
               <span className="text-sm text-muted-foreground">
                 Tu cuenta no está vinculada a un jugador.
@@ -139,10 +133,10 @@ export function HomeDashboard() {
                 Todavía no tenés un aporte asignado.
               </span>
             ) : myDebt <= 0n ? (
-              <Badge variant="secondary">Al día</Badge>
+              <Badge variant="secondary">{myDebt < 0n ? "Excedido" : "Al día"}</Badge>
             ) : (
               <strong className="text-xl font-bold tabular-nums text-destructive">
-                {formatMoney(myDebt.toString())}
+                Te falta {formatMoney(myDebt.toString())}
               </strong>
             )}
           </PersonalMetric>

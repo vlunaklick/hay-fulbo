@@ -97,7 +97,13 @@ export function SharedStatsDashboard() {
 
   if (capability.exchanging) return <StatsLoading />;
   if (capability.error) {
-    return <StatsError message={capability.error.message} />;
+    return (
+      <StatsError
+        message="No pudimos abrir el enlace privado. Revisá tu conexión o pedile al organizador el enlace más reciente."
+        onRetry={capability.retry}
+        exitHref={null}
+      />
+    );
   }
   return (
     <DashboardQueryState
@@ -161,6 +167,7 @@ function DashboardQueryState({
               : error?.message
         }
         onRetry={retry}
+        exitHref={mode === "member" ? "/dashboard" : null}
       />
     );
   }

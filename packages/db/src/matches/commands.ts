@@ -83,6 +83,11 @@ export function createMatchCommands(
           return archiveCourt(transaction, scope, command);
         }
 
+        if (command.type === "setScorekeeper" && command.scorekeeperUserId !== null) {
+          // Member deletion locks member → match through its cleanup trigger.
+          await requireMember(transaction, scope.groupId, command.scorekeeperUserId, true);
+        }
+
         const locked = await lockMatch(
           transaction,
           scope,
@@ -577,9 +582,6 @@ async function setScorekeeper(
 ) {
   requireOrganizer(locked, scope);
   requireOpen(locked);
-  if (command.scorekeeperUserId !== null) {
-    await requireMember(transaction, scope.groupId, command.scorekeeperUserId);
-  }
   await transaction
     .update(match)
     .set({ scorekeeperUserId: command.scorekeeperUserId })
@@ -1029,12 +1031,18 @@ async function requireActiveCourt(transaction: MatchTransaction, groupId: string
   return found;
 }
 
-async function requireMember(transaction: MatchTransaction, groupId: string, userId: string) {
-  const [found] = await transaction
+async function requireMember(
+  transaction: MatchTransaction,
+  groupId: string,
+  userId: string,
+  lock = false,
+) {
+  const query = transaction
     .select({ role: member.role })
     .from(member)
     .where(and(eq(member.organizationId, groupId), eq(member.userId, userId)))
     .limit(1);
+  const [found] = await (lock ? query.for("share") : query);
   if (!found) throw new MatchCommandError("membership_required");
   return found;
 }

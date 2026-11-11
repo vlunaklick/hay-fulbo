@@ -188,6 +188,76 @@ integration("MatchCommands public seam", () => {
     ).rejects.toMatchObject({ code: "forbidden" });
   });
 
+  test("serializes scorekeeper assignment with concurrent member deletion", async () => {
+    const scope = { groupId, actorUserId: organizerId };
+    const created = await commands.execute(scope, {
+      type: "createMatch",
+      scheduledAt: new Date("2026-01-01"),
+    });
+    const deletion = await pool.connect();
+    const assignment = await pool.connect();
+    let assigning: Promise<unknown> | undefined;
+    try {
+      const { rows: roles } = await pool.query(
+        "select 1 from pg_roles where rolname = 'hay_fulbo_runtime'",
+      );
+      // Exercise the production role's permissions and tenant RLS when available.
+      if (roles.length) await assignment.query("set role hay_fulbo_runtime");
+      await assignment.query("set statement_timeout = '3s'");
+      const {
+        rows: [{ pid }],
+      } = await assignment.query("select pg_backend_pid() as pid");
+      await deletion.query("begin");
+      if (roles.length) await deletion.query("set local role hay_fulbo_runtime");
+      await deletion.query("delete from member where id = 'member-member'");
+      assigning = createMatchCommands(drizzle(assignment, { schema }))
+        .execute(scope, {
+          type: "setScorekeeper",
+          matchId: created.matchId,
+          expectedLockVersion: 0,
+          scorekeeperUserId: memberId,
+        })
+        .then(
+          (result) => result,
+          (error: unknown) => error,
+        );
+
+      // Wait for a real lock wait, not a timing-dependent race. The old command
+      // commits a dangling grant here because it reads the uncommitted deletion.
+      let blocked = false;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const { rows } = await deletion.query(
+          "select cardinality(pg_blocking_pids($1)) > 0 as blocked",
+          [pid],
+        );
+        if (rows[0].blocked) {
+          blocked = true;
+          break;
+        }
+        await Bun.sleep(10);
+      }
+      expect(blocked).toBe(true);
+      await deletion.query("commit");
+      expect(await assigning).toMatchObject({ code: "membership_required" });
+      const { rows } = await pool.query(
+        `select scorekeeper_user_id from match
+         where id = $1 and (scorekeeper_user_id is null or exists (
+           select 1 from member
+           where organization_id = match.group_id and user_id = match.scorekeeper_user_id
+         ))`,
+        [created.matchId],
+      );
+      expect(rows).toEqual([{ scorekeeper_user_id: null }]);
+    } finally {
+      await deletion.query("rollback");
+      await assigning;
+      await assignment.query("reset role");
+      await assignment.query("reset statement_timeout");
+      assignment.release();
+      deletion.release();
+    }
+  });
+
   test("rejects assignment and scoring on closed or cancelled matches", async () => {
     const scope = { groupId, actorUserId: organizerId };
     const court = await commands.execute(scope, {
