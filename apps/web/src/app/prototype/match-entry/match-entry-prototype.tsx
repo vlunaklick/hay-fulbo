@@ -68,7 +68,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@hay-fulbo/ui/componen
 import { ToggleGroup, ToggleGroupItem } from "@hay-fulbo/ui/components/toggle-group";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 
-import { useMountEffect } from "./use-mount-effect";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
 // Three variants of the mobile match-entry flow, switchable via ?variant=, on
 // the throwaway /prototype/match-entry route.

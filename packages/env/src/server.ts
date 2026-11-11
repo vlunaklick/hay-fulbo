@@ -10,6 +10,8 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z.url(),
+    CLERK_PUBLISHABLE_KEY: z.string().startsWith("pk_").optional(),
+    CLERK_SECRET_KEY: z.string().startsWith("sk_").optional(),
     EMAIL_FROM: z.string().min(1).optional(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     RESEND_API_KEY: z.string().min(1).optional(),
