@@ -100,6 +100,9 @@ export const match = pgTable(
     organizerUserId: text("organizer_user_id")
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
+    scorekeeperUserId: text("scorekeeper_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
     courtId: uuid("court_id"),
     scheduledAt: instant("scheduled_at").notNull(),
     courtCostMinor: bigint("court_cost_minor", { mode: "bigint" }),

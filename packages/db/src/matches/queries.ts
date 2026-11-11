@@ -200,10 +200,20 @@ async function loadDetail(
     appearances: appearances.map(({ row }) => row),
   });
 
+  const [scorekeeper] = root.scorekeeperUserId
+    ? await transaction
+        .select({ name: user.name })
+        .from(user)
+        .where(eq(user.id, root.scorekeeperUserId))
+        .limit(1)
+    : [];
+
   return {
     id: root.id,
     groupId: root.groupId,
     organizerUserId: root.organizerUserId,
+    scorekeeperUserId: root.scorekeeperUserId,
+    scorekeeperName: scorekeeper?.name ?? null,
     courtId: root.courtId,
     scheduledAt: root.scheduledAt,
     courtCostMinor: root.courtCostMinor,

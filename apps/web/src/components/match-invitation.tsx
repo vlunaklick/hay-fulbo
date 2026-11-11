@@ -98,7 +98,7 @@ export function MatchInvitation({
   return (
     <main className="min-h-svh bg-background px-4 py-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-        <header className="flex items-center justify-between gap-4">
+        <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <LogoMark className="size-10" />
             <div>
@@ -107,18 +107,22 @@ export function MatchInvitation({
             </div>
           </div>
           <Badge variant={invitation.match.status === "open" ? "outline" : "secondary"}>
-            {invitation.match.status === "open" ? "Convocatoria abierta" : "Convocatoria cerrada"}
+            {invitation.match.status === "open"
+              ? "Convocatoria abierta"
+              : invitation.match.status === "cancelled"
+                ? "Partido cancelado"
+                : "Partido cerrado"}
           </Badge>
         </header>
 
         <Card className="overflow-hidden border-primary/30">
           <CardHeader className="border-b bg-primary/5">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-              Próxima fecha
+              {invitation.match.status === "open" ? "Próximo partido" : "Partido"}
             </p>
-            <CardTitle className="text-3xl">
+            <h1 className="text-3xl font-bold">
               {formatMatchDate(invitation.match.scheduledAt, invitation.group.timeZone)}
-            </CardTitle>
+            </h1>
             <CardDescription className="text-base">
               {formatMatchTime(invitation.match.scheduledAt, invitation.group.timeZone)}
               {invitation.match.court ? ` · ${invitation.match.court.name}` : " · Cancha a definir"}
@@ -155,7 +159,13 @@ export function MatchInvitation({
                     )}
                   </strong>
                 </div>
-              ) : null}
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {invitation.match.status === "cancelled"
+                    ? "Este partido no genera aportes."
+                    : "El aporte se define cuando estén el costo y los jugadores."}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -209,6 +219,13 @@ export function MatchInvitation({
           </Card>
         ) : null}
 
+        {invitation.match.status !== "open" ? (
+          <p className="text-sm text-muted-foreground">
+            {invitation.match.status === "cancelled"
+              ? "Este partido no se va a jugar. Ya no se pueden sumar jugadores."
+              : "El organizador cerró el partido. La convocatoria ya terminó."}
+          </p>
+        ) : null}
         <div className="grid gap-2 sm:grid-cols-2">
           <Button
             onClick={() => window.open(buildWhatsAppUrl(shareMessage), "_blank", "noopener")}
@@ -217,7 +234,11 @@ export function MatchInvitation({
             <MessageCircleIcon data-icon="inline-start" aria-hidden="true" />
             Compartir por WhatsApp
           </Button>
-          <Button onClick={addToCalendar} variant="outline">
+          <Button
+            disabled={invitation.match.status !== "open"}
+            onClick={addToCalendar}
+            variant="outline"
+          >
             <CalendarPlusIcon data-icon="inline-start" aria-hidden="true" />
             Agregar al calendario
           </Button>

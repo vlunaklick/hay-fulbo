@@ -70,3 +70,25 @@ describe("database enforcement migration", () => {
     expect(migrationSql).toContain("REVOKE ALL ON FUNCTION");
   });
 });
+
+test("adds a nullable scorekeeper without changing tenant policies", async () => {
+  const sql = await readFile(join(migrationDirectory, "0011_match_scorekeeper.sql"), "utf8");
+  expect(sql).toContain('ADD COLUMN "scorekeeper_user_id" text');
+  expect(sql).toContain('REFERENCES "public"."user"("id") ON DELETE set null');
+  expect(sql).not.toMatch(/POLICY|ROW LEVEL SECURITY|NOT NULL/);
+});
+
+test("clears scorekeeper grants on membership deletion across auth entry points", async () => {
+  const sql = await readFile(
+    join(migrationDirectory, "0012_clear_scorekeeper_on_member_delete.sql"),
+    "utf8",
+  );
+  expect(sql).toContain('AFTER DELETE ON "public"."member"');
+  expect(sql).toContain("SECURITY DEFINER");
+  expect(sql).toContain("SET search_path = pg_catalog");
+  expect(sql).toContain("SET row_security = off");
+  expect(sql).toContain("REVOKE ALL ON FUNCTION");
+  expect(sql).toContain(
+    "WHERE group_id = OLD.organization_id AND scorekeeper_user_id = OLD.user_id",
+  );
+});

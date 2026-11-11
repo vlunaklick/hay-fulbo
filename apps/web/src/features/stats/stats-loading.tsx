@@ -3,7 +3,7 @@ import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 
 export function StatsLoading() {
   return (
-    <main
+    <div
       aria-busy="true"
       aria-label="Cargando estadísticas"
       className="mx-auto w-full max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8"
@@ -33,6 +33,6 @@ export function StatsLoading() {
           <Skeleton key={item} className="h-14 w-full" />
         ))}
       </div>
-    </main>
+    </div>
   );
 }

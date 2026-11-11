@@ -71,6 +71,11 @@ const commandSchema = z.discriminatedUnion("type", [
     courtCostMinor: optionalMinor.optional(),
   }),
   z.object({
+    type: z.literal("setScorekeeper"),
+    ...versioned,
+    scorekeeperUserId: z.string().min(1).nullable(),
+  }),
+  z.object({
     type: z.literal("renameTeam"),
     ...versioned,
     teamId: id,

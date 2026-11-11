@@ -1,13 +1,7 @@
 import { matchInviteAccess } from "@hay-fulbo/api/access-runtime";
 import { env } from "@hay-fulbo/env/server";
 import { Button } from "@hay-fulbo/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@hay-fulbo/ui/components/card";
 import Link from "next/link";
 
 import { LogoMark } from "@/components/logo-mark";
@@ -31,7 +25,7 @@ export default async function PlayInvitationPage({
           </div>
           <Card>
             <CardHeader>
-              <CardTitle>Este partido no está disponible</CardTitle>
+              <h1 className="text-xl font-bold">Este partido no está disponible</h1>
               <CardDescription>
                 El link puede ser incorrecto o el grupo ya no está activo.
               </CardDescription>

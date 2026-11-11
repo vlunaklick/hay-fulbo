@@ -1,13 +1,7 @@
 "use client";
 
 import { Button } from "@hay-fulbo/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@hay-fulbo/ui/components/card";
 import { ArrowRightIcon, MailCheckIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -57,14 +51,22 @@ export function InvitationAcceptance({
             <div className="mb-2 flex size-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <MailCheckIcon aria-hidden="true" />
             </div>
-            <CardTitle>Te invitaron a {groupName}</CardTitle>
+            <h1 className="text-xl font-bold">Te invitaron a {groupName}</h1>
             <CardDescription>
               Al aceptar, tu cuenta {email} va a quedar vinculada con tu jugador en este grupo.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <Button onClick={accept} disabled={pending}>
+            {error ? (
+              <p id="invitation-error" role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
+            <Button
+              aria-describedby={error ? "invitation-error" : undefined}
+              onClick={accept}
+              disabled={pending}
+            >
               {pending ? "Aceptando…" : "Aceptar invitación"}
               <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
             </Button>

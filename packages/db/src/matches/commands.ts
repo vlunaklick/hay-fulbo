@@ -19,6 +19,7 @@ import {
   type MatchCommandResultFor,
   type MatchDatabase,
   type MatchMutationResult,
+  type MatchCommandErrorCode,
   type MatchScope,
   type MatchTransaction,
 } from "./types";
@@ -83,6 +84,17 @@ export function createMatchCommands(
           return archiveCourt(transaction, scope, command);
         }
 
+        if (command.type === "setScorekeeper" && command.scorekeeperUserId !== null) {
+          // Member deletion locks member → match through its cleanup trigger.
+          await requireMember(
+            transaction,
+            scope.groupId,
+            command.scorekeeperUserId,
+            true,
+            "scorekeeper_not_member",
+          );
+        }
+
         const locked = await lockMatch(
           transaction,
           scope,
@@ -93,6 +105,8 @@ export function createMatchCommands(
         switch (command.type) {
           case "updateMatch":
             return updateMatch(transaction, scope, locked, command);
+          case "setScorekeeper":
+            return setScorekeeper(transaction, scope, locked, command);
           case "renameTeam":
             return renameTeam(transaction, scope, locked, command);
           case "addParticipant":
@@ -567,13 +581,33 @@ async function moveParticipant(
   return bumpVersion(transaction, scope.groupId, locked);
 }
 
+async function setScorekeeper(
+  transaction: MatchTransaction,
+  scope: MatchScope,
+  locked: LockedMatch,
+  command: Extract<MatchCommand, { type: "setScorekeeper" }>,
+) {
+  requireOrganizer(locked, scope);
+  requireOpen(locked);
+  await transaction
+    .update(match)
+    .set({ scorekeeperUserId: command.scorekeeperUserId })
+    .where(and(eq(match.groupId, scope.groupId), eq(match.id, locked.id)));
+  return bumpVersion(transaction, scope.groupId, locked);
+}
+
 async function adjustStat(
   transaction: MatchTransaction,
   scope: MatchScope,
   locked: LockedMatch,
   command: Extract<MatchCommand, { type: "adjustStat" }>,
 ) {
-  requireOrganizer(locked, scope);
+  if (
+    locked.scorekeeperUserId !== scope.actorUserId ||
+    !["goals", "ownGoals", "unattributedGoals"].includes(command.field)
+  ) {
+    requireOrganizer(locked, scope);
+  }
   requireOpen(locked);
   if (command.delta !== 1 && command.delta !== -1) {
     throw new MatchCommandError("invalid_input", "Invalid stat delta");
@@ -1004,13 +1038,20 @@ async function requireActiveCourt(transaction: MatchTransaction, groupId: string
   return found;
 }
 
-async function requireMember(transaction: MatchTransaction, groupId: string, userId: string) {
-  const [found] = await transaction
+async function requireMember(
+  transaction: MatchTransaction,
+  groupId: string,
+  userId: string,
+  lock = false,
+  missingCode: MatchCommandErrorCode = "membership_required",
+) {
+  const query = transaction
     .select({ role: member.role })
     .from(member)
     .where(and(eq(member.organizationId, groupId), eq(member.userId, userId)))
     .limit(1);
-  if (!found) throw new MatchCommandError("membership_required");
+  const [found] = await (lock ? query.for("share") : query);
+  if (!found) throw new MatchCommandError(missingCode);
   return found;
 }
 

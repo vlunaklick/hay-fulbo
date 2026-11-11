@@ -45,6 +45,7 @@ export function useSharedCapability() {
 
   return {
     error: exchange.error,
+    retry: () => void exchange.refetch(),
     ready: token.length === 0 || exchange.isSuccess,
     exchanging: token.length > 0 && exchange.isPending,
   };

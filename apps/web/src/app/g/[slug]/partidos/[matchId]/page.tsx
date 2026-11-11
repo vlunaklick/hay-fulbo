@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+
+import { StatsLoading } from "@/features/stats/stats-loading";
 import { PublicMatchStats } from "@/features/stats/stats-detail";
 
 export default async function PublicMatchPage({
@@ -7,8 +10,8 @@ export default async function PublicMatchPage({
 }) {
   const { matchId, slug } = await params;
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+    <Suspense fallback={<StatsLoading />}>
       <PublicMatchStats matchId={matchId} slug={slug} />
-    </main>
+    </Suspense>
   );
 }

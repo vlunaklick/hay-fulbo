@@ -11,6 +11,20 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@hay-fulbo/ui/components/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@hay-fulbo/ui/components/dropdown-menu";
 import { Field, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
 import {
@@ -32,11 +46,10 @@ import {
   SheetTrigger,
 } from "@hay-fulbo/ui/components/sheet";
 import { cn } from "@hay-fulbo/ui/lib/utils";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
+import { useQuery } from "@tanstack/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
 import {
   ArrowLeftIcon,
-  ArrowRightLeftIcon,
   CalendarClockIcon,
   CheckIcon,
   CircleAlertIcon,
@@ -44,39 +57,33 @@ import {
   MapPinIcon,
   Maximize2Icon,
   PlusIcon,
+  MoreHorizontalIcon,
   UserXIcon,
   WalletIcon,
-  XIcon,
 } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
-
-import { BorderBeam } from "@hay-fulbo/ui/components/border-beam";
-import { fireGoalConfetti } from "@hay-fulbo/ui/components/confetti";
-import { CoolMode } from "@hay-fulbo/ui/components/cool-mode";
 
 import { useAppContext } from "@/components/app-shell";
 import { MatchParityCard } from "@/components/match-parity-card";
 import { MatchRatings } from "@/components/match-ratings";
 import { MatchResultCard } from "@/components/match-result-card";
-import { MatchScoreboard } from "@/components/match-scoreboard";
+import {
+  MatchScoreboard,
+  useMatchCommand,
+  type RunMatchAction,
+} from "@/components/match-scoreboard";
 import { MatchShareRow } from "@/components/match-share-row";
+import { isTerminalReadError, matchReadErrorMessage } from "@/lib/match-command-error";
 import { formatDate, formatMoney, toMinor } from "@/lib/format";
-import { queryClient, trpc } from "@/utils/trpc";
+import { trpc } from "@/utils/trpc";
 
 type Outputs = inferRouterOutputs<AppRouter>;
-type Inputs = inferRouterInputs<AppRouter>;
 type Detail = Outputs["matches"]["detail"];
 type Directory = Outputs["matches"]["directory"];
-type ExecuteInput = Inputs["matches"]["execute"];
-type WithoutVersion<T> = T extends { expectedLockVersion: number }
-  ? Omit<T, "expectedLockVersion">
-  : T;
-type MatchAction = WithoutVersion<ExecuteInput>;
 type Appearance = Detail["teams"][number]["appearances"][number];
 type PaymentSubject = Pick<
   Appearance,
@@ -96,7 +103,10 @@ const issueText = {
 
 export default function MatchPage() {
   const { matchId } = useParams<{ matchId: string }>();
-  const detail = useQuery(trpc.matches.detail.queryOptions({ matchId }));
+  const detail = useQuery({
+    ...trpc.matches.detail.queryOptions({ matchId }),
+    refetchInterval: (query) => (query.state.data?.status === "open" ? 5000 : false),
+  });
   const directory = useQuery(trpc.matches.directory.queryOptions());
 
   if (detail.isPending || directory.isPending) {
@@ -108,18 +118,41 @@ export default function MatchPage() {
       </div>
     );
   }
-  if (detail.isError || directory.isError) {
+  const readError = detail.error ?? directory.error;
+  if (!detail.data || !directory.data || isTerminalReadError(readError)) {
     return (
       <Alert variant="destructive">
         <CircleAlertIcon aria-hidden="true" />
         <AlertTitle>No pudimos abrir el partido</AlertTitle>
-        <AlertDescription>{detail.error?.message ?? directory.error?.message}</AlertDescription>
+        <AlertDescription>{matchReadErrorMessage(readError)}</AlertDescription>
       </Alert>
     );
   }
 
+  // A failed background poll keeps the cached workspace (and any open drafts) mounted.
   return (
-    <MatchWorkspace key={detail.data.lockVersion} detail={detail.data} directory={directory.data} />
+    <>
+      {readError ? (
+        <Alert role="status">
+          <CircleAlertIcon aria-hidden="true" />
+          <AlertTitle>No pudimos actualizar el partido</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center gap-3">
+            {matchReadErrorMessage(readError)}
+            <Button
+              onClick={() => {
+                void detail.refetch();
+                void directory.refetch();
+              }}
+              size="sm"
+              variant="outline"
+            >
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      <MatchWorkspace key={detail.data.id} detail={detail.data} directory={directory.data} />
+    </>
   );
 }
 
@@ -130,59 +163,11 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
   const editable = isOpen && manager;
   const issues = closureIssues(detail);
   const readyToClose = issues.length === 0;
-  const detailKey = trpc.matches.detail.queryKey({ matchId: detail.id });
-  const [version, setVersion] = useState(detail.lockVersion);
-  const effectiveVersion = Math.max(version, detail.lockVersion);
+  const { run, pending } = useMatchCommand(detail);
+  const canScore = isOpen && (manager || detail.scorekeeperUserId === user.id);
 
-  const execute = useMutation(
-    trpc.matches.execute.mutationOptions({
-      onMutate: async (input) => {
-        await queryClient.cancelQueries({ queryKey: detailKey });
-        const previous = queryClient.getQueryData<Detail>(detailKey);
-        if (previous) {
-          const optimistic = optimisticDetail(previous, input);
-          if (optimistic !== previous) {
-            queryClient.setQueryData<Detail>(detailKey, optimistic);
-          }
-        }
-        return { previous };
-      },
-      onSuccess: (result, input) => {
-        if ("lockVersion" in result) {
-          setVersion((current) => Math.max(current, result.lockVersion));
-        }
-        toast.success(
-          input.type === "closeMatch"
-            ? "Partido cerrado"
-            : input.type === "reopenMatch"
-              ? "Partido reabierto"
-              : "Listo",
-        );
-        if (input.type === "closeMatch") {
-          fireGoalConfetti();
-        }
-        queryClient.invalidateQueries({ queryKey: trpc.matches.list.queryKey() });
-        queryClient.invalidateQueries({ queryKey: trpc.matches.directory.queryKey() });
-      },
-      onError: (cause, _input, context) => {
-        toast.error(cause.message);
-        if (context?.previous) {
-          queryClient.setQueryData(detailKey, context.previous);
-        }
-      },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: detailKey });
-      },
-    }),
-  );
-  const run = (action: MatchAction) =>
-    execute.mutate({
-      ...action,
-      expectedLockVersion: effectiveVersion,
-    } as ExecuteInput);
-
-  function closeMatch() {
-    run({ type: "closeMatch", matchId: detail.id });
+  async function closeMatch() {
+    await run({ type: "closeMatch", matchId: detail.id });
   }
   function reopen() {
     run({ type: "reopenMatch", matchId: detail.id });
@@ -216,7 +201,7 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
         detail={detail}
         courtName={court?.name ?? null}
         editable={editable}
-        pending={execute.isPending}
+        pending={pending}
         run={run}
         onCancelMatch={isOpen && manager ? cancelMatch : undefined}
         onRestore={detail.status === "cancelled" && manager ? restore : undefined}
@@ -242,7 +227,7 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
               detail={detail}
               directory={directory}
               editable={editable}
-              pending={execute.isPending}
+              pending={pending}
               run={run}
             />
             <MatchShareRow court={court ?? null} detail={detail} groupName={groupName} />
@@ -261,6 +246,7 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
             title="El partido"
             action={
               <Button
+                className={canScore ? "border-primary text-primary" : undefined}
                 render={<Link href={`/dashboard/partidos/${detail.id}/cancha` as Route} />}
                 nativeButton={false}
                 size="sm"
@@ -271,45 +257,68 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
               </Button>
             }
           >
-            <MatchScoreboard detail={detail} manager={manager} userId={user.id} />
+            {editable ? (
+              <Field>
+                <FieldLabel htmlFor="scorekeeper">Planillero</FieldLabel>
+                <select
+                  id="scorekeeper"
+                  className="min-h-11 w-full rounded-lg border bg-card px-3 text-base sm:max-w-sm"
+                  value={detail.scorekeeperUserId ?? ""}
+                  disabled={pending}
+                  onChange={(event) => {
+                    void run({
+                      type: "setScorekeeper",
+                      matchId: detail.id,
+                      scorekeeperUserId: event.target.value || null,
+                    });
+                  }}
+                >
+                  <option value="">Sin planillero</option>
+                  {directory.members.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-sm text-muted-foreground">
+                  Puede sumar y restar goles mientras el partido esté abierto.
+                </p>
+              </Field>
+            ) : null}
+            <MatchScoreboard detail={detail} canScore={canScore} pending={pending} run={run} />
           </Section>
 
-          <Planilla detail={detail} editable={editable} pending={execute.isPending} run={run} />
+          <Planilla detail={detail} editable={editable} pending={pending} run={run} />
 
-          <ClosingBar
-            issues={issues}
-            pending={execute.isPending}
-            readyToClose={readyToClose}
-            onClose={closeMatch}
-          />
+          {manager ? (
+            <ClosingBar
+              issues={issues}
+              pending={pending}
+              readyToClose={readyToClose}
+              onClose={closeMatch}
+            />
+          ) : null}
         </>
       ) : null}
 
       {detail.status === "closed" ? (
         <>
-          <CoolMode>
-            <MatchResultCard
-              dateLabel={formatDate(detail.scheduledAt)}
-              groupName={groupName}
-              left={{
-                goals: scoreFor(detail, detail.teams[0]?.id),
-                name: detail.teams[0]?.displayName ?? "Equipo 1",
-              }}
-              matchId={detail.id}
-              right={{
-                goals: scoreFor(detail, detail.teams[1]?.id),
-                name: detail.teams[1]?.displayName ?? "Equipo 2",
-              }}
-            />
-          </CoolMode>
+          <MatchResultCard
+            dateLabel={formatDate(detail.scheduledAt)}
+            groupName={groupName}
+            left={{
+              goals: scoreFor(detail, detail.teams[0]?.id),
+              name: detail.teams[0]?.displayName ?? "Equipo 1",
+            }}
+            matchId={detail.id}
+            right={{
+              goals: scoreFor(detail, detail.teams[1]?.id),
+              name: detail.teams[1]?.displayName ?? "Equipo 2",
+            }}
+          />
           <Section title="Lo que quedó">
             <ReadOnlyStats detail={detail} />
-            <PaymentsSheet
-              detail={detail}
-              editable={manager}
-              pending={execute.isPending}
-              run={run}
-            />
+            <PaymentsSheet detail={detail} editable={manager} pending={pending} run={run} />
           </Section>
           <Section title="Las notas">
             <MatchRatings matchId={detail.id} teams={detail.teams} />
@@ -369,9 +378,10 @@ function Cover({
   onReopen?: () => void;
   onRestore?: () => void;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
 }) {
   const [editing, setEditing] = useState(false);
+  const [expectedLockVersion, setExpectedLockVersion] = useState(detail.lockVersion);
   const localDate = toLocalInputValue(detail.scheduledAt);
   const [scheduledAt, setScheduledAt] = useState(localDate);
   const [courtId, setCourtId] = useState<string | null>(detail.courtId);
@@ -379,19 +389,22 @@ function Cover({
     detail.courtCostMinor === null ? "" : String(Number(detail.courtCostMinor) / 100),
   );
 
-  function save() {
+  async function save() {
     const courtCostMinor = cost.trim() ? toMinor(cost) : null;
-    run({
-      type: "updateMatch",
-      matchId: detail.id,
-      ...(scheduledAt !== localDate ? { scheduledAt: new Date(scheduledAt) } : {}),
-      ...(courtId !== detail.courtId ? { courtId } : {}),
-      ...(() => {
-        const next = cost.trim() ? courtCostMinor : null;
-        return next !== detail.courtCostMinor ? { courtCostMinor: next } : {};
-      })(),
-    });
-    setEditing(false);
+    const saved = await run(
+      {
+        type: "updateMatch",
+        matchId: detail.id,
+        ...(scheduledAt !== localDate ? { scheduledAt: new Date(scheduledAt) } : {}),
+        ...(courtId !== detail.courtId ? { courtId } : {}),
+        ...(() => {
+          const next = cost.trim() ? courtCostMinor : null;
+          return next !== detail.courtCostMinor ? { courtCostMinor: next } : {};
+        })(),
+      },
+      { expectedLockVersion, onConflict: setExpectedLockVersion },
+    );
+    if (saved) setEditing(false);
   }
 
   return (
@@ -399,7 +412,6 @@ function Cover({
       aria-labelledby="match-overview-title"
       className="relative overflow-hidden rounded-2xl border bg-card"
     >
-      {editable ? <BorderBeam duration={8} size={56} /> : null}
       <div className="flex flex-col gap-4 px-5 py-5">
         <div className="flex items-center justify-between gap-3 text-xs font-medium text-muted-foreground">
           <span className="flex items-center gap-2">
@@ -407,7 +419,23 @@ function Cover({
             {formatDate(detail.scheduledAt)}
           </span>
           {editable ? (
-            <Button onClick={() => setEditing((current) => !current)} size="sm" variant="ghost">
+            <Button
+              onClick={() => {
+                if (!editing) {
+                  setExpectedLockVersion(detail.lockVersion);
+                  setScheduledAt(toLocalInputValue(detail.scheduledAt));
+                  setCourtId(detail.courtId);
+                  setCost(
+                    detail.courtCostMinor === null
+                      ? ""
+                      : String(Number(detail.courtCostMinor) / 100),
+                  );
+                }
+                setEditing((current) => !current);
+              }}
+              size="sm"
+              variant="ghost"
+            >
               {editing ? "Cerrar edición" : "Editar datos"}
             </Button>
           ) : null}
@@ -523,18 +551,19 @@ function Cover({
 
 function TeamNameEditor({
   editable,
-  matchId,
+  detail,
   pending,
   run,
   team,
 }: {
   editable: boolean;
-  matchId: string;
+  detail: Detail;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
   team: Detail["teams"][number];
 }) {
   const [editing, setEditing] = useState(false);
+  const [expectedLockVersion, setExpectedLockVersion] = useState(detail.lockVersion);
   const [name, setName] = useState(team.displayName);
 
   if (!editable) {
@@ -546,9 +575,10 @@ function TeamNameEditor({
         type="button"
         onClick={() => {
           setName(team.displayName);
+          setExpectedLockVersion(detail.lockVersion);
           setEditing(true);
         }}
-        className="rounded px-1 text-left underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 transition-colors hover:text-primary"
+        className="min-h-11 rounded px-1 text-left underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 transition-colors hover:text-primary"
       >
         {team.displayName}
       </button>
@@ -556,24 +586,32 @@ function TeamNameEditor({
   }
   return (
     <form
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
-        if (name.trim() && name !== team.displayName) {
-          run({
-            type: "renameTeam",
-            matchId,
-            teamId: team.id,
-            displayName: name,
-          });
+        if (!name.trim()) return;
+        if (name.trim() === team.displayName) {
+          setEditing(false);
+          return;
         }
-        setEditing(false);
+        if (
+          await run(
+            {
+              type: "renameTeam",
+              matchId: detail.id,
+              teamId: team.id,
+              displayName: name,
+            },
+            { expectedLockVersion, onConflict: setExpectedLockVersion },
+          )
+        )
+          setEditing(false);
       }}
       className="flex items-center gap-1"
     >
       <Input
         autoFocus
         aria-label="Nombre del equipo"
-        className="h-7 w-32 px-2 py-0 text-sm"
+        className="min-h-11 w-32 px-2 py-0 text-sm"
         value={name}
         onBlur={(event) => {
           if (event.target.value.trim() && event.target.value !== team.displayName) return;
@@ -581,7 +619,7 @@ function TeamNameEditor({
         }}
         onChange={(event) => setName(event.target.value)}
       />
-      <Button aria-label="Guardar nombre" disabled={pending} size="icon-xs" type="submit">
+      <Button aria-label="Guardar nombre" disabled={pending} size="icon" type="submit">
         <CheckIcon aria-hidden="true" />
       </Button>
     </form>
@@ -599,7 +637,7 @@ function RosterGrid({
   directory: Directory;
   editable: boolean;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
 }) {
   const assigned = new Set(
     detail.teams.flatMap((team) => team.appearances.map((row) => row.playerId)),
@@ -650,7 +688,7 @@ function AbsencesList({
   detail: Detail;
   editable: boolean;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-dashed bg-card">
@@ -666,10 +704,12 @@ function AbsencesList({
             <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
               <UserXIcon className="size-4 shrink-0" aria-hidden="true" />
               <span className="truncate">{absence.playerDisplayName}</span>
-              {absence.owesContribution ? <Badge variant="secondary">deja su aporte</Badge> : null}
+              {absence.owesContribution ? (
+                <Badge variant="secondary">Ausente · aporta</Badge>
+              ) : null}
             </span>
             {editable ? (
-              <span className="flex shrink-0 items-center gap-2">
+              <span className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
                 {absence.owesContribution && detail.courtCostMinor !== null ? (
                   <PaymentCell
                     appearance={absence}
@@ -715,7 +755,7 @@ function TeamRoster({
   detail: Detail;
   editable: boolean;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
   team: Detail["teams"][number];
 }) {
   return (
@@ -728,7 +768,7 @@ function TeamRoster({
         <div className="flex items-center justify-between gap-2">
           <TeamNameEditor
             editable={editable}
-            matchId={detail.id}
+            detail={detail}
             pending={pending}
             run={run}
             team={team}
@@ -749,48 +789,12 @@ function TeamRoster({
               >
                 <span className="truncate text-sm">{appearance.playerDisplayName}</span>
                 {editable ? (
-                  <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                    <MarkAbsentCell
-                      detail={detail}
-                      pending={pending}
-                      playerId={appearance.playerId}
-                      playerName={appearance.playerDisplayName}
-                      run={run}
-                    />
-                    <Button
-                      aria-label={`Mover a ${appearance.playerDisplayName} al otro equipo`}
-                      disabled={pending}
-                      onClick={() =>
-                        run({
-                          type: "moveParticipant",
-                          matchId: detail.id,
-                          playerId: appearance.playerId,
-                          teamId:
-                            detail.teams.find((candidate) => candidate.id !== team.id)?.id ??
-                            team.id,
-                        })
-                      }
-                      size="icon-xs"
-                      variant="ghost"
-                    >
-                      <ArrowRightLeftIcon aria-hidden="true" />
-                    </Button>
-                    <Button
-                      aria-label={`Sacar a ${appearance.playerDisplayName}`}
-                      disabled={pending}
-                      onClick={() =>
-                        run({
-                          type: "removeParticipant",
-                          matchId: detail.id,
-                          playerId: appearance.playerId,
-                        })
-                      }
-                      size="icon-xs"
-                      variant="ghost"
-                    >
-                      <XIcon aria-hidden="true" />
-                    </Button>
-                  </span>
+                  <RosterActions
+                    detail={detail}
+                    pending={pending}
+                    appearance={appearance}
+                    run={run}
+                  />
                 ) : null}
               </li>
             ))}
@@ -814,7 +818,7 @@ function TeamRoster({
                         teamId: team.id,
                       })
                     }
-                    className="flex min-h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:pointer-events-none disabled:opacity-40"
+                    className="flex min-h-11 items-center gap-1 rounded-full border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:pointer-events-none disabled:opacity-40"
                   >
                     <PlusIcon className="size-3 shrink-0" aria-hidden="true" />
                     <span className="max-w-36 truncate">{player.displayName}</span>
@@ -824,17 +828,7 @@ function TeamRoster({
             ) : (
               <p className="text-xs text-muted-foreground">Todos los del grupo están anotados.</p>
             )}
-            <NewPlayerInput
-              disabled={pending}
-              onAdd={(displayName) =>
-                run({
-                  type: "createAndAddParticipant",
-                  displayName,
-                  matchId: detail.id,
-                  teamId: team.id,
-                })
-              }
-            />
+            <NewPlayerInput detail={detail} disabled={pending} run={run} teamId={team.id} />
           </div>
         ) : null}
       </div>
@@ -842,69 +836,122 @@ function TeamRoster({
   );
 }
 
-function MarkAbsentCell({
+function RosterActions({
   detail,
   pending,
-  playerId,
-  playerName,
+  appearance,
   run,
 }: {
   detail: Detail;
   pending: boolean;
-  playerId: string;
-  playerName: string;
-  run: (action: MatchAction) => void;
+  appearance: Appearance;
+  run: RunMatchAction;
 }) {
   const [asking, setAsking] = useState(false);
-
-  if (!asking) {
-    return (
-      <Button
-        aria-label={`Marcar que ${playerName} no vino`}
-        disabled={pending}
-        onClick={() => setAsking(true)}
-        size="icon-xs"
-        variant="ghost"
-      >
-        <UserXIcon aria-hidden="true" />
-      </Button>
-    );
+  const trigger = useRef<HTMLButtonElement | null>(null);
+  const otherTeam = detail.teams.find((team) => team.id !== appearance.teamId);
+  async function mark(owesContribution: boolean) {
+    if (
+      await run({
+        type: "markAbsent",
+        matchId: detail.id,
+        playerId: appearance.playerId,
+        owesContribution,
+      })
+    )
+      setAsking(false);
   }
-  const mark = (owesContribution: boolean) => {
-    run({ type: "markAbsent", matchId: detail.id, playerId, owesContribution });
-    setAsking(false);
-  };
   return (
-    <span className="flex items-center gap-1">
-      <span className="whitespace-nowrap text-xs text-muted-foreground">¿Deja su aporte?</span>
-      <Button disabled={pending} onClick={() => mark(true)} size="sm" variant="outline">
-        Sí
-      </Button>
-      <Button disabled={pending} onClick={() => mark(false)} size="sm" variant="outline">
-        No
-      </Button>
-      <Button aria-label="Cancelar" onClick={() => setAsking(false)} size="icon-xs" variant="ghost">
-        <XIcon aria-hidden="true" />
-      </Button>
-    </span>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              ref={trigger}
+              className="size-11 shrink-0"
+              variant="ghost"
+              aria-label={`Opciones de ${appearance.playerDisplayName}`}
+              disabled={pending}
+            />
+          }
+        >
+          <MoreHorizontalIcon aria-hidden="true" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onClick={() => setAsking(true)}>No vino</DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!otherTeam}
+            onClick={() =>
+              otherTeam &&
+              run({
+                type: "moveParticipant",
+                matchId: detail.id,
+                playerId: appearance.playerId,
+                teamId: otherTeam.id,
+              })
+            }
+          >
+            Mover al otro equipo
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() =>
+              run({ type: "removeParticipant", matchId: detail.id, playerId: appearance.playerId })
+            }
+          >
+            Sacar del partido
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Dialog open={asking} onOpenChange={setAsking}>
+        <DialogContent finalFocus={trigger}>
+          <DialogHeader>
+            <DialogTitle>{appearance.playerDisplayName} no vino</DialogTitle>
+            <DialogDescription>¿Deja su aporte para la cancha?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" disabled={pending} onClick={() => setAsking(false)}>
+              Cancelar
+            </Button>
+            <Button variant="outline" disabled={pending} onClick={() => mark(false)}>
+              No aporta
+            </Button>
+            <Button disabled={pending} onClick={() => mark(true)}>
+              Sí, aporta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 function NewPlayerInput({
+  detail,
   disabled,
-  onAdd,
+  run,
+  teamId,
 }: {
+  detail: Detail;
   disabled: boolean;
-  onAdd: (displayName: string) => void;
+  run: RunMatchAction;
+  teamId: string;
 }) {
   const [name, setName] = useState("");
   return (
     <form
       className="flex items-center gap-2"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
-        if (name.trim()) {
-          onAdd(name);
+        if (
+          name.trim() &&
+          (await run({
+            type: "createAndAddParticipant",
+            displayName: name,
+            matchId: detail.id,
+            teamId,
+          }))
+        ) {
           setName("");
         }
       }}
@@ -940,9 +987,12 @@ function Planilla({
   detail: Detail;
   editable: boolean;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
 }) {
-  const rows = detail.teams.flatMap((team) => team.appearances);
+  const rows = [
+    ...detail.teams.flatMap((team) => team.appearances),
+    ...detail.absences.filter((row) => row.owesContribution),
+  ];
   const costKnown = detail.courtCostMinor !== null;
 
   return (
@@ -966,6 +1016,9 @@ function Planilla({
           ))}
         </div>
       )}
+      {costKnown ? (
+        <PaymentsSheet detail={detail} editable={editable} pending={pending} run={run} />
+      ) : null}
       {costKnown && rows.length ? (
         <p className="text-sm text-muted-foreground">
           Caja:{" "}
@@ -991,7 +1044,7 @@ function PlanillaCard({
   detail: Detail;
   editable: boolean;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
   team: Detail["teams"][number];
 }) {
   return (
@@ -1041,15 +1094,14 @@ function PlanillaRow({
   editablePayments: boolean;
   editableStats: boolean;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
 }) {
   return (
-    <div className="flex flex-col gap-2 py-2 md:flex-row md:items-center md:justify-between md:gap-4">
+    <div className="flex flex-col gap-3 py-3">
       <span className="truncate text-sm font-medium">{appearance.playerDisplayName}</span>
-      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 md:justify-end">
+      <div className="flex flex-col gap-3">
         <StatSteppers
           appearance={appearance}
-          compact
           detail={detail}
           editable={editableStats}
           pending={pending}
@@ -1081,8 +1133,8 @@ function ClosingBar({
   readyToClose: boolean;
 }) {
   return (
-    <div className="sticky bottom-20 z-10 md:bottom-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card/95 px-4 py-3 shadow-[0_12px_32px_rgb(0_0_0/28%)] backdrop-blur">
+    <div className={cn(readyToClose && "sticky bottom-20 z-10 md:bottom-6")}>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3 shadow-lg">
         {readyToClose ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <CheckIcon className="size-4 text-primary" aria-hidden="true" />
@@ -1090,13 +1142,12 @@ function ClosingBar({
           </p>
         ) : (
           <ul className="min-w-0 text-sm text-muted-foreground">
-            <li className="flex items-center gap-2">
-              <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
-              {issueText[issues[0]]}
-            </li>
-            {issues.length > 1 ? (
-              <li className="pl-6 text-xs">Y {issues.length - 1} pendiente más.</li>
-            ) : null}
+            {issues.map((issue) => (
+              <li key={issue} className="flex items-start gap-2 py-0.5 text-xs">
+                <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
+                {issueText[issue]}
+              </li>
+            ))}
           </ul>
         )}
         <Button disabled={!readyToClose || pending} onClick={onClose} size="lg">
@@ -1110,23 +1161,20 @@ function ClosingBar({
 
 function StatSteppers({
   appearance,
-  compact = false,
   detail,
   editable,
   pending,
   run,
 }: {
   appearance: Appearance;
-  compact?: boolean;
   detail: Detail;
   editable: boolean;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
 }) {
   return (
-    <div className="flex shrink-0 items-center justify-between gap-4">
+    <div className="flex flex-wrap items-center gap-4">
       <Stepper
-        compact={compact}
         disabled={!editable || pending}
         label={`Goles de ${appearance.playerDisplayName}`}
         onDecrement={() =>
@@ -1150,7 +1198,6 @@ function StatSteppers({
         value={appearance.goals}
       />
       <Stepper
-        compact={compact}
         disabled={!editable || pending}
         label={`Asistencias de ${appearance.playerDisplayName}`}
         onDecrement={() =>
@@ -1174,7 +1221,6 @@ function StatSteppers({
         value={appearance.assists}
       />
       <Stepper
-        compact={compact}
         hideZero
         disabled={!editable || pending}
         label={`En contra de ${appearance.playerDisplayName}`}
@@ -1203,7 +1249,6 @@ function StatSteppers({
 }
 
 function Stepper({
-  compact = false,
   disabled,
   hideZero = false,
   label,
@@ -1211,7 +1256,6 @@ function Stepper({
   onIncrement,
   value,
 }: {
-  compact?: boolean;
   disabled: boolean;
   hideZero?: boolean;
   label: string;
@@ -1219,24 +1263,23 @@ function Stepper({
   onIncrement: () => void;
   value: number;
 }) {
-  const tag = label.startsWith("Asistencias") ? "A" : label.startsWith("En contra") ? "AG" : "G";
+  const tag = label.startsWith("Asistencias")
+    ? "Asistencias"
+    : label.startsWith("En contra")
+      ? "Autogoles"
+      : "Goles";
   if (hideZero && value === 0 && disabled) {
-    return <span className="w-20" aria-hidden="true" />;
+    return null;
   }
   return (
-    <span className="flex w-20 items-center justify-end gap-1" role="group" aria-label={label}>
-      {compact ? (
-        <span
-          aria-hidden="true"
-          className="w-3 text-center text-[0.65rem] font-bold uppercase text-muted-foreground"
-        >
-          {tag}
-        </span>
-      ) : null}
+    <span className="flex flex-wrap items-center gap-1" role="group" aria-label={label}>
+      <span className="w-full text-xs text-muted-foreground" aria-hidden="true">
+        {tag}
+      </span>
       <button
         type="button"
         aria-label={`${label}: restar`}
-        className="grid size-7 place-items-center rounded-full border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+        className="grid size-11 shrink-0 place-items-center rounded-full border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
         disabled={disabled || value === 0}
         onClick={onDecrement}
       >
@@ -1253,7 +1296,7 @@ function Stepper({
       <button
         type="button"
         aria-label={`${label}: sumar`}
-        className="grid size-7 place-items-center rounded-full border transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-30"
+        className="grid size-11 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-30"
         disabled={disabled}
         onClick={onIncrement}
       >
@@ -1271,7 +1314,7 @@ function UnattributedStepper({
 }: {
   detail: Detail;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
   team: Detail["teams"][number];
 }) {
   const editable = detail.status === "open";
@@ -1323,9 +1366,12 @@ function PaymentsSheet({
   detail: Detail;
   editable: boolean;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
 }) {
-  const rows = detail.teams.flatMap((team) => team.appearances);
+  const rows = [
+    ...detail.teams.flatMap((team) => team.appearances),
+    ...detail.absences.filter((row) => row.owesContribution),
+  ];
   if (rows.length === 0) return null;
   const settled = rows.filter(
     (row) => row.contributionStatus === "paid" || row.contributionStatus === "overpaid",
@@ -1380,15 +1426,20 @@ function PaymentRow({
   pending,
   run,
 }: {
-  appearance: Appearance;
+  appearance: PaymentSubject & { owesContribution?: boolean };
   detail: Detail;
   editable: boolean;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
 }) {
   return (
-    <li className="flex min-h-12 items-center justify-between gap-3 px-4 py-2">
-      <span className="truncate text-sm">{appearance.playerDisplayName}</span>
+    <li className="flex min-h-12 flex-col gap-3 px-4 py-3">
+      <span className="text-sm">
+        {appearance.playerDisplayName}
+        {appearance.owesContribution ? (
+          <span className="ml-2 text-xs text-muted-foreground">Ausente · aporta</span>
+        ) : null}
+      </span>
       <PaymentCell
         appearance={appearance}
         detail={detail}
@@ -1411,23 +1462,32 @@ function PaymentCell({
   detail: Detail;
   editable: boolean;
   pending: boolean;
-  run: (action: MatchAction) => void;
+  run: RunMatchAction;
 }) {
   const [editing, setEditing] = useState(false);
+  const [expectedLockVersion, setExpectedLockVersion] = useState(detail.lockVersion);
   const [amount, setAmount] = useState(String(Number(appearance.paidMinor) / 100));
 
-  function save() {
+  async function save() {
     const paidMinor = toMinor(amount);
     if (paidMinor !== null) {
-      run({ type: "updatePaid", matchId: detail.id, paidMinor, playerId: appearance.playerId });
+      const saved = await run(
+        {
+          type: "updatePaid",
+          matchId: detail.id,
+          paidMinor,
+          playerId: appearance.playerId,
+        },
+        { expectedLockVersion, onConflict: setExpectedLockVersion },
+      );
+      if (saved) setEditing(false);
     }
-    setEditing(false);
   }
 
   if (editing) {
     return (
       <form
-        className="flex shrink-0 items-center gap-1"
+        className="flex flex-wrap items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           save();
@@ -1436,22 +1496,25 @@ function PaymentCell({
         <Input
           autoFocus
           aria-label={`Pagó ${appearance.playerDisplayName}`}
-          className="h-8 w-24"
+          className="min-h-11 w-28"
           inputMode="decimal"
           value={amount}
-          onBlur={() => setEditing(false)}
           onChange={(event) => setAmount(event.target.value)}
         />
-        <Button aria-label="Confirmar pago" size="icon-xs" type="submit">
-          <CheckIcon aria-hidden="true" />
+        <Button disabled={pending} type="submit">
+          Guardar
+        </Button>
+        <Button disabled={pending} type="button" variant="ghost" onClick={() => setEditing(false)}>
+          Cancelar
         </Button>
       </form>
     );
   }
 
   return (
-    <span className="flex shrink-0 items-center gap-3">
+    <span className="flex flex-wrap items-center gap-3">
       <span className="font-mono text-sm tabular-nums text-muted-foreground">
+        <span className="block font-sans text-xs">Esperado</span>
         {formatMoney(appearance.expectedMinor)}
       </span>
       <strong
@@ -1460,8 +1523,20 @@ function PaymentCell({
           statusStyles[appearance.contributionStatus],
         )}
       >
+        <span className="block font-sans text-xs font-normal">Pagó</span>
         {formatMoney(appearance.paidMinor)}
       </strong>
+      <Badge variant="secondary">
+        {
+          {
+            exempt: "Exento",
+            pending: "Pendiente",
+            partial: "Parcial",
+            paid: "Pagado",
+            overpaid: "Excedido",
+          }[appearance.contributionStatus]
+        }
+      </Badge>
       {editable ? (
         <>
           <Button
@@ -1475,7 +1550,7 @@ function PaymentCell({
                 playerId: appearance.playerId,
               })
             }
-            size="icon-xs"
+            size="icon"
             variant="outline"
           >
             <WalletIcon aria-hidden="true" />
@@ -1485,6 +1560,7 @@ function PaymentCell({
             disabled={pending}
             onClick={() => {
               setAmount(String(Number(appearance.paidMinor) / 100));
+              setExpectedLockVersion(detail.lockVersion);
               setEditing(true);
             }}
             size="sm"
@@ -1549,85 +1625,6 @@ function scoreFor(detail: Detail, teamId?: string) {
   return detail.score.find((item) => item.teamId === teamId)?.goals ?? 0;
 }
 
-function paidStatus(
-  paidMinor: string,
-  expectedMinor: string | number,
-  previous: Appearance["contributionStatus"],
-): Appearance["contributionStatus"] {
-  const expected = BigInt(expectedMinor);
-  if (expected === 0n) return previous;
-  const paid = BigInt(paidMinor);
-  if (paid === expected) return "paid";
-  if (paid > expected) return "overpaid";
-  if (paid > 0n) return "partial";
-  return "pending";
-}
-
-function optimisticDetail(data: Detail, input: ExecuteInput): Detail {
-  if (input.type === "adjustStat") {
-    const { field } = input;
-    if (field === "unattributedGoals") {
-      const scoreTeamId = input.teamId;
-      return {
-        ...data,
-        teams: data.teams.map((team) =>
-          team.id === input.teamId
-            ? { ...team, unattributedGoals: team.unattributedGoals + input.delta }
-            : team,
-        ),
-        score: scoreTeamId
-          ? data.score.map((entry) =>
-              entry.teamId === scoreTeamId ? { ...entry, goals: entry.goals + input.delta } : entry,
-            )
-          : data.score,
-      };
-    }
-    const scorerTeam = data.teams.find((team) =>
-      team.appearances.some((row) => row.playerId === input.playerId),
-    );
-    const scoreTeamId =
-      field === "ownGoals"
-        ? data.teams.find((team) => team.id !== scorerTeam?.id)?.id
-        : scorerTeam?.id;
-    return {
-      ...data,
-      teams: data.teams.map((team) => ({
-        ...team,
-        appearances: team.appearances.map((row) =>
-          row.playerId === input.playerId ? { ...row, [field]: row[field] + input.delta } : row,
-        ),
-      })),
-      score: scoreTeamId
-        ? data.score.map((entry) =>
-            entry.teamId === scoreTeamId ? { ...entry, goals: entry.goals + input.delta } : entry,
-          )
-        : data.score,
-    };
-  }
-  if (input.type === "updatePaid") {
-    return {
-      ...data,
-      teams: data.teams.map((team) => ({
-        ...team,
-        appearances: team.appearances.map((row) =>
-          row.playerId === input.playerId
-            ? {
-                ...row,
-                paidMinor: input.paidMinor,
-                contributionStatus: paidStatus(
-                  input.paidMinor,
-                  row.expectedMinor,
-                  row.contributionStatus,
-                ),
-              }
-            : row,
-        ),
-      })),
-    };
-  }
-  return data;
-}
-
 function closureIssues(detail: Detail): (keyof typeof issueText)[] {
   const issues: (keyof typeof issueText)[] = [];
   if (new Date(detail.scheduledAt).getTime() > Date.now()) issues.push("match_not_started");
@@ -1648,9 +1645,10 @@ function closureIssues(detail: Detail): (keyof typeof issueText)[] {
   }
   if (
     detail.courtCostMinor !== null &&
-    detail.teams
-      .flatMap((team) => team.appearances)
-      .reduce((sum, row) => sum + BigInt(row.expectedMinor), 0n) !== BigInt(detail.courtCostMinor)
+    [...detail.teams.flatMap((team) => team.appearances), ...detail.absences].reduce(
+      (sum, row) => sum + BigInt(row.expectedMinor),
+      0n,
+    ) !== BigInt(detail.courtCostMinor)
   ) {
     issues.push("expected_total_mismatch");
   }

@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+
+import { StatsLoading } from "@/features/stats/stats-loading";
 import { SharedMatchStats } from "@/features/stats/stats-detail";
 
 export default async function SharedMatchPage({
@@ -8,7 +11,9 @@ export default async function SharedMatchPage({
   const { matchId } = await params;
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <SharedMatchStats matchId={matchId} />
+      <Suspense fallback={<StatsLoading />}>
+        <SharedMatchStats matchId={matchId} />
+      </Suspense>
     </div>
   );
 }

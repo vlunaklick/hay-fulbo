@@ -24,6 +24,10 @@ _Avoid_: Jugador, perfil
 Usuario responsable de crear un partido, definir sus datos, corregir cualquier carga y cerrarlo como autoridad final.
 _Avoid_: Administrador, dueño
 
+**Planillero**:
+Usuario miembro del grupo designado por el organizador para cargar goles (atribuidos, sin autor y autogoles) mientras el partido está abierto; no puede tocar asistencias, pagos, equipos ni cerrar. La designación se borra si deja el grupo.
+_Avoid_: Árbitro, anotador.
+
 **Responsable del grupo**:
 Usuario que controla la membresía y las invitaciones de un grupo. Esta autoridad no lo convierte automáticamente en organizador de todos sus partidos.
 _Avoid_: Organizador, administrador global

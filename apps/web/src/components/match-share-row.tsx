@@ -72,6 +72,23 @@ export function MatchShareRow({
 
   return (
     <div className="flex flex-wrap gap-2">
+      {!invite.data ? (
+        <div
+          className="w-full text-sm text-muted-foreground"
+          role={invite.isError ? "alert" : "status"}
+        >
+          {invite.isError ? (
+            <>
+              No pudimos cargar el enlace para compartir.{" "}
+              <Button variant="ghost" onClick={() => invite.refetch()}>
+                Reintentar
+              </Button>
+            </>
+          ) : (
+            "Preparando el enlace para compartir…"
+          )}
+        </div>
+      ) : null}
       <Button
         disabled={!message}
         onClick={() => message && window.open(buildWhatsAppUrl(message), "_blank", "noopener")}

@@ -17,6 +17,7 @@ export type MatchScope = {
 
 export type MatchCommandErrorCode =
   | "membership_required"
+  | "scorekeeper_not_member"
   | "owner_required"
   | "group_archived"
   | "not_found"
@@ -79,6 +80,12 @@ export type MatchCommand =
       scheduledAt?: Date;
       courtId?: string | null;
       courtCostMinor?: bigint | null;
+    }
+  | {
+      type: "setScorekeeper";
+      matchId: string;
+      expectedLockVersion: number;
+      scorekeeperUserId: string | null;
     }
   | {
       type: "renameTeam";
@@ -197,6 +204,8 @@ export type MatchDetail = {
   id: string;
   groupId: string;
   organizerUserId: string;
+  scorekeeperUserId: string | null;
+  scorekeeperName: string | null;
   courtId: string | null;
   scheduledAt: Date;
   courtCostMinor: bigint | null;

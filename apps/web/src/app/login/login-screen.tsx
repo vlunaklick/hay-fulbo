@@ -29,10 +29,6 @@ import { authClient } from "@/lib/auth-client";
 import { GoogleSignIn } from "./google-sign-in";
 import { safeReturnTo } from "./return-to";
 
-import { AuroraText } from "@hay-fulbo/ui/components/aurora-text";
-import { GridPattern } from "@hay-fulbo/ui/components/grid-pattern";
-import { WordRotate } from "@hay-fulbo/ui/components/word-rotate";
-
 export default function LoginScreen({
   clerkPublishableKey,
 }: {
@@ -87,36 +83,19 @@ export default function LoginScreen({
 
   return (
     <main className="relative grid min-h-svh place-items-center overflow-hidden px-4 py-10">
-      <GridPattern
-        aria-hidden="true"
-        className="absolute inset-x-0 top-0 -z-10 h-[480px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_0%,black,transparent)] stroke-primary/25"
-      />
-      <div
-        aria-hidden="true"
-        className="bg-noise pointer-events-none absolute inset-0 -z-10 opacity-[0.05]"
-      />
       <div className="flex w-full max-w-md flex-col gap-8">
         <header className="flex flex-col gap-3">
           <div className="flex items-center gap-2 text-primary">
             <ShieldCheckIcon aria-hidden="true" />
-            <span className="text-sm font-semibold uppercase tracking-[0.18em]">
-              <AuroraText colors={["#B7F34A", "#75D69C", "#F2F5EF"]}>Hay Fulbo</AuroraText>
-            </span>
+            <span className="text-sm font-semibold uppercase tracking-[0.18em]">Hay Fulbo</span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            El partido,{" "}
-            <WordRotate
-              words={["bajo control", "en orden", "sin cuentas pendientes"]}
-              className="text-primary"
-            />
-            .
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">El partido, bajo control.</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Armá equipos, cerrá el resultado y dejá las cuentas claras desde cualquier pantalla.
           </p>
         </header>
 
-        <Card className="bg-noise bg-card/95 backdrop-blur">
+        <Card className="border bg-card">
           <CardHeader>
             <CardTitle>{mode === "signin" ? "Entrar al grupo" : "Crear tu cuenta"}</CardTitle>
             <CardDescription>
@@ -136,7 +115,13 @@ export default function LoginScreen({
                 </div>
               </>
             ) : null}
-            <Tabs value={mode} onValueChange={(value) => setMode(value as typeof mode)}>
+            <Tabs
+              value={mode}
+              onValueChange={(value) => {
+                setMode(value as typeof mode);
+                setMessage(null);
+              }}
+            >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Ingresar</TabsTrigger>
                 <TabsTrigger value="signup">Registrarme</TabsTrigger>
@@ -156,6 +141,8 @@ export default function LoginScreen({
                       <FieldLabel htmlFor="name">Nombre</FieldLabel>
                       <Input
                         id="name"
+                        aria-invalid={Boolean(message) && name.trim().length < 2}
+                        aria-describedby={message ? "login-error" : undefined}
                         autoComplete="name"
                         value={name}
                         onChange={(event) => setName(event.target.value)}
@@ -167,6 +154,8 @@ export default function LoginScreen({
                     <FieldLabel htmlFor="email">Email</FieldLabel>
                     <Input
                       id="email"
+                      aria-invalid={Boolean(message) && !email.includes("@")}
+                      aria-describedby={message ? "login-error" : undefined}
                       type="email"
                       autoComplete="email"
                       value={email}
@@ -178,14 +167,18 @@ export default function LoginScreen({
                     <FieldLabel htmlFor="password">Contraseña</FieldLabel>
                     <Input
                       id="password"
+                      aria-invalid={Boolean(message) && password.length < 8}
+                      aria-describedby={message ? "login-error" : "password-help"}
                       type="password"
                       autoComplete={mode === "signin" ? "current-password" : "new-password"}
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                     />
-                    <FieldDescription>Mínimo 8 caracteres.</FieldDescription>
+                    <FieldDescription id="password-help">Mínimo 8 caracteres.</FieldDescription>
                   </Field>
-                  <FieldError>{message}</FieldError>
+                  <FieldError id="login-error" role="alert">
+                    {message}
+                  </FieldError>
                   <Button type="submit" disabled={submitting}>
                     {submitting ? "Entrando…" : mode === "signin" ? "Entrar" : "Crear cuenta"}
                     <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />

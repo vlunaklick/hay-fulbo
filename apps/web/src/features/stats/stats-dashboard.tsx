@@ -47,11 +47,6 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
-import { BlurFade } from "@hay-fulbo/ui/components/blur-fade";
-import { MagicCard } from "@hay-fulbo/ui/components/magic-card";
-import { Marquee } from "@hay-fulbo/ui/components/marquee";
-import { NumberTicker } from "@hay-fulbo/ui/components/number-ticker";
-
 import { initials } from "@/lib/initials";
 import { trpc, trpcHttpClient } from "@/utils/trpc";
 import { cn } from "@hay-fulbo/ui/lib/utils";
@@ -102,7 +97,13 @@ export function SharedStatsDashboard() {
 
   if (capability.exchanging) return <StatsLoading />;
   if (capability.error) {
-    return <StatsError message={capability.error.message} />;
+    return (
+      <StatsError
+        message="No pudimos abrir el enlace privado. Revisá tu conexión o pedile al organizador el enlace más reciente."
+        onRetry={capability.retry}
+        exitHref={null}
+      />
+    );
   }
   return (
     <DashboardQueryState
@@ -166,6 +167,7 @@ function DashboardQueryState({
               : error?.message
         }
         onRetry={retry}
+        exitHref={mode === "member" ? "/dashboard" : null}
       />
     );
   }
@@ -194,12 +196,7 @@ function StatsDashboardContent({
   const assister = leaderBy(dashboard.ranking, (row) => row.assists);
   const winner = leaderBy(dashboard.ranking, (row) => row.winPercentage);
   return (
-    <main
-      className={cn(
-        "w-full",
-        mode === "member" ? "" : "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12",
-      )}
-    >
+    <div className="w-full min-w-0">
       <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1">
           {mode === "shared" ? (
@@ -224,23 +221,17 @@ function StatsDashboardContent({
             <span className="absolute inline-flex size-full rounded-full bg-primary/35" />
             <span className="relative inline-flex size-2 rounded-full bg-primary" />
           </span>
-          <span className="font-semibold tabular-nums">
-            <NumberTicker value={dashboard.summary.matchesPlayed} /> PJ
-          </span>
+          <span className="font-semibold tabular-nums">{dashboard.summary.matchesPlayed} PJ</span>
           <span className="h-4 w-px bg-border" aria-hidden="true" />
           <span className="tabular-nums text-muted-foreground">
-            <NumberTicker value={dashboard.summary.totalGoals} /> goles
+            {dashboard.summary.totalGoals} goles
           </span>
         </div>
       </header>
 
       {dashboard.history.length > 0 ? (
-        <BlurFade duration={0.5}>
-          <Marquee
-            className="mb-3 rounded-lg border bg-card/50 py-1 [--gap:0.625rem]"
-            duration="45s"
-            pause
-          >
+        <div>
+          <div className="mb-3 flex flex-wrap gap-3 rounded-lg border bg-card p-3">
             {dashboard.history.slice(0, 10).map((match) => (
               <span
                 key={match.matchId}
@@ -257,16 +248,28 @@ function StatsDashboardContent({
                 </span>
               </span>
             ))}
-          </Marquee>
-        </BlurFade>
+          </div>
+        </div>
       ) : null}
 
       <StatsFiltersBar dashboard={dashboard} filters={filters} />
 
-      <Tabs className="mt-3" defaultValue="resumen">
+      {mode === "member" ? (
+        <Link
+          href="/dashboard/estadisticas/sociedades"
+          className={cn(buttonVariants({ variant: "outline", className: "mt-3" }))}
+        >
+          Sociedades
+        </Link>
+      ) : null}
+      <Tabs
+        className="mt-3"
+        value={filters.tab}
+        onValueChange={(value) => filters.set("tab", String(value))}
+      >
         <TabsList
           aria-label="Secciones de estadísticas"
-          className="h-9 border-b px-1"
+          className="h-auto border-b px-1"
           variant="line"
         >
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
@@ -277,7 +280,7 @@ function StatsDashboardContent({
         <TabsContent value="resumen">
           <section aria-labelledby="spotlight-title" className="pt-2">
             {figure ? (
-              <MagicCard className="rounded-xl" gradientSize={320}>
+              <div className="rounded-xl border bg-card">
                 <Card className="group/spotlight relative isolate gap-0 rounded-xl border-none bg-transparent py-0">
                   <PitchMarkings />
                   <CardHeader className="relative z-10 flex min-h-16 flex-row items-center justify-between gap-4 border-b px-5 py-3">
@@ -291,11 +294,11 @@ function StatsDashboardContent({
                     </Badge>
                   </CardHeader>
 
-                  <CardContent className="relative z-10 grid p-0 lg:grid-cols-[0.82fr_1.18fr_0.9fr]">
-                    <div className="flex flex-col justify-between gap-4 p-5 lg:min-h-64">
+                  <CardContent className="relative z-10 grid grid-cols-1 p-0 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)_minmax(0,0.9fr)]">
+                    <div className="flex min-w-0 flex-col justify-between gap-4 p-5 lg:min-h-64">
                       <div>
                         <div className="flex items-center gap-4">
-                          <Avatar className="size-14 ring-4 ring-primary/10 transition-transform duration-200 ease-out group-hover/spotlight:-rotate-2 group-hover/spotlight:scale-105 motion-reduce:transition-none">
+                          <Avatar className="size-14 shrink-0">
                             <AvatarFallback className="bg-primary text-base font-bold text-primary-foreground">
                               {initials(figure.displayName)}
                             </AvatarFallback>
@@ -317,8 +320,8 @@ function StatsDashboardContent({
                         </div>
 
                         <dl className="mt-5 grid grid-cols-3 gap-3 border-y py-3">
-                          <SpotlightMetric label="Goles" value={figure.goals} ticker />
-                          <SpotlightMetric label="Asist." value={figure.assists} ticker />
+                          <SpotlightMetric label="Goles" value={figure.goals} />
+                          <SpotlightMetric label="Asist." value={figure.assists} />
                           <SpotlightMetric
                             label="Prom."
                             value={formatRate(figure.contributionsPerMatch)}
@@ -327,12 +330,14 @@ function StatsDashboardContent({
                       </div>
 
                       <Link
-                        className={buttonVariants({
-                          variant: "outline",
-                          size: "sm",
-                          className:
-                            "w-full justify-between bg-background/35 sm:w-fit sm:justify-center",
-                        })}
+                        className={cn(
+                          buttonVariants({
+                            variant: "outline",
+                            size: "sm",
+                            className:
+                              "w-full justify-between bg-background/35 sm:w-fit sm:justify-center",
+                          }),
+                        )}
                         href={playerHref(detailBase, figure.playerId, filters.query)}
                       >
                         Ver ficha
@@ -343,7 +348,7 @@ function StatsDashboardContent({
                       </Link>
                     </div>
 
-                    <div className="border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
+                    <div className="min-w-0 border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
                       <div className="mb-3 flex items-end justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold">Carrera G+A</p>
@@ -360,7 +365,7 @@ function StatsDashboardContent({
                       />
                     </div>
 
-                    <div className="border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
+                    <div className="min-w-0 border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
                       <p className="text-sm font-semibold">Dueños de la tabla</p>
                       <p className="mb-2 text-xs text-muted-foreground">
                         Los líderes del período elegido
@@ -391,7 +396,7 @@ function StatsDashboardContent({
                     </div>
                   </CardContent>
                 </Card>
-              </MagicCard>
+              </div>
             ) : (
               <Empty className="border">
                 <EmptyHeader>
@@ -461,14 +466,16 @@ function StatsDashboardContent({
               ) : (
                 <div className="border">
                   {dashboard.history.map((match, index) => (
-                    <BlurFade key={match.matchId} delay={Math.min(index, 6)} inView duration={0.3}>
+                    <div key={match.matchId}>
                       {index > 0 ? <Separator /> : null}
                       <Link
-                        className={buttonVariants({
-                          variant: "ghost",
-                          className:
-                            "h-auto min-h-16 w-full justify-between rounded-none px-4 py-3 text-left",
-                        })}
+                        className={cn(
+                          buttonVariants({
+                            variant: "ghost",
+                            className:
+                              "grid h-auto min-h-16 min-w-0 w-full grid-cols-[minmax(0,1fr)_auto] whitespace-normal rounded-none px-4 py-3 text-left",
+                          }),
+                        )}
                         href={matchHref(detailBase, match.matchId)}
                       >
                         <span className="min-w-0">
@@ -476,7 +483,7 @@ function StatsDashboardContent({
                             {match.teams[0]?.displayName} {match.teams[0]?.goals} –{" "}
                             {match.teams[1]?.goals} {match.teams[1]?.displayName}
                           </span>
-                          <span className="mt-1 flex items-center gap-2 truncate text-xs text-muted-foreground">
+                          <span className="mt-1 flex flex-wrap items-center gap-2 whitespace-normal text-xs text-muted-foreground">
                             {match.status === "cancelled" ? (
                               <Badge variant="outline">Cancelado</Badge>
                             ) : null}
@@ -488,7 +495,7 @@ function StatsDashboardContent({
                         </span>
                         <ArrowRightIcon className="size-4 text-muted-foreground" />
                       </Link>
-                    </BlurFade>
+                    </div>
                   ))}
                 </div>
               )}
@@ -496,7 +503,7 @@ function StatsDashboardContent({
           </section>
         </TabsContent>
       </Tabs>
-    </main>
+    </div>
   );
 }
 
@@ -622,10 +629,13 @@ function Ranking({
           <div key={row.playerId}>
             {index > 0 ? <Separator /> : null}
             <Link
-              className={buttonVariants({
-                variant: "ghost",
-                className: "h-auto min-h-20 w-full justify-start rounded-none px-3 py-3 text-left",
-              })}
+              className={cn(
+                buttonVariants({
+                  variant: "ghost",
+                  className:
+                    "h-auto min-h-20 min-w-0 w-full whitespace-normal justify-start rounded-none px-3 py-3 text-left",
+                }),
+              )}
               href={playerHref(detailBase, row.playerId, query)}
             >
               <span className="mr-2 w-5 text-center text-xs tabular-nums text-muted-foreground">
@@ -639,7 +649,7 @@ function Ranking({
                   <span className="truncate text-sm font-medium">{row.displayName}</span>
                   {row.archived ? <Badge variant="outline">Inactivo</Badge> : null}
                 </span>
-                <span className="mt-1 block text-xs text-muted-foreground">
+                <span className="mt-1 block whitespace-normal text-xs text-muted-foreground">
                   {row.played} PJ · {row.goals} G · {row.assists} A · {row.wins}G {row.draws}E{" "}
                   {row.losses}P{row.absences > 0 ? ` · ${row.absences} ausencia` : ""}
                   {row.absences > 1 ? "s" : ""}
@@ -715,11 +725,13 @@ function Ranking({
                 <TableCell>
                   <Link
                     aria-label={`Ver estadísticas de ${row.displayName}`}
-                    className={buttonVariants({
-                      variant: "ghost",
-                      size: "icon",
-                      className: "min-h-11 min-w-11",
-                    })}
+                    className={cn(
+                      buttonVariants({
+                        variant: "ghost",
+                        size: "icon",
+                        className: "min-h-11 min-w-11",
+                      }),
+                    )}
                     href={playerHref(detailBase, row.playerId, query)}
                   >
                     <ArrowRightIcon />
@@ -773,7 +785,7 @@ function ContributionRace({
           >
             {String(index + 1).padStart(2, "0")}
           </span>
-          <Avatar className="size-8 transition-transform duration-200 ease-out group-hover/racer:scale-105 motion-reduce:transition-none">
+          <Avatar className="size-8 shrink-0">
             <AvatarFallback className={index === 0 ? "bg-primary/15 text-primary" : ""}>
               {initials(player.displayName)}
             </AvatarFallback>
@@ -781,13 +793,14 @@ function ContributionRace({
           <span className="min-w-0 flex-1">
             <span className="mb-1.5 flex items-center justify-between gap-3">
               <span className="truncate text-sm font-medium">{player.displayName}</span>
-              <span className="text-xs font-semibold tabular-nums">{player.contributions} G+A</span>
+              <span className="shrink-0 text-xs font-semibold tabular-nums">
+                {player.contributions} G+A
+              </span>
             </span>
             <span className="block h-1.5 overflow-hidden rounded-full bg-muted">
               <span
-                className="stats-race-bar block h-full rounded-full bg-primary"
+                className="block h-full rounded-full bg-primary"
                 style={{
-                  animationDelay: `${index * 70}ms`,
                   width: `${Math.max((player.contributions / maximum) * 100, 4)}%`,
                 }}
               />
@@ -799,23 +812,13 @@ function ContributionRace({
   );
 }
 
-function SpotlightMetric({
-  label,
-  value,
-  ticker = false,
-}: {
-  label: string;
-  value: number | string;
-  ticker?: boolean;
-}) {
+function SpotlightMetric({ label, value }: { label: string; value: number | string }) {
   return (
     <div>
       <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
-      <dd className="mt-0.5 text-xl font-bold tabular-nums">
-        {ticker && typeof value === "number" ? <NumberTicker value={value} /> : value}
-      </dd>
+      <dd className="mt-0.5 text-xl font-bold tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -906,6 +909,9 @@ function useStatsFilters() {
     court,
     period,
     query: searchParams.toString(),
+    tab: ["ranking", "partidos"].includes(searchParams.get("tab") ?? "")
+      ? searchParams.get("tab")!
+      : "resumen",
     result,
     reset: () => replace(new URLSearchParams()),
     set(key: string, value: string) {

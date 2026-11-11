@@ -81,6 +81,254 @@ integration("MatchCommands public seam", () => {
     await pool.end();
   });
 
+  test("limits the designated scorekeeper to live goal totals", async () => {
+    const organizer = { groupId, actorUserId: organizerId };
+    const scorer = { groupId, actorUserId: memberId };
+    const created = await commands.execute(organizer, {
+      type: "createMatch",
+      scheduledAt: new Date("2026-01-01"),
+    });
+    const base = { matchId: created.matchId, expectedLockVersion: 0 };
+    await expect(
+      commands.execute(scorer, { ...base, type: "setScorekeeper", scorekeeperUserId: memberId }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+    await expect(
+      commands.execute(organizer, {
+        ...base,
+        type: "setScorekeeper",
+        scorekeeperUserId: outsiderId,
+      }),
+    ).rejects.toMatchObject({ code: "scorekeeper_not_member" });
+    let current = await commands.execute(organizer, {
+      ...base,
+      type: "setScorekeeper",
+      scorekeeperUserId: memberId,
+    });
+    const added = await commands.execute(organizer, {
+      type: "createAndAddParticipant",
+      matchId: created.matchId,
+      expectedLockVersion: current.lockVersion,
+      teamId: created.teamIds[0],
+      displayName: "Beto",
+    });
+    current = added;
+    for (const field of ["goals", "ownGoals", "unattributedGoals"] as const) {
+      for (const delta of [1, -1] as const) {
+        current = await commands.execute(scorer, {
+          type: "adjustStat",
+          matchId: created.matchId,
+          expectedLockVersion: current.lockVersion,
+          field,
+          delta,
+          ...(field === "unattributedGoals"
+            ? { teamId: created.teamIds[0] }
+            : { playerId: added.playerId }),
+        });
+        const detail = await queries.detail(scorer, created.matchId);
+        expect(detail.scorekeeperUserId).toBe(memberId);
+        expect(detail.scorekeeperName).toBe("Miembro");
+        expect(
+          field === "unattributedGoals"
+            ? detail.teams[0]!.unattributedGoals
+            : detail.teams[0]!.appearances[0]![field],
+        ).toBe(delta === 1 ? 1 : 0);
+      }
+    }
+    const versioned = { matchId: created.matchId, expectedLockVersion: current.lockVersion };
+    for (const command of [
+      { ...versioned, type: "adjustStat", field: "assists", delta: 1, playerId: added.playerId },
+      { ...versioned, type: "closeMatch" },
+      { ...versioned, type: "setScorekeeper", scorekeeperUserId: null },
+      { ...versioned, type: "updatePaid", playerId: added.playerId, paidMinor: 1n },
+      { ...versioned, type: "removeParticipant", playerId: added.playerId },
+    ] as const) {
+      await expect(commands.execute(scorer, command)).rejects.toMatchObject({ code: "forbidden" });
+    }
+    const client = await pool.connect();
+    try {
+      await client.query("begin");
+      const { rows } = await client.query(
+        "select 1 from pg_roles where rolname = 'hay_fulbo_runtime'",
+      );
+      if (rows.length) await client.query("set local role hay_fulbo_runtime");
+      // Better Auth deletes memberships without setting the domain tenant context.
+      await client.query("delete from member where id = 'member-member'");
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+    const afterRemoval = await queries.detail(organizer, created.matchId);
+    expect(afterRemoval.scorekeeperUserId).toBeNull();
+    expect(afterRemoval.lockVersion).toBe(current.lockVersion + 1);
+    await expect(
+      commands.execute(scorer, {
+        ...versioned,
+        type: "adjustStat",
+        field: "goals",
+        delta: 1,
+        playerId: added.playerId,
+      }),
+    ).rejects.toMatchObject({ code: "membership_required" });
+    await database
+      .insert(member)
+      .values({ id: "member-member", organizationId: groupId, userId: memberId, role: "member" });
+    current = { ...current, lockVersion: afterRemoval.lockVersion };
+    await expect(
+      commands.execute(scorer, {
+        ...versioned,
+        expectedLockVersion: current.lockVersion,
+        type: "adjustStat",
+        field: "goals",
+        delta: 1,
+        playerId: added.playerId,
+      }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  test("serializes scorekeeper assignment with concurrent member deletion", async () => {
+    const scope = { groupId, actorUserId: organizerId };
+    const created = await commands.execute(scope, {
+      type: "createMatch",
+      scheduledAt: new Date("2026-01-01"),
+    });
+    const deletion = await pool.connect();
+    const assignment = await pool.connect();
+    let assigning: Promise<unknown> | undefined;
+    try {
+      const { rows: roles } = await pool.query(
+        "select 1 from pg_roles where rolname = 'hay_fulbo_runtime'",
+      );
+      // Exercise the production role's permissions and tenant RLS when available.
+      if (roles.length) await assignment.query("set role hay_fulbo_runtime");
+      await assignment.query("set statement_timeout = '3s'");
+      const {
+        rows: [{ pid }],
+      } = await assignment.query("select pg_backend_pid() as pid");
+      await deletion.query("begin");
+      if (roles.length) await deletion.query("set local role hay_fulbo_runtime");
+      await deletion.query("delete from member where id = 'member-member'");
+      assigning = createMatchCommands(drizzle(assignment, { schema }))
+        .execute(scope, {
+          type: "setScorekeeper",
+          matchId: created.matchId,
+          expectedLockVersion: 0,
+          scorekeeperUserId: memberId,
+        })
+        .then(
+          (result) => result,
+          (error: unknown) => error,
+        );
+
+      // Wait for a real lock wait, not a timing-dependent race. The old command
+      // commits a dangling grant here because it reads the uncommitted deletion.
+      let blocked = false;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const { rows } = await deletion.query(
+          "select cardinality(pg_blocking_pids($1)) > 0 as blocked",
+          [pid],
+        );
+        if (rows[0].blocked) {
+          blocked = true;
+          break;
+        }
+        await Bun.sleep(10);
+      }
+      expect(blocked).toBe(true);
+      await deletion.query("commit");
+      expect(await assigning).toMatchObject({ code: "scorekeeper_not_member" });
+      const { rows } = await pool.query(
+        `select scorekeeper_user_id from match
+         where id = $1 and (scorekeeper_user_id is null or exists (
+           select 1 from member
+           where organization_id = match.group_id and user_id = match.scorekeeper_user_id
+         ))`,
+        [created.matchId],
+      );
+      expect(rows).toEqual([{ scorekeeper_user_id: null }]);
+    } finally {
+      await deletion.query("rollback");
+      await assigning;
+      await assignment.query("reset role");
+      await assignment.query("reset statement_timeout");
+      assignment.release();
+      deletion.release();
+    }
+  });
+
+  test("rejects assignment and scoring on closed or cancelled matches", async () => {
+    const scope = { groupId, actorUserId: organizerId };
+    const court = await commands.execute(scope, {
+      type: "upsertCourt",
+      name: "Cancha",
+      address: "Acá",
+      mapsUrl: "https://example.com",
+    });
+    const created = await commands.execute(scope, {
+      type: "createMatch",
+      scheduledAt: new Date("2026-01-01"),
+      courtId: court.courtId,
+      courtCostMinor: 0n,
+    });
+    let current = await commands.execute(scope, {
+      type: "setScorekeeper",
+      matchId: created.matchId,
+      expectedLockVersion: 0,
+      scorekeeperUserId: memberId,
+    });
+    for (const teamId of created.teamIds) {
+      current = await commands.execute(scope, {
+        type: "createAndAddParticipant",
+        matchId: created.matchId,
+        expectedLockVersion: current.lockVersion,
+        teamId,
+        displayName: teamId,
+      });
+    }
+    current = await commands.execute(scope, {
+      type: "closeMatch",
+      matchId: created.matchId,
+      expectedLockVersion: current.lockVersion,
+    });
+    for (const status of ["closed", "cancelled"]) {
+      if (status === "cancelled") {
+        current = await commands.execute(scope, {
+          type: "reopenMatch",
+          matchId: created.matchId,
+          expectedLockVersion: current.lockVersion,
+        });
+        current = await commands.execute(scope, {
+          type: "cancelMatch",
+          matchId: created.matchId,
+          expectedLockVersion: current.lockVersion,
+        });
+      }
+      await expect(
+        commands.execute(scope, {
+          type: "setScorekeeper",
+          matchId: created.matchId,
+          expectedLockVersion: current.lockVersion,
+          scorekeeperUserId: null,
+        }),
+      ).rejects.toMatchObject({ code: "match_not_open" });
+      await expect(
+        commands.execute(
+          { groupId, actorUserId: memberId },
+          {
+            type: "adjustStat",
+            matchId: created.matchId,
+            expectedLockVersion: current.lockVersion,
+            field: "unattributedGoals",
+            teamId: created.teamIds[0],
+            delta: 1,
+          },
+        ),
+      ).rejects.toMatchObject({ code: "match_not_open" });
+    }
+  });
+
   test("creates the match with default temporary teams and its initial event atomically", async () => {
     const scope = { groupId, actorUserId: organizerId };
     const created = await commands.execute(scope, {
