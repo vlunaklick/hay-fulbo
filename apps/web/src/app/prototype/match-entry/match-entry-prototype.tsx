@@ -876,7 +876,11 @@ function VariantA(props: SharedProps) {
             <span>Paso {step + 1} de 5</span>
             <span>{current.label}</span>
           </div>
-          <Progress value={((step + 1) / 5) * 100} className="gap-0" />
+          <Progress
+            aria-label={`Paso ${step + 1} de 5`}
+            value={((step + 1) / 5) * 100}
+            className="gap-0"
+          />
         </div>
         <Card>
           <CardHeader>
