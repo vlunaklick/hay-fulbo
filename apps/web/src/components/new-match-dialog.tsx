@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@hay-fulbo/ui/components/button";
+import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import {
   Dialog,
   DialogContent,
@@ -85,7 +86,11 @@ export function NewMatchDialog({
           </Field>
           <FieldError>{error}</FieldError>
           <Button disabled={create.isPending} type="submit">
-            <CalendarPlusIcon data-icon="inline-start" aria-hidden="true" />
+            {create.isPending ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <CalendarPlusIcon data-icon="inline-start" aria-hidden="true" />
+            )}
             {create.isPending ? "Creando…" : "Crear partido"}
           </Button>
         </form>

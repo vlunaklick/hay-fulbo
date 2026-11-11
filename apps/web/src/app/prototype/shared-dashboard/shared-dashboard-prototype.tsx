@@ -672,7 +672,8 @@ function VariantB({
             </section>
           </div>
 
-          <section className="border-t" aria-labelledby="technical-history">
+          <Separator />
+          <section aria-labelledby="technical-history">
             <div className="flex items-center justify-between px-4 py-4 md:px-8">
               <h2 id="technical-history" className="font-mono text-xs uppercase tracking-[0.2em]">
                 Historial filtrado

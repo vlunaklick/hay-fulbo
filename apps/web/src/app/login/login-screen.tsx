@@ -18,6 +18,7 @@ import {
 import { Input } from "@hay-fulbo/ui/components/input";
 import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
+import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
 import { ArrowRightIcon, ShieldCheckIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -95,7 +96,7 @@ export default function LoginScreen({
           </p>
         </header>
 
-        <Card className="border bg-card">
+        <Card>
           <CardHeader>
             <CardTitle>{mode === "signin" ? "Entrar al grupo" : "Crear tu cuenta"}</CardTitle>
             <CardDescription>
@@ -180,6 +181,7 @@ export default function LoginScreen({
                     {message}
                   </FieldError>
                   <Button type="submit" disabled={submitting}>
+                    {submitting ? <Spinner data-icon="inline-start" /> : null}
                     {submitting ? "Entrando…" : mode === "signin" ? "Entrar" : "Crear cuenta"}
                     <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
                   </Button>

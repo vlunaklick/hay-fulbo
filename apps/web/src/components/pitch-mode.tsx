@@ -26,14 +26,14 @@ export function PitchMode() {
 
   if (detail.isPending) {
     return (
-      <div className="fixed inset-0 z-50 grid bg-zinc-950 p-4">
-        <Skeleton className="m-auto h-[80svh] w-full max-w-5xl bg-zinc-800" />
+      <div className="dark fixed inset-0 z-50 grid bg-background p-4">
+        <Skeleton className="m-auto h-[80svh] w-full max-w-5xl" />
       </div>
     );
   }
   if (!detail.data || isTerminalReadError(detail.error)) {
     return (
-      <div className="fixed inset-0 z-50 grid place-items-center bg-zinc-950 p-4">
+      <div className="dark fixed inset-0 z-50 grid place-items-center bg-background p-4">
         <Alert className="max-w-md" variant="destructive">
           <CircleAlertIcon aria-hidden="true" />
           <AlertTitle>No pudimos abrir el modo cancha</AlertTitle>
@@ -85,10 +85,9 @@ function PitchShell({
   }
 
   return (
-    <div className="dark fixed inset-0 z-50 flex min-h-svh flex-col overflow-auto bg-zinc-950 text-zinc-50">
-      <header className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-3 sm:px-6">
+    <div className="dark fixed inset-0 z-50 flex min-h-svh flex-col overflow-auto bg-background text-foreground">
+      <header className="flex items-center justify-between gap-3 border-b px-3 py-3 sm:px-6">
         <Button
-          className="text-zinc-100 hover:bg-white/10 hover:text-white"
           render={<Link href={`/dashboard/partidos/${detail.id}`} />}
           nativeButton={false}
           size="sm"
@@ -101,11 +100,10 @@ function PitchShell({
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-primary">
             Modo cancha
           </p>
-          <p className="text-xs text-zinc-400">Tocá Gol y elegí quién la hizo</p>
+          <p className="text-xs text-muted-foreground">Tocá Gol y elegí quién la hizo</p>
         </div>
         <Button
           aria-label="Alternar pantalla completa"
-          className="text-zinc-100 hover:bg-white/10 hover:text-white"
           onClick={toggleFullscreen}
           size="icon-sm"
           variant="ghost"

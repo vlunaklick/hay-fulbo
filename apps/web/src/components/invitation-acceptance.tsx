@@ -1,7 +1,9 @@
 "use client";
 
+import { Alert, AlertDescription } from "@hay-fulbo/ui/components/alert";
 import { Button } from "@hay-fulbo/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@hay-fulbo/ui/components/card";
+import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { ArrowRightIcon, MailCheckIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -58,15 +60,16 @@ export function InvitationAcceptance({
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {error ? (
-              <p id="invitation-error" role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
+              <Alert id="invitation-error" variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             ) : null}
             <Button
               aria-describedby={error ? "invitation-error" : undefined}
               onClick={accept}
               disabled={pending}
             >
+              {pending ? <Spinner data-icon="inline-start" /> : null}
               {pending ? "Aceptando…" : "Aceptar invitación"}
               <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
             </Button>

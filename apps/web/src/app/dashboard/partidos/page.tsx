@@ -3,6 +3,7 @@
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
+import { Card } from "@hay-fulbo/ui/components/card";
 import {
   Empty,
   EmptyContent,
@@ -11,8 +12,15 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemTitle,
+} from "@hay-fulbo/ui/components/item";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
-import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightIcon, CalendarDaysIcon, CircleAlertIcon, PlusIcon } from "lucide-react";
 import Link from "next/link";
@@ -81,49 +89,52 @@ export default function DashboardPage() {
           ) : null}
         </Empty>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
-          {matches.data.map((match, index) => (
-            <Link
-              key={match.id}
-              href={`/dashboard/partidos/${match.id}`}
-              aria-label={`Abrir ${match.teams[0]?.displayName ?? "Equipo 1"} vs. ${
-                match.teams[1]?.displayName ?? "Equipo 2"
-              }`}
-              className={cn(
-                "flex min-h-16 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none sm:px-5",
-                index > 0 && "border-t",
-              )}
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-medium">
-                  {match.teams[0]?.displayName ?? "Equipo 1"}{" "}
-                  <strong className="tabular-nums">{match.teams[0]?.goals ?? 0}</strong>
-                  <span className="px-1.5 text-muted-foreground">–</span>
-                  <strong className="tabular-nums">{match.teams[1]?.goals ?? 0}</strong>{" "}
-                  {match.teams[1]?.displayName ?? "Equipo 2"}
-                </span>
-                <span className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{formatDate(match.scheduledAt)}</span>
-                  <Badge
-                    variant={
-                      match.status === "cancelled"
-                        ? "destructive"
-                        : match.status === "closed"
-                          ? "secondary"
-                          : "outline"
-                    }
-                  >
-                    {statusLabel[match.status]}
-                  </Badge>
-                </span>
-              </span>
-              <ArrowRightIcon
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
-            </Link>
-          ))}
-        </div>
+        <Card className="gap-0 py-0">
+          <ItemGroup className="gap-0 divide-y">
+            {matches.data.map((match) => (
+              <div key={match.id} role="listitem">
+                <Item
+                  render={
+                    <Link
+                      href={`/dashboard/partidos/${match.id}`}
+                      aria-label={`Abrir ${match.teams[0]?.displayName ?? "Equipo 1"} vs. ${
+                        match.teams[1]?.displayName ?? "Equipo 2"
+                      }`}
+                    />
+                  }
+                  className="min-h-16 flex-nowrap gap-4 px-4 py-3 sm:px-5"
+                >
+                  <ItemContent className="min-w-0">
+                    <ItemTitle className="block truncate">
+                      {match.teams[0]?.displayName ?? "Equipo 1"}{" "}
+                      <strong className="tabular-nums">{match.teams[0]?.goals ?? 0}</strong>
+                      <span className="px-1.5 text-muted-foreground">–</span>
+                      <strong className="tabular-nums">{match.teams[1]?.goals ?? 0}</strong>{" "}
+                      {match.teams[1]?.displayName ?? "Equipo 2"}
+                    </ItemTitle>
+                    <ItemDescription className="flex items-center gap-2">
+                      <span>{formatDate(match.scheduledAt)}</span>
+                      <Badge
+                        variant={
+                          match.status === "cancelled"
+                            ? "destructive"
+                            : match.status === "closed"
+                              ? "secondary"
+                              : "outline"
+                        }
+                      >
+                        {statusLabel[match.status]}
+                      </Badge>
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <ArrowRightIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+                  </ItemActions>
+                </Item>
+              </div>
+            ))}
+          </ItemGroup>
+        </Card>
       )}
 
       <NewMatchDialog onOpenChange={setCreateOpen} open={createOpen} />

@@ -19,6 +19,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
+import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -253,7 +254,7 @@ export function AppShell({
               </Link>
             ))}
             {sidebarCollapsed ? (
-              <div className="my-1 h-px w-6 bg-border" aria-hidden="true" />
+              <Separator className="my-1 data-horizontal:w-6" />
             ) : (
               <span className="mt-3 px-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Grupo

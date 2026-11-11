@@ -12,6 +12,13 @@ import {
 } from "@hay-fulbo/ui/components/card";
 import { Field, FieldLabel } from "@hay-fulbo/ui/components/field";
 import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@hay-fulbo/ui/components/item";
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -136,29 +143,34 @@ export function MatchInvitation({
             </p>
             <div className="flex flex-col justify-center gap-3 border-t pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
               {invitation.match.court ? (
-                <a
-                  className="flex items-start gap-3 rounded-md p-2 text-sm hover:bg-accent"
-                  href={invitation.match.court.mapsUrl}
-                  rel="noreferrer"
-                  target="_blank"
+                <Item
+                  size="sm"
+                  className="p-2"
+                  render={
+                    <a href={invitation.match.court.mapsUrl} rel="noreferrer" target="_blank" />
+                  }
                 >
-                  <MapPinIcon className="mt-0.5 size-4 text-primary" aria-hidden="true" />
-                  <span>
-                    <strong className="block">{invitation.match.court.name}</strong>
-                    <span className="text-muted-foreground">{invitation.match.court.address}</span>
-                  </span>
-                </a>
+                  <ItemMedia variant="icon" className="text-primary">
+                    <MapPinIcon aria-hidden="true" />
+                  </ItemMedia>
+                  <ItemContent>
+                    <ItemTitle>{invitation.match.court.name}</ItemTitle>
+                    <ItemDescription>{invitation.match.court.address}</ItemDescription>
+                  </ItemContent>
+                </Item>
               ) : null}
               {invitation.match.estimatedPerPlayerMinor ? (
-                <div className="rounded-md border px-3 py-2">
-                  <p className="text-xs text-muted-foreground">Estimado por jugador</p>
-                  <strong className="text-lg tabular-nums">
-                    {formatMoney(
-                      invitation.match.estimatedPerPlayerMinor,
-                      invitation.group.currency,
-                    )}
-                  </strong>
-                </div>
+                <Item variant="outline" size="sm" className="px-3 py-2">
+                  <ItemContent className="gap-0">
+                    <p className="text-xs text-muted-foreground">Estimado por jugador</p>
+                    <strong className="text-lg tabular-nums">
+                      {formatMoney(
+                        invitation.match.estimatedPerPlayerMinor,
+                        invitation.group.currency,
+                      )}
+                    </strong>
+                  </ItemContent>
+                </Item>
               ) : (
                 <p className="text-sm text-muted-foreground">
                   {invitation.match.status === "cancelled"

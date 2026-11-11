@@ -1,7 +1,10 @@
 "use client";
 
+import { Alert, AlertDescription } from "@hay-fulbo/ui/components/alert";
 import { Button } from "@hay-fulbo/ui/components/button";
 import { Badge } from "@hay-fulbo/ui/components/badge";
+import { Progress } from "@hay-fulbo/ui/components/progress";
+import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 
@@ -13,12 +16,12 @@ export function MatchParityCard({ matchId }: { matchId: string }) {
   if (parity.isPending) return <Skeleton className="h-56 w-full" />;
   if (parity.isError)
     return (
-      <div role="alert" className="space-y-3 rounded-lg border bg-card p-4">
-        <p className="text-sm">No pudimos cargar cómo llega cada equipo.</p>
-        <Button variant="outline" onClick={() => parity.refetch()}>
+      <Alert className="gap-3 p-4">
+        <AlertDescription>No pudimos cargar cómo llega cada equipo.</AlertDescription>
+        <Button variant="outline" className="w-fit" onClick={() => parity.refetch()}>
           Reintentar
         </Button>
-      </div>
+      </Alert>
     );
 
   const options = [
@@ -46,22 +49,22 @@ export function MatchParityCard({ matchId }: { matchId: string }) {
       <div className="flex flex-col gap-4">
         {options.map((option) => (
           <div key={option.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
-            <span className="min-w-0">
+            <div className="min-w-0">
               <span className="block truncate text-sm font-semibold">{option.label}</span>
-              <span className="mt-2 block h-2 overflow-hidden rounded-full bg-muted">
-                <span
-                  className="block h-full rounded-full bg-primary"
-                  style={{ width: `${Math.round(option.probability * 100)}%` }}
-                />
-              </span>
-            </span>
+              <Progress
+                aria-label={option.label}
+                className="mt-2"
+                value={Math.round(option.probability * 100)}
+              />
+            </div>
             <strong className="text-xl tabular-nums">
               {Math.round(option.probability * 100)}%
             </strong>
           </div>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-2 border-t pt-4 text-xs text-muted-foreground">
+      <Separator />
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span>Confianza</span>
         <Badge variant="outline">{confidenceLabel(parity.data.confidence)}</Badge>
         <span aria-hidden="true">·</span>

@@ -18,6 +18,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
+import { Item, ItemContent } from "@hay-fulbo/ui/components/item";
 import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -32,7 +33,7 @@ import {
 } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
 import { NewMatchDialog } from "@/components/new-match-dialog";
@@ -166,104 +167,101 @@ export function HomeDashboard() {
       </section>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border bg-card">
-          <Card size="sm" className="border-none bg-transparent shadow-none">
-            <CardHeader>
-              <CardTitle>Últimos resultados</CardTitle>
-              <CardAction>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  render={<Link href="/dashboard/partidos" />}
-                  nativeButton={false}
-                >
-                  Ver todos
-                </Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              {latest.length ? (
-                <div>
-                  {latest.map((match, index) => (
-                    <div key={match.matchId}>
-                      {index > 0 ? <Separator /> : null}
-                      <Link
-                        href={`/dashboard/partidos/${match.matchId}`}
-                        className="flex min-h-12 items-center justify-between gap-3 rounded-md px-2 py-1.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">
-                            {match.teams[0]?.displayName ?? "Equipo 1"}{" "}
-                            <strong className="tabular-nums">{match.teams[0]?.goals ?? 0}</strong>
-                            <span className="px-1 text-muted-foreground">–</span>
-                            <strong className="tabular-nums">
-                              {match.teams[1]?.goals ?? 0}
-                            </strong>{" "}
-                            {match.teams[1]?.displayName ?? "Equipo 2"}
-                          </span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {formatDate(match.scheduledAt)}
-                          </span>
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Últimos resultados</CardTitle>
+            <CardAction>
+              <Button
+                variant="ghost"
+                size="sm"
+                render={<Link href="/dashboard/partidos" />}
+                nativeButton={false}
+              >
+                Ver todos
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            {latest.length ? (
+              <div>
+                {latest.map((match, index) => (
+                  <Fragment key={match.matchId}>
+                    {index > 0 ? <Separator /> : null}
+                    <Item
+                      size="sm"
+                      className="min-h-12 flex-nowrap justify-between gap-3 px-2 py-1.5"
+                      render={<Link href={`/dashboard/partidos/${match.matchId}`} />}
+                    >
+                      <ItemContent className="min-w-0 gap-0">
+                        <span className="block truncate text-sm font-medium">
+                          {match.teams[0]?.displayName ?? "Equipo 1"}{" "}
+                          <strong className="tabular-nums">{match.teams[0]?.goals ?? 0}</strong>
+                          <span className="px-1 text-muted-foreground">–</span>
+                          <strong className="tabular-nums">
+                            {match.teams[1]?.goals ?? 0}
+                          </strong>{" "}
+                          {match.teams[1]?.displayName ?? "Equipo 2"}
                         </span>
-                        <ArrowRightIcon aria-hidden="true" />
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <CompactEmpty
-                  icon={<CalendarDaysIcon aria-hidden="true" />}
-                  title="Sin resultados todavía"
-                  description="Los partidos cerrados van a aparecer acá."
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {formatDate(match.scheduledAt)}
+                        </span>
+                      </ItemContent>
+                      <ArrowRightIcon aria-hidden="true" />
+                    </Item>
+                  </Fragment>
+                ))}
+              </div>
+            ) : (
+              <CompactEmpty
+                icon={<CalendarDaysIcon aria-hidden="true" />}
+                title="Sin resultados todavía"
+                description="Los partidos cerrados van a aparecer acá."
+              />
+            )}
+          </CardContent>
+        </Card>
 
-        <div className="rounded-xl border bg-card">
-          <Card size="sm" className="border-none bg-transparent shadow-none">
-            <CardHeader>
-              <CardTitle>Goleadores</CardTitle>
-              <CardAction>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  render={<Link href="/dashboard/estadisticas" />}
-                  nativeButton={false}
-                >
-                  Ver tabla completa
-                </Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent className="pb-1">
-              {scorers.length ? (
-                <div>
-                  {scorers.map((player, index) => (
-                    <div key={player.playerId}>
-                      {index > 0 ? <Separator /> : null}
-                      <div className="grid min-h-11 grid-cols-[auto_1fr_repeat(3,3rem)] items-center gap-2 px-2 text-sm">
-                        <span className="w-5 text-xs text-muted-foreground">{index + 1}</span>
-                        <span className="truncate font-medium">{player.displayName}</span>
-                        <span className="text-center tabular-nums">{player.goals}</span>
-                        <span className="text-center tabular-nums text-muted-foreground">
-                          {player.assists}
-                        </span>
-                        <strong className="text-center tabular-nums">{player.contributions}</strong>
-                      </div>
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Goleadores</CardTitle>
+            <CardAction>
+              <Button
+                variant="ghost"
+                size="sm"
+                render={<Link href="/dashboard/estadisticas" />}
+                nativeButton={false}
+              >
+                Ver tabla completa
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="pb-1">
+            {scorers.length ? (
+              <div>
+                {scorers.map((player, index) => (
+                  <div key={player.playerId}>
+                    {index > 0 ? <Separator /> : null}
+                    <div className="grid min-h-11 grid-cols-[auto_1fr_repeat(3,3rem)] items-center gap-2 px-2 text-sm">
+                      <span className="w-5 text-xs text-muted-foreground">{index + 1}</span>
+                      <span className="truncate font-medium">{player.displayName}</span>
+                      <span className="text-center tabular-nums">{player.goals}</span>
+                      <span className="text-center tabular-nums text-muted-foreground">
+                        {player.assists}
+                      </span>
+                      <strong className="text-center tabular-nums">{player.contributions}</strong>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <CompactEmpty
-                  icon={<TrophyIcon aria-hidden="true" />}
-                  title="Todavía no hay tabla"
-                  description="Cerrá un partido para empezar a sumar."
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <CompactEmpty
+                icon={<TrophyIcon aria-hidden="true" />}
+                title="Todavía no hay tabla"
+                description="Cerrá un partido para empezar a sumar."
+              />
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <NewMatchDialog onOpenChange={setCreateOpen} open={createOpen} />
@@ -312,48 +310,50 @@ function NextMatchHero({
   return (
     <Link
       href={`/dashboard/partidos/${upcoming.matchId}` as Route}
-      className="group relative block overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-primary">
-            <CalendarDaysIcon className="size-4" aria-hidden="true" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.12em]">
-              Próximo partido
-            </span>
-          </div>
-          <h2 className="mt-2 truncate text-3xl font-bold tracking-tight md:text-4xl">
-            {teamOne} <span className="font-medium text-muted-foreground">vs.</span> {teamTwo}
-          </h2>
-          <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span>{formatDate(upcoming.scheduledAt)}</span>
-            <span className="flex items-center gap-1.5">
-              <MapPinIcon className="size-4" aria-hidden="true" />
-              {upcoming.court?.name ?? "Cancha a definir"}
-            </span>
-            {upcoming.courtCostMinor ? (
-              <span className="flex items-center gap-1.5">
-                <BanknoteIcon className="size-4" aria-hidden="true" />
-                {formatMoney(upcoming.courtCostMinor)}
+      <Card className="rounded-xl py-0 transition-colors group-hover:ring-primary/40">
+        <CardContent className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-primary">
+              <CalendarDaysIcon className="size-4" aria-hidden="true" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em]">
+                Próximo partido
               </span>
-            ) : null}
-          </p>
-        </div>
-        <span
-          className={buttonVariants({
-            size: "lg",
-            variant: "outline",
-            className: "shrink-0 max-sm:w-full",
-          })}
-        >
-          Abrir partido
-          <ArrowRightIcon
-            data-icon="inline-end"
-            aria-hidden="true"
-            className="transition-transform duration-200 ease-out group-hover:translate-x-0.5 motion-reduce:transition-none"
-          />
-        </span>
-      </div>
+            </div>
+            <h2 className="mt-2 truncate text-3xl font-bold tracking-tight md:text-4xl">
+              {teamOne} <span className="font-medium text-muted-foreground">vs.</span> {teamTwo}
+            </h2>
+            <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <span>{formatDate(upcoming.scheduledAt)}</span>
+              <span className="flex items-center gap-1.5">
+                <MapPinIcon className="size-4" aria-hidden="true" />
+                {upcoming.court?.name ?? "Cancha a definir"}
+              </span>
+              {upcoming.courtCostMinor ? (
+                <span className="flex items-center gap-1.5">
+                  <BanknoteIcon className="size-4" aria-hidden="true" />
+                  {formatMoney(upcoming.courtCostMinor)}
+                </span>
+              ) : null}
+            </p>
+          </div>
+          <span
+            className={buttonVariants({
+              size: "lg",
+              variant: "outline",
+              className: "shrink-0 max-sm:w-full",
+            })}
+          >
+            Abrir partido
+            <ArrowRightIcon
+              data-icon="inline-end"
+              aria-hidden="true"
+              className="transition-transform duration-200 ease-out group-hover:translate-x-0.5 motion-reduce:transition-none"
+            />
+          </span>
+        </CardContent>
+      </Card>
     </Link>
   );
 }

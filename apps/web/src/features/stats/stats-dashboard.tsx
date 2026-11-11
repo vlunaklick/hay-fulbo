@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import { Progress } from "@hay-fulbo/ui/components/progress";
 import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
 import {
@@ -216,22 +217,22 @@ function StatsDashboardContent({
             {dashboard.group.name} · solo partidos cerrados
           </p>
         </div>
-        <div className="flex h-11 w-fit items-center gap-3 rounded-md border bg-card px-3 text-sm">
+        <Card size="sm" className="h-11 w-fit flex-row items-center gap-3 px-3 py-0">
           <span className="relative flex size-2" aria-hidden="true">
             <span className="absolute inline-flex size-full rounded-full bg-primary/35" />
             <span className="relative inline-flex size-2 rounded-full bg-primary" />
           </span>
           <span className="font-semibold tabular-nums">{dashboard.summary.matchesPlayed} PJ</span>
-          <span className="h-4 w-px bg-border" aria-hidden="true" />
+          <Separator orientation="vertical" className="h-4" />
           <span className="tabular-nums text-muted-foreground">
             {dashboard.summary.totalGoals} goles
           </span>
-        </div>
+        </Card>
       </header>
 
       {dashboard.history.length > 0 ? (
         <div>
-          <div className="mb-3 flex flex-wrap gap-3 rounded-lg border bg-card p-3">
+          <Card size="sm" className="mb-3 flex-row flex-wrap gap-3 px-3">
             {dashboard.history.slice(0, 10).map((match) => (
               <span
                 key={match.matchId}
@@ -248,7 +249,7 @@ function StatsDashboardContent({
                 </span>
               </span>
             ))}
-          </div>
+          </Card>
         </div>
       ) : null}
 
@@ -280,123 +281,121 @@ function StatsDashboardContent({
         <TabsContent value="resumen">
           <section aria-labelledby="spotlight-title" className="pt-2">
             {figure ? (
-              <div className="rounded-xl border bg-card">
-                <Card className="group/spotlight relative isolate gap-0 rounded-xl border-none bg-transparent py-0">
-                  <PitchMarkings />
-                  <CardHeader className="relative z-10 flex min-h-16 flex-row items-center justify-between gap-4 border-b px-5 py-3">
-                    <div className="min-w-0">
-                      <CardTitle className="text-base" id="spotlight-title">
-                        La carrera del grupo
-                      </CardTitle>
-                    </div>
-                    <Badge className="max-w-48 truncate" variant="secondary">
-                      Figura: {figure.displayName}
-                    </Badge>
-                  </CardHeader>
+              <Card className="group/spotlight relative isolate gap-0 rounded-xl py-0">
+                <PitchMarkings />
+                <CardHeader className="relative z-10 flex min-h-16 flex-row items-center justify-between gap-4 border-b px-5 py-3">
+                  <div className="min-w-0">
+                    <CardTitle className="text-base" id="spotlight-title">
+                      La carrera del grupo
+                    </CardTitle>
+                  </div>
+                  <Badge className="max-w-48 truncate" variant="secondary">
+                    Figura: {figure.displayName}
+                  </Badge>
+                </CardHeader>
 
-                  <CardContent className="relative z-10 grid grid-cols-1 p-0 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)_minmax(0,0.9fr)]">
-                    <div className="flex min-w-0 flex-col justify-between gap-4 p-5 lg:min-h-64">
-                      <div>
-                        <div className="flex items-center gap-4">
-                          <Avatar className="size-14 shrink-0">
-                            <AvatarFallback className="bg-primary text-base font-bold text-primary-foreground">
-                              {initials(figure.displayName)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                              La figura
-                            </p>
-                            <h2 className="truncate text-2xl font-bold tracking-[-0.03em]">
-                              {figure.displayName}
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                              <span className="font-semibold tabular-nums text-foreground">
-                                {figure.contributions}
-                              </span>{" "}
-                              participaciones de gol
-                            </p>
-                          </div>
-                        </div>
-
-                        <dl className="mt-5 grid grid-cols-3 gap-3 border-y py-3">
-                          <SpotlightMetric label="Goles" value={figure.goals} />
-                          <SpotlightMetric label="Asist." value={figure.assists} />
-                          <SpotlightMetric
-                            label="Prom."
-                            value={formatRate(figure.contributionsPerMatch)}
-                          />
-                        </dl>
-                      </div>
-
-                      <Link
-                        className={cn(
-                          buttonVariants({
-                            variant: "outline",
-                            size: "sm",
-                            className:
-                              "w-full justify-between bg-background/35 sm:w-fit sm:justify-center",
-                          }),
-                        )}
-                        href={playerHref(detailBase, figure.playerId, filters.query)}
-                      >
-                        Ver ficha
-                        <ArrowRightIcon
-                          className="transition-transform duration-200 ease-out group-hover/button:translate-x-0.5 motion-reduce:transition-none"
-                          data-icon="inline-end"
-                        />
-                      </Link>
-                    </div>
-
-                    <div className="min-w-0 border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
-                      <div className="mb-3 flex items-end justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold">Carrera G+A</p>
-                          <p className="text-xs text-muted-foreground">
-                            Goles y asistencias, cabeza a cabeza
+                <CardContent className="relative z-10 grid grid-cols-1 p-0 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)_minmax(0,0.9fr)]">
+                  <div className="flex min-w-0 flex-col justify-between gap-4 p-5 lg:min-h-64">
+                    <div>
+                      <div className="flex items-center gap-4">
+                        <Avatar className="size-14 shrink-0">
+                          <AvatarFallback className="bg-primary text-base font-bold text-primary-foreground">
+                            {initials(figure.displayName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                            La figura
+                          </p>
+                          <h2 className="truncate text-2xl font-bold tracking-[-0.03em]">
+                            {figure.displayName}
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-semibold tabular-nums text-foreground">
+                              {figure.contributions}
+                            </span>{" "}
+                            participaciones de gol
                           </p>
                         </div>
-                        <span className="text-xs tabular-nums text-muted-foreground">Top 3</span>
                       </div>
-                      <ContributionRace
-                        detailBase={detailBase}
-                        players={dashboard.ranking.slice(0, 3)}
-                        query={filters.query}
-                      />
+
+                      <dl className="mt-5 grid grid-cols-3 gap-3 border-y py-3">
+                        <SpotlightMetric label="Goles" value={figure.goals} />
+                        <SpotlightMetric label="Asist." value={figure.assists} />
+                        <SpotlightMetric
+                          label="Prom."
+                          value={formatRate(figure.contributionsPerMatch)}
+                        />
+                      </dl>
                     </div>
 
-                    <div className="min-w-0 border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
-                      <p className="text-sm font-semibold">Dueños de la tabla</p>
-                      <p className="mb-2 text-xs text-muted-foreground">
-                        Los líderes del período elegido
-                      </p>
-                      <div className="divide-y">
-                        <HallLeader
-                          icon={<CrosshairIcon />}
-                          label="Goleador"
-                          player={scorer}
-                          suffix="goles"
-                          value={scorer?.goals ?? 0}
-                        />
-                        <HallLeader
-                          icon={<SparklesIcon />}
-                          label="El que reparte"
-                          player={assister}
-                          suffix="asistencias"
-                          value={assister?.assists ?? 0}
-                        />
-                        <HallLeader
-                          icon={<FlameIcon />}
-                          label="Más ganador"
-                          player={winner}
-                          suffix="% victorias"
-                          value={winner ? Math.round(winner.winPercentage) : 0}
-                        />
+                    <Link
+                      className={cn(
+                        buttonVariants({
+                          variant: "outline",
+                          size: "sm",
+                          className:
+                            "w-full justify-between bg-background/35 sm:w-fit sm:justify-center",
+                        }),
+                      )}
+                      href={playerHref(detailBase, figure.playerId, filters.query)}
+                    >
+                      Ver ficha
+                      <ArrowRightIcon
+                        className="transition-transform duration-200 ease-out group-hover/button:translate-x-0.5 motion-reduce:transition-none"
+                        data-icon="inline-end"
+                      />
+                    </Link>
+                  </div>
+
+                  <div className="min-w-0 border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
+                    <div className="mb-3 flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">Carrera G+A</p>
+                        <p className="text-xs text-muted-foreground">
+                          Goles y asistencias, cabeza a cabeza
+                        </p>
                       </div>
+                      <span className="text-xs tabular-nums text-muted-foreground">Top 3</span>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    <ContributionRace
+                      detailBase={detailBase}
+                      players={dashboard.ranking.slice(0, 3)}
+                      query={filters.query}
+                    />
+                  </div>
+
+                  <div className="min-w-0 border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
+                    <p className="text-sm font-semibold">Dueños de la tabla</p>
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      Los líderes del período elegido
+                    </p>
+                    <div className="divide-y">
+                      <HallLeader
+                        icon={<CrosshairIcon />}
+                        label="Goleador"
+                        player={scorer}
+                        suffix="goles"
+                        value={scorer?.goals ?? 0}
+                      />
+                      <HallLeader
+                        icon={<SparklesIcon />}
+                        label="El que reparte"
+                        player={assister}
+                        suffix="asistencias"
+                        value={assister?.assists ?? 0}
+                      />
+                      <HallLeader
+                        icon={<FlameIcon />}
+                        label="Más ganador"
+                        player={winner}
+                        suffix="% victorias"
+                        value={winner ? Math.round(winner.winPercentage) : 0}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ) : (
               <Empty className="border">
                 <EmptyHeader>
@@ -464,7 +463,7 @@ function StatsDashboardContent({
                   </EmptyHeader>
                 </Empty>
               ) : (
-                <div className="border">
+                <Card className="gap-0 py-0">
                   {dashboard.history.map((match, index) => (
                     <div key={match.matchId}>
                       {index > 0 ? <Separator /> : null}
@@ -497,7 +496,7 @@ function StatsDashboardContent({
                       </Link>
                     </div>
                   ))}
-                </div>
+                </Card>
               )}
             </div>
           </section>
@@ -624,7 +623,7 @@ function Ranking({
 }) {
   return (
     <>
-      <div className="border md:hidden">
+      <Card className="gap-0 py-0 md:hidden">
         {dashboard.ranking.map((row, index) => (
           <div key={row.playerId}>
             {index > 0 ? <Separator /> : null}
@@ -669,8 +668,8 @@ function Ranking({
             </Link>
           </div>
         ))}
-      </div>
-      <div className="hidden overflow-hidden border md:block">
+      </Card>
+      <Card className="hidden gap-0 py-0 md:flex">
         <Table>
           <TableHeader>
             <TableRow>
@@ -741,7 +740,7 @@ function Ranking({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </Card>
     </>
   );
 }
@@ -790,22 +789,18 @@ function ContributionRace({
               {initials(player.displayName)}
             </AvatarFallback>
           </Avatar>
-          <span className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1">
             <span className="mb-1.5 flex items-center justify-between gap-3">
               <span className="truncate text-sm font-medium">{player.displayName}</span>
               <span className="shrink-0 text-xs font-semibold tabular-nums">
                 {player.contributions} G+A
               </span>
             </span>
-            <span className="block h-1.5 overflow-hidden rounded-full bg-muted">
-              <span
-                className="block h-full rounded-full bg-primary"
-                style={{
-                  width: `${Math.max((player.contributions / maximum) * 100, 4)}%`,
-                }}
-              />
-            </span>
-          </span>
+            <Progress
+              aria-hidden="true"
+              value={Math.max((player.contributions / maximum) * 100, 4)}
+            />
+          </div>
         </Link>
       ))}
     </div>

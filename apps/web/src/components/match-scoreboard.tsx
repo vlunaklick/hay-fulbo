@@ -2,6 +2,8 @@
 
 import type { AppRouter } from "@hay-fulbo/api/routers/index";
 import { Button } from "@hay-fulbo/ui/components/button";
+import { Card } from "@hay-fulbo/ui/components/card";
+import { Separator } from "@hay-fulbo/ui/components/separator";
 import {
   Sheet,
   SheetBody,
@@ -121,10 +123,11 @@ export function MatchScoreboard({
     : [];
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-background text-foreground">
-      <p className="border-b px-4 py-3 text-sm text-muted-foreground">
+    <Card className="gap-0 rounded-xl py-0">
+      <p className="px-4 py-3 text-sm text-muted-foreground">
         {detail.scorekeeperName ? `Planillero: ${detail.scorekeeperName}` : "Sin planillero"}
       </p>
+      <Separator />
       <div className="grid grid-cols-2 divide-x">
         {teams.map((team) => {
           const score = detail.score.find((row) => row.teamId === team.id)?.goals ?? 0;
@@ -252,6 +255,6 @@ export function MatchScoreboard({
           </SheetBody>
         </SheetContent>
       </Sheet>
-    </div>
+    </Card>
   );
 }
