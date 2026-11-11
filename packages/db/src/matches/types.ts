@@ -17,6 +17,7 @@ export type MatchScope = {
 
 export type MatchCommandErrorCode =
   | "membership_required"
+  | "scorekeeper_not_member"
   | "owner_required"
   | "group_archived"
   | "not_found"

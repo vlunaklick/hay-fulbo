@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 
 import {
   isMatchConflict,
+  isTerminalReadError,
   matchCommandErrorMessage,
   matchReadErrorMessage,
 } from "./match-command-error";
@@ -86,8 +87,21 @@ test("uses read copy for match query errors", () => {
 test("tells the organizer when the chosen planillero already left the group", () => {
   expect(
     matchCommandErrorMessage(
-      { data: { domainCode: "membership_required" } },
+      { data: { domainCode: "scorekeeper_not_member" } },
       { type: "setScorekeeper" },
     ),
   ).toBe("Esa persona ya no está en el grupo");
+});
+
+test("only access and missing-match read errors are terminal", () => {
+  expect(isTerminalReadError({ data: { code: "FORBIDDEN" } })).toBe(true);
+  expect(isTerminalReadError({ data: { code: "NOT_FOUND" } })).toBe(true);
+  expect(isTerminalReadError({ message: "Failed to fetch" })).toBe(false);
+  expect(isTerminalReadError(null)).toBe(false);
+  expect(
+    matchCommandErrorMessage(
+      { data: { domainCode: "membership_required" } },
+      { type: "setScorekeeper" },
+    ),
+  ).toBe("Ya no podés editar este partido");
 });

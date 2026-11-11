@@ -77,7 +77,7 @@ import {
   type RunMatchAction,
 } from "@/components/match-scoreboard";
 import { MatchShareRow } from "@/components/match-share-row";
-import { matchReadErrorMessage } from "@/lib/match-command-error";
+import { isTerminalReadError, matchReadErrorMessage } from "@/lib/match-command-error";
 import { formatDate, formatMoney, toMinor } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
 
@@ -119,7 +119,7 @@ export default function MatchPage() {
     );
   }
   const readError = detail.error ?? directory.error;
-  if (!detail.data || !directory.data) {
+  if (!detail.data || !directory.data || isTerminalReadError(readError)) {
     return (
       <Alert variant="destructive">
         <CircleAlertIcon aria-hidden="true" />

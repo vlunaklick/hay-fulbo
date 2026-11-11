@@ -98,7 +98,7 @@ integration("MatchCommands public seam", () => {
         type: "setScorekeeper",
         scorekeeperUserId: outsiderId,
       }),
-    ).rejects.toMatchObject({ code: "membership_required" });
+    ).rejects.toMatchObject({ code: "scorekeeper_not_member" });
     let current = await commands.execute(organizer, {
       ...base,
       type: "setScorekeeper",
@@ -238,7 +238,7 @@ integration("MatchCommands public seam", () => {
       }
       expect(blocked).toBe(true);
       await deletion.query("commit");
-      expect(await assigning).toMatchObject({ code: "membership_required" });
+      expect(await assigning).toMatchObject({ code: "scorekeeper_not_member" });
       const { rows } = await pool.query(
         `select scorekeeper_user_id from match
          where id = $1 and (scorekeeper_user_id is null or exists (

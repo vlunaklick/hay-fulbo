@@ -12,6 +12,7 @@ import { useParams } from "next/navigation";
 
 import { useAppContext } from "@/components/app-shell";
 import { MatchScoreboard, useMatchCommand } from "@/components/match-scoreboard";
+import { isTerminalReadError } from "@/lib/match-command-error";
 import { trpc } from "@/utils/trpc";
 
 type Detail = inferRouterOutputs<AppRouter>["matches"]["detail"];
@@ -30,7 +31,7 @@ export function PitchMode() {
       </div>
     );
   }
-  if (detail.isError) {
+  if (!detail.data || isTerminalReadError(detail.error)) {
     return (
       <div className="fixed inset-0 z-50 grid place-items-center bg-zinc-950 p-4">
         <Alert className="max-w-md" variant="destructive">
@@ -50,10 +51,25 @@ export function PitchMode() {
     );
   }
 
-  return <PitchShell detail={detail.data} />;
+  // A failed background poll keeps the live board (and an open goal picker) mounted.
+  return (
+    <PitchShell
+      detail={detail.data}
+      refreshFailed={detail.isError}
+      onRetry={() => void detail.refetch()}
+    />
+  );
 }
 
-function PitchShell({ detail }: { detail: Detail }) {
+function PitchShell({
+  detail,
+  onRetry,
+  refreshFailed,
+}: {
+  detail: Detail;
+  onRetry: () => void;
+  refreshFailed: boolean;
+}) {
   const { role, user } = useAppContext();
   const manager = detail.organizerUserId === user.id || role !== "member";
 
@@ -99,6 +115,18 @@ function PitchShell({ detail }: { detail: Detail }) {
       </header>
 
       <main className="grid flex-1 content-center gap-6 p-4 sm:p-8">
+        {refreshFailed ? (
+          <Alert className="mx-auto w-full max-w-5xl" role="status">
+            <CircleAlertIcon aria-hidden="true" />
+            <AlertTitle>No pudimos actualizar el marcador</AlertTitle>
+            <AlertDescription className="flex flex-wrap items-center gap-3">
+              Lo que ves puede estar desactualizado.
+              <Button onClick={onRetry} size="sm" variant="outline">
+                Reintentar
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <MatchScoreboard
           forceDark
           detail={detail}

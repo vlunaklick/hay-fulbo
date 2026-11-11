@@ -19,6 +19,7 @@ import {
   type MatchCommandResultFor,
   type MatchDatabase,
   type MatchMutationResult,
+  type MatchCommandErrorCode,
   type MatchScope,
   type MatchTransaction,
 } from "./types";
@@ -85,7 +86,13 @@ export function createMatchCommands(
 
         if (command.type === "setScorekeeper" && command.scorekeeperUserId !== null) {
           // Member deletion locks member → match through its cleanup trigger.
-          await requireMember(transaction, scope.groupId, command.scorekeeperUserId, true);
+          await requireMember(
+            transaction,
+            scope.groupId,
+            command.scorekeeperUserId,
+            true,
+            "scorekeeper_not_member",
+          );
         }
 
         const locked = await lockMatch(
@@ -1036,6 +1043,7 @@ async function requireMember(
   groupId: string,
   userId: string,
   lock = false,
+  missingCode: MatchCommandErrorCode = "membership_required",
 ) {
   const query = transaction
     .select({ role: member.role })
@@ -1043,7 +1051,7 @@ async function requireMember(
     .where(and(eq(member.organizationId, groupId), eq(member.userId, userId)))
     .limit(1);
   const [found] = await (lock ? query.for("share") : query);
-  if (!found) throw new MatchCommandError("membership_required");
+  if (!found) throw new MatchCommandError(missingCode);
   return found;
 }
 

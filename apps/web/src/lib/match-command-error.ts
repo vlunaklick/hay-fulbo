@@ -24,7 +24,7 @@ export function matchCommandErrorMessage(
   if (code === "player_archived") return "Ese jugador está archivado";
   if (code === "court_archived") return "Esa cancha está archivada";
   if (code === "match_not_open") return "El partido ya se cerró";
-  if (action?.type === "setScorekeeper" && code === "membership_required") {
+  if (code === "scorekeeper_not_member") {
     return "Esa persona ya no está en el grupo";
   }
   if (
@@ -77,4 +77,19 @@ export function matchReadErrorMessage(error: unknown) {
     return "No tenés acceso a este partido";
   }
   return "Revisá tu conexión y volvé a intentar";
+}
+
+/** Reads that can never succeed on retry: the match is gone or the viewer lost access. */
+export function isTerminalReadError(error: unknown) {
+  const cause = error as MatchError | null;
+  if (!cause) return false;
+  const code = cause.data?.domainCode ?? cause.shape?.data?.domainCode ?? cause.message;
+  const transportCode = cause.data?.code ?? cause.shape?.data?.code;
+  return (
+    transportCode === "NOT_FOUND" ||
+    transportCode === "FORBIDDEN" ||
+    code === "not_found" ||
+    code === "forbidden" ||
+    code === "membership_required"
+  );
 }
