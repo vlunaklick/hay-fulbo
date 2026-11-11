@@ -1,6 +1,6 @@
 import { createClerkClient, verifyToken } from "@clerk/backend";
 import type { BetterAuthPlugin } from "better-auth";
-import { APIError, createAuthEndpoint } from "better-auth/api";
+import { APIError, createAuthEndpoint, createAuthMiddleware } from "better-auth/api";
 import { setSessionCookie } from "better-auth/cookies";
 import { z } from "zod";
 
@@ -18,6 +18,24 @@ export function clerkBridge(options: { secretKey: string; authorizedParties: str
 
   return {
     id: "clerk-bridge",
+    hooks: {
+      after: [
+        {
+          // The exchange deletes a squatted password, then revokes sessions. A password
+          // sign-in already past verification can still mint a session after the revoke,
+          // so confirm the credential survived; the ordering leaves no gap between the two.
+          matcher: (ctx) => ctx.path === "/sign-in/email",
+          handler: createAuthMiddleware(async (ctx) => {
+            const created = ctx.context.newSession;
+            if (!created) return;
+            const accounts = await ctx.context.internalAdapter.findAccounts(created.user.id);
+            if (accounts.some((account) => account.providerId === "credential")) return;
+            await ctx.context.internalAdapter.deleteSession(created.session.token);
+            throw new APIError("UNAUTHORIZED", { message: "Email o contraseña incorrectos" });
+          }),
+        },
+      ],
+    },
     endpoints: {
       clerkExchange: createAuthEndpoint(
         "/clerk/exchange",
