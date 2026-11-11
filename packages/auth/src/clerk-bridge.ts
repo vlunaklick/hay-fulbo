@@ -49,7 +49,17 @@ export function clerkBridge(options: { secretKey: string; authorizedParties: str
             );
             const linkedUser = linked ? await adapter.findUserById(linked.userId) : null;
             if (linkedUser) return linkedUser;
-            const existing = await adapter.findUserByEmail(identity.email);
+            const existing = await adapter.findUserByEmail(identity.email, {
+              includeAccounts: true,
+            });
+            if (existing && !existing.user.emailVerified) {
+              // Anyone could have registered this unverified email with their own password.
+              // Google just proved ownership, so drop that password and its sessions before linking.
+              for (const account of existing.accounts) {
+                if (account.providerId === "credential") await adapter.deleteAccount(account.id);
+              }
+              await adapter.deleteUserSessions(existing.user.id);
+            }
             const user =
               existing?.user ??
               (await adapter.createUser({
