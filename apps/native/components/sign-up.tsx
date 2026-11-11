@@ -111,6 +111,7 @@ export function SignUp() {
                       <View className="gap-1.5">
                         <Label htmlFor="sign-up-name">Name</Label>
                         <Input
+                          accessibilityLabel="Name"
                           id="sign-up-name"
                           value={field.state.value}
                           onBlur={field.handleBlur}
@@ -133,6 +134,7 @@ export function SignUp() {
                       <View className="gap-1.5">
                         <Label htmlFor="sign-up-email">Email</Label>
                         <Input
+                          accessibilityLabel="Email"
                           id="sign-up-email"
                           ref={emailInputRef}
                           value={field.state.value}
@@ -158,6 +160,7 @@ export function SignUp() {
                       <View className="gap-1.5">
                         <Label htmlFor="sign-up-password">Password</Label>
                         <Input
+                          accessibilityLabel="Password"
                           id="sign-up-password"
                           ref={passwordInputRef}
                           value={field.state.value}

@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
-import { Item, ItemGroup, ItemMedia, ItemSeparator } from "@hay-fulbo/ui/components/item";
+import { Item, ItemGroup, ItemMedia } from "@hay-fulbo/ui/components/item";
 import { Progress } from "@hay-fulbo/ui/components/progress";
 import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
@@ -295,7 +295,7 @@ function StatsDashboardContent({
                   </Badge>
                 </CardHeader>
 
-                <CardContent className="relative z-10 grid grid-cols-1 p-0 lg:flex-row">
+                <CardContent className="relative z-10 grid grid-cols-1 p-0 lg:flex lg:flex-row">
                   <div className="flex min-w-0 flex-col justify-between gap-4 p-5 lg:min-h-64 lg:flex-[0.82_1_0]">
                     <div>
                       <div className="flex items-center gap-4">
@@ -377,7 +377,7 @@ function StatsDashboardContent({
                     <p className="mb-2 text-xs text-muted-foreground">
                       Los líderes del período elegido
                     </p>
-                    <ItemGroup className="gap-0">
+                    <ItemGroup className="gap-0 divide-y">
                       <HallLeader
                         icon={<CrosshairIcon />}
                         label="Goleador"
@@ -385,7 +385,6 @@ function StatsDashboardContent({
                         suffix="goles"
                         value={scorer?.goals ?? 0}
                       />
-                      <ItemSeparator className="my-0" />
                       <HallLeader
                         icon={<SparklesIcon />}
                         label="El que reparte"
@@ -393,7 +392,6 @@ function StatsDashboardContent({
                         suffix="asistencias"
                         value={assister?.assists ?? 0}
                       />
-                      <ItemSeparator className="my-0" />
                       <HallLeader
                         icon={<FlameIcon />}
                         label="Más ganador"
@@ -778,41 +776,41 @@ function ContributionRace({
   return (
     <ItemGroup className="gap-2">
       {players.map((player, index) => (
-        <Item
-          className="group/racer min-h-14 flex-nowrap gap-3 px-2 py-0"
-          key={player.playerId}
-          render={<Link href={playerHref(detailBase, player.playerId, query)} />}
-          role="listitem"
-          size="sm"
-        >
-          <span
-            className={cn(
-              "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-200 motion-reduce:transition-none",
-              index === 0
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground group-hover/racer:text-foreground",
-            )}
+        <div key={player.playerId} role="listitem">
+          <Item
+            className="group/racer min-h-14 flex-nowrap gap-3 px-2 py-0"
+            render={<Link href={playerHref(detailBase, player.playerId, query)} />}
+            size="sm"
           >
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <Avatar className="size-8 shrink-0">
-            <AvatarFallback className={index === 0 ? "bg-primary/15 text-primary" : ""}>
-              {initials(player.displayName)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <span className="mb-1.5 flex items-center justify-between gap-3">
-              <span className="truncate text-sm font-medium">{player.displayName}</span>
-              <span className="shrink-0 text-xs font-semibold tabular-nums">
-                {player.contributions} G+A
-              </span>
+            <span
+              className={cn(
+                "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-200 motion-reduce:transition-none",
+                index === 0
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground group-hover/racer:text-foreground",
+              )}
+            >
+              {String(index + 1).padStart(2, "0")}
             </span>
-            <Progress
-              aria-hidden="true"
-              value={Math.max((player.contributions / maximum) * 100, 4)}
-            />
-          </div>
-        </Item>
+            <Avatar className="size-8 shrink-0">
+              <AvatarFallback className={index === 0 ? "bg-primary/15 text-primary" : ""}>
+                {initials(player.displayName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <span className="mb-1.5 flex items-center justify-between gap-3">
+                <span className="truncate text-sm font-medium">{player.displayName}</span>
+                <span className="shrink-0 text-xs font-semibold tabular-nums">
+                  {player.contributions} G+A
+                </span>
+              </span>
+              <Progress
+                aria-hidden="true"
+                value={Math.max((player.contributions / maximum) * 100, 4)}
+              />
+            </div>
+          </Item>
+        </div>
       ))}
     </ItemGroup>
   );

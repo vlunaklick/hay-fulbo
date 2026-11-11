@@ -107,6 +107,7 @@ function SignIn() {
                       <View className="gap-1.5">
                         <Label htmlFor="sign-in-email">Email</Label>
                         <Input
+                          accessibilityLabel="Email"
                           id="sign-in-email"
                           value={field.state.value}
                           onBlur={field.handleBlur}
@@ -131,6 +132,7 @@ function SignIn() {
                       <View className="gap-1.5">
                         <Label htmlFor="sign-in-password">Password</Label>
                         <Input
+                          accessibilityLabel="Password"
                           id="sign-in-password"
                           ref={passwordInputRef}
                           value={field.state.value}
