@@ -93,3 +93,13 @@ describe("Hay Fulbo persistence seam", () => {
     ).toContain("group_shared_link_token_hash_unique");
   });
 });
+
+test("scorekeeper is an optional user reference cleared on user deletion", () => {
+  expect(match.scorekeeperUserId.notNull).toBe(false);
+  expect(match.scorekeeperUserId.dataType).toBe("string");
+  const fk = getTableConfig(match).foreignKeys.find((key) =>
+    key.reference().columns.includes(match.scorekeeperUserId),
+  );
+  expect(fk?.onDelete).toBe("set null");
+  expect(fk?.reference().foreignColumns[0]?.name).toBe("id");
+});

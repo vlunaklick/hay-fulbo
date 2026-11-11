@@ -2,7 +2,7 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
 import { Badge } from "@hay-fulbo/ui/components/badge";
-import { Button } from "@hay-fulbo/ui/components/button";
+import { Button, buttonVariants } from "@hay-fulbo/ui/components/button";
 import {
   Card,
   CardAction,
@@ -34,12 +34,6 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
 
-import { BlurFade } from "@hay-fulbo/ui/components/blur-fade";
-import { BorderBeam } from "@hay-fulbo/ui/components/border-beam";
-import { MagicCard } from "@hay-fulbo/ui/components/magic-card";
-import { Meteors } from "@hay-fulbo/ui/components/meteors";
-import { NumberTicker } from "@hay-fulbo/ui/components/number-ticker";
-
 import { useAppContext } from "@/components/app-shell";
 import { NewMatchDialog } from "@/components/new-match-dialog";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -49,6 +43,11 @@ export function HomeDashboard() {
   const { groupName, role, user } = useAppContext();
   const stats = useQuery(trpc.stats.dashboard.queryOptions({}));
   const directory = useQuery(trpc.matches.directory.queryOptions());
+  const upcomingId = stats.data?.upcoming?.matchId;
+  const upcomingDetail = useQuery({
+    ...trpc.matches.detail.queryOptions({ matchId: upcomingId ?? "" }),
+    enabled: Boolean(upcomingId),
+  });
   const [createOpen, setCreateOpen] = useState(false);
 
   if (stats.isPending || directory.isPending) {
@@ -77,8 +76,11 @@ export function HomeDashboard() {
   const dashboard = stats.data;
   const me = directory.data.players.find((player) => player.linkedUserId === user.id);
   const myStats = me ? (dashboard.ranking.find((row) => row.playerId === me.id) ?? null) : null;
-  const myDebt = me
-    ? (dashboard.finances?.debtors.find((row) => row.playerId === me.id) ?? null)
+  const myAppearance = upcomingDetail.data?.teams
+    .flatMap((team) => team.appearances)
+    .find((appearance) => appearance.playerId === me?.id);
+  const myDebt = myAppearance
+    ? BigInt(myAppearance.expectedMinor) - BigInt(myAppearance.paidMinor)
     : null;
   const scorers = dashboard.ranking
     .toSorted(
@@ -105,28 +107,42 @@ export function HomeDashboard() {
 
       <section aria-label="Tu resumen">
         <dl className="grid gap-px overflow-hidden border bg-border sm:grid-cols-3">
-          <PersonalMetric label="Tu deuda del último partido">
-            {myDebt ? (
-              myDebt.debtMinor === "0" ? (
-                <span className="flex items-center gap-2 text-lg">
-                  <Badge variant="secondary">Al día</Badge>
-                </span>
-              ) : (
-                <strong className="text-xl font-bold tabular-nums text-destructive">
-                  {formatMoney(myDebt.debtMinor)}
-                </strong>
-              )
+          <PersonalMetric label="Tu aporte del próximo partido">
+            {!me ? (
+              <span className="text-sm text-muted-foreground">
+                Tu cuenta no está vinculada a un jugador.
+              </span>
+            ) : !dashboard.upcoming ? (
+              <span className="text-sm text-muted-foreground">No hay próximo partido.</span>
+            ) : dashboard.upcoming.courtCostMinor === null ? (
+              <span className="text-sm text-muted-foreground">Costo a definir.</span>
+            ) : upcomingDetail.isPending ? (
+              <span className="text-sm text-muted-foreground">Cargando tu aporte…</span>
+            ) : upcomingDetail.isError ? (
+              <span className="text-sm">
+                No pudimos cargar tu aporte.{" "}
+                <Button variant="ghost" onClick={() => upcomingDetail.refetch()}>
+                  Reintentar
+                </Button>
+              </span>
+            ) : myDebt === null ? (
+              <span className="text-sm text-muted-foreground">
+                Todavía no tenés un aporte asignado.
+              </span>
+            ) : myDebt <= 0n ? (
+              <Badge variant="secondary">Al día</Badge>
             ) : (
-              <span className="text-sm text-muted-foreground">Nada pendiente</span>
+              <strong className="text-xl font-bold tabular-nums text-destructive">
+                {formatMoney(myDebt.toString())}
+              </strong>
             )}
           </PersonalMetric>
           <PersonalMetric label="Goles + asistencias">
             {myStats ? (
               <strong className="text-xl font-bold tabular-nums">
-                <NumberTicker value={myStats.contributions} />
+                {myStats.contributions}
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  (<NumberTicker value={myStats.goals} className="text-base" /> G ·{" "}
-                  <NumberTicker value={myStats.assists} className="text-base" /> A)
+                  ({myStats.goals} G · {myStats.assists} A)
                 </span>
               </strong>
             ) : (
@@ -136,8 +152,7 @@ export function HomeDashboard() {
           <PersonalMetric label="Caja del grupo">
             {dashboard.finances ? (
               <strong className="text-xl font-bold tabular-nums">
-                <NumberTicker value={dashboard.finances.paidCount} />/
-                {dashboard.finances.participantCount}
+                {dashboard.finances.paidCount}/{dashboard.finances.participantCount}
                 <span className="ml-2 text-sm font-normal text-muted-foreground">al día</span>
               </strong>
             ) : (
@@ -148,7 +163,7 @@ export function HomeDashboard() {
       </section>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <MagicCard className="rounded-xl" gradientSize={260}>
+        <div className="rounded-xl border bg-card">
           <Card size="sm" className="border-none bg-transparent shadow-none">
             <CardHeader>
               <CardTitle>Últimos resultados</CardTitle>
@@ -167,7 +182,7 @@ export function HomeDashboard() {
               {latest.length ? (
                 <div>
                   {latest.map((match, index) => (
-                    <BlurFade key={match.matchId} delay={index} inView duration={0.35}>
+                    <div key={match.matchId}>
                       {index > 0 ? <Separator /> : null}
                       <Link
                         href={`/dashboard/partidos/${match.matchId}`}
@@ -189,7 +204,7 @@ export function HomeDashboard() {
                         </span>
                         <ArrowRightIcon aria-hidden="true" />
                       </Link>
-                    </BlurFade>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -201,9 +216,9 @@ export function HomeDashboard() {
               )}
             </CardContent>
           </Card>
-        </MagicCard>
+        </div>
 
-        <MagicCard className="rounded-xl" gradientSize={260}>
+        <div className="rounded-xl border bg-card">
           <Card size="sm" className="border-none bg-transparent shadow-none">
             <CardHeader>
               <CardTitle>Goleadores</CardTitle>
@@ -222,7 +237,7 @@ export function HomeDashboard() {
               {scorers.length ? (
                 <div>
                   {scorers.map((player, index) => (
-                    <BlurFade key={player.playerId} delay={index} inView duration={0.35}>
+                    <div key={player.playerId}>
                       {index > 0 ? <Separator /> : null}
                       <div className="grid min-h-11 grid-cols-[auto_1fr_repeat(3,3rem)] items-center gap-2 px-2 text-sm">
                         <span className="w-5 text-xs text-muted-foreground">{index + 1}</span>
@@ -233,7 +248,7 @@ export function HomeDashboard() {
                         </span>
                         <strong className="text-center tabular-nums">{player.contributions}</strong>
                       </div>
-                    </BlurFade>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -245,7 +260,7 @@ export function HomeDashboard() {
               )}
             </CardContent>
           </Card>
-        </MagicCard>
+        </div>
       </div>
 
       <NewMatchDialog onOpenChange={setCreateOpen} open={createOpen} />
@@ -294,14 +309,8 @@ function NextMatchHero({
   return (
     <Link
       href={`/dashboard/partidos/${upcoming.matchId}` as Route}
-      className="group relative block overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/40"
+      className="group relative block overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Meteors className="opacity-70" number={14} />
-      <BorderBeam duration={7} size={48} />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-primary/60 to-transparent"
-      />
       <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-primary">
@@ -327,14 +336,20 @@ function NextMatchHero({
             ) : null}
           </p>
         </div>
-        <Button size="lg" variant="outline" className="shrink-0 max-sm:w-full">
+        <span
+          className={buttonVariants({
+            size: "lg",
+            variant: "outline",
+            className: "shrink-0 max-sm:w-full",
+          })}
+        >
           Abrir partido
           <ArrowRightIcon
             data-icon="inline-end"
             aria-hidden="true"
             className="transition-transform duration-200 ease-out group-hover:translate-x-0.5 motion-reduce:transition-none"
           />
-        </Button>
+        </span>
       </div>
     </Link>
   );

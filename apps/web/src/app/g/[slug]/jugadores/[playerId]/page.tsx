@@ -10,10 +10,10 @@ export default async function PublicPlayerPage({
 }) {
   const { playerId, slug } = await params;
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+    <>
       <Suspense fallback={<StatsLoading />}>
         <PublicPlayerStats playerId={playerId} slug={slug} />
       </Suspense>
-    </main>
+    </>
   );
 }

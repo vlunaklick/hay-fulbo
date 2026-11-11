@@ -1,13 +1,7 @@
 import { groupJoinAccess } from "@hay-fulbo/api/access-runtime";
 import { auth } from "@hay-fulbo/auth";
 import { Button } from "@hay-fulbo/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@hay-fulbo/ui/components/card";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -29,7 +23,7 @@ export default async function JoinGroupPage({ params }: { params: Promise<{ toke
           </div>
           <Card>
             <CardHeader>
-              <CardTitle>Este link ya no está disponible</CardTitle>
+              <h1 className="text-xl font-bold">Este link ya no está disponible</h1>
               <CardDescription>
                 El organizador pudo haberlo renovado o desactivado. Pedile el link nuevo.
               </CardDescription>

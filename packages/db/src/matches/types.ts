@@ -81,6 +81,12 @@ export type MatchCommand =
       courtCostMinor?: bigint | null;
     }
   | {
+      type: "setScorekeeper";
+      matchId: string;
+      expectedLockVersion: number;
+      scorekeeperUserId: string | null;
+    }
+  | {
       type: "renameTeam";
       matchId: string;
       expectedLockVersion: number;
@@ -197,6 +203,8 @@ export type MatchDetail = {
   id: string;
   groupId: string;
   organizerUserId: string;
+  scorekeeperUserId: string | null;
+  scorekeeperName: string | null;
   courtId: string | null;
   scheduledAt: Date;
   courtCostMinor: bigint | null;

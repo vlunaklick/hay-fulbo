@@ -2,297 +2,250 @@
 
 import type { AppRouter } from "@hay-fulbo/api/routers/index";
 import { Button } from "@hay-fulbo/ui/components/button";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@hay-fulbo/ui/components/sheet";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
-import { MinusIcon, PlusIcon, UserXIcon } from "lucide-react";
-import { useState } from "react";
+import { MinusIcon, PlusIcon } from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { queryClient, trpc } from "@/utils/trpc";
 
-type Outputs = inferRouterOutputs<AppRouter>;
-type Inputs = inferRouterInputs<AppRouter>;
-type Detail = Outputs["matches"]["detail"];
-type ExecuteInput = Inputs["matches"]["execute"];
+type Detail = inferRouterOutputs<AppRouter>["matches"]["detail"];
+type ExecuteInput = inferRouterInputs<AppRouter>["matches"]["execute"];
 type WithoutVersion<T> = T extends { expectedLockVersion: number }
   ? Omit<T, "expectedLockVersion">
   : T;
-type MatchAction = WithoutVersion<ExecuteInput>;
+export type MatchAction = WithoutVersion<ExecuteInput>;
+export type RunMatchAction = (action: MatchAction) => Promise<boolean>;
 
-const teamAccent = {
-  1: {
-    chip: "bg-team-blue text-team-blue-ink hover:bg-team-blue/90",
-    bar: "bg-team-blue",
-    panel: "border-team-blue/30 bg-team-blue/5",
-  },
-  2: {
-    chip: "bg-team-amber text-team-amber-ink hover:bg-team-amber/90",
-    bar: "bg-team-amber",
-    panel: "border-team-amber/30 bg-team-amber/5",
-  },
-} as const;
+export function useMatchCommand(detail: Detail) {
+  const inFlight = useRef(false);
+  const detailKey = trpc.matches.detail.queryKey({ matchId: detail.id });
+  const execute = useMutation(
+    trpc.matches.execute.mutationOptions({
+      onError: (cause) =>
+        toast.error(
+          cause.data?.code === "CONFLICT"
+            ? "Alguien actualizó el marcador, revisá y volvé a intentar"
+            : cause.message,
+        ),
+      onSettled: async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: detailKey }),
+          queryClient.invalidateQueries({ queryKey: trpc.matches.list.queryKey() }),
+          queryClient.invalidateQueries({ queryKey: trpc.matches.directory.queryKey() }),
+        ]);
+      },
+    }),
+  );
+  const run: RunMatchAction = async (action) => {
+    if (inFlight.current) return false;
+    inFlight.current = true;
+    try {
+      const current = queryClient.getQueryData<Detail>(detailKey) ?? detail;
+      await execute.mutateAsync({
+        ...action,
+        expectedLockVersion: current.lockVersion,
+      } as ExecuteInput);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      inFlight.current = false;
+    }
+  };
+  return { run, pending: execute.isPending };
+}
 
 export function MatchScoreboard({
   detail,
-  manager,
-  userId,
+  canScore,
+  pending,
+  run,
 }: {
   detail: Detail;
-  manager: boolean;
-  userId: string;
+  canScore: boolean;
+  pending: boolean;
+  run: RunMatchAction;
 }) {
-  const [version, setVersion] = useState(detail.lockVersion);
-  // The server may advance the lock version behind our back (another actor);
-  // always send whichever is newer.
-  const effectiveVersion = Math.max(version, detail.lockVersion);
-  const [picker, setPicker] = useState<{ mode: "scored" | "own"; teamId: string } | null>(null);
-  const [lastChange, setLastChange] = useState<{ action: MatchAction; teamId: string } | null>(
-    null,
-  );
-
-  const execute = useMutation(
-    trpc.matches.execute.mutationOptions({
-      onSuccess: (result) => {
-        if ("lockVersion" in result) setVersion(result.lockVersion);
-        queryClient.invalidateQueries({
-          queryKey: trpc.matches.detail.queryKey({ matchId: detail.id }),
-        });
-      },
-      onError: (cause) => toast.error(cause.message),
-    }),
-  );
-
-  function run(teamId: string, action: MatchAction, remember = true) {
-    if ("field" in action && action.delta === -1) {
-      setLastChange(null);
-    } else if (remember) {
-      setLastChange({ action: inverseOf(action), teamId });
-    }
-    execute.mutate({
-      ...action,
-      expectedLockVersion: effectiveVersion,
-    } as ExecuteInput);
-    if ("vibrate" in navigator) navigator.vibrate(35);
-    setPicker(null);
-  }
-
+  const [picker, setPicker] = useState<{ teamId: string; delta: 1 | -1 } | null>(null);
+  const returnFocus = useRef<HTMLButtonElement | null>(null);
   const teams = detail.teams.slice(0, 2);
-  const editable =
-    detail.status === "open" &&
-    (manager || detail.organizerUserId === userId) &&
-    !execute.isPending;
+  const selected = teams.find((team) => team.id === picker?.teamId);
+  const rivals = teams.find((team) => team.id !== selected?.id)?.appearances ?? [];
+  const editable = canScore && detail.status === "open";
+  const choices = selected
+    ? [
+        ...selected.appearances
+          .filter((row) => picker?.delta === 1 || row.goals > 0)
+          .map((row) => ({
+            key: row.playerId,
+            label: row.playerDisplayName,
+            count: row.goals,
+            action: { field: "goals" as const, playerId: row.playerId },
+          })),
+        ...(picker?.delta === 1 || selected.unattributedGoals > 0
+          ? [
+              {
+                key: "unattributed",
+                label: "Sin autor",
+                count: selected.unattributedGoals,
+                action: { field: "unattributedGoals" as const, teamId: selected.id },
+              },
+            ]
+          : []),
+        ...rivals
+          .filter((row) => picker?.delta === 1 || row.ownGoals > 0)
+          .map((row) => ({
+            key: `own-${row.playerId}`,
+            label: `Autogol de ${row.playerDisplayName}`,
+            count: row.ownGoals,
+            action: { field: "ownGoals" as const, playerId: row.playerId },
+          })),
+      ]
+    : [];
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-zinc-950 text-zinc-50">
-      <div className={cn("grid", teams.length > 1 ? "grid-cols-2 divide-x divide-white/10" : "")}>
+    <div className="overflow-hidden rounded-xl border bg-background text-foreground">
+      <p className="border-b px-4 py-3 text-sm text-muted-foreground">
+        Planilla: {detail.scorekeeperName ?? "Sin planillero"}
+      </p>
+      <div className="grid grid-cols-2 divide-x">
         {teams.map((team) => {
-          const accent = teamAccent[(team.slot as 1 | 2) ?? 1];
-          const pickingForTeam = picker?.teamId === team.id;
-          const roster = team.appearances;
-          const rivals = teams.find((other) => other.id !== team.id)?.appearances ?? [];
+          const score = detail.score.find((row) => row.teamId === team.id)?.goals ?? 0;
           return (
             <section
               key={team.id}
               className="relative flex min-h-72 flex-col items-center gap-4 px-3 py-6 sm:min-h-80"
             >
-              <span className={cn("absolute inset-x-0 top-0 h-1", accent.bar)} aria-hidden="true" />
-              <h3 className="max-w-full truncate text-sm font-bold uppercase tracking-[0.18em] text-zinc-400">
+              <span
+                className={cn(
+                  "absolute inset-x-0 top-0 h-1",
+                  team.slot === 1 ? "bg-team-blue" : "bg-team-amber",
+                )}
+                aria-hidden="true"
+              />
+              <h3 className="max-w-full truncate text-sm font-bold text-muted-foreground">
                 {team.displayName}
               </h3>
-              <output className="font-mono text-[clamp(4.5rem,16vw,10rem)] font-black leading-none tabular-nums">
-                {scoreFor(detail, team.id)}
+              <output
+                aria-label={`Marcador de ${team.displayName}`}
+                className="font-mono text-[clamp(4.5rem,16vw,10rem)] font-black leading-none tabular-nums"
+              >
+                {score}
               </output>
               {editable ? (
-                <div className="grid w-full max-w-56 grid-cols-[1fr_2fr] gap-2">
+                <div className="flex w-full max-w-56 flex-wrap justify-center gap-2">
                   <Button
-                    aria-label={`Deshacer el último gol de ${team.displayName}`}
-                    disabled={!editable || !lastChange || lastChange.teamId !== team.id}
-                    onClick={() => {
-                      if (lastChange && lastChange.teamId === team.id) {
-                        run(team.id, lastChange.action, false);
-                      }
-                    }}
-                    size="icon-lg"
+                    aria-label={`Restar un gol a ${team.displayName}`}
+                    disabled={pending || score === 0}
                     variant="outline"
-                    className="border-white/20 bg-white/5 hover:bg-white/10"
+                    className="min-h-11"
+                    onClick={(event) => {
+                      returnFocus.current = event.currentTarget;
+                      setPicker({ teamId: team.id, delta: -1 });
+                    }}
                   >
-                    <MinusIcon className="size-5" aria-hidden="true" />
+                    <MinusIcon aria-hidden="true" />
+                    Restar
                   </Button>
                   <Button
                     aria-label={`Sumar un gol a ${team.displayName}`}
-                    className={cn("text-base font-black", accent.chip)}
-                    onClick={() => setPicker({ mode: "scored", teamId: team.id })}
+                    disabled={pending}
+                    className={cn(
+                      "min-h-11",
+                      team.slot === 1
+                        ? "bg-team-blue text-team-blue-ink hover:bg-team-blue/90"
+                        : "bg-team-amber text-team-amber-ink hover:bg-team-amber/90",
+                    )}
+                    onClick={(event) => {
+                      returnFocus.current = event.currentTarget;
+                      setPicker({ teamId: team.id, delta: 1 });
+                    }}
                   >
-                    <PlusIcon data-icon="inline-start" aria-hidden="true" />
+                    <PlusIcon aria-hidden="true" />
                     Gol
                   </Button>
                 </div>
               ) : (
-                <p className="text-xs text-zinc-400">
-                  {detail.status === "open" ? "Solo el organizador edita" : "Marcador cerrado"}
+                <p className="text-center text-xs text-muted-foreground">
+                  {detail.status === "open"
+                    ? "El organizador y el planillero cargan los goles"
+                    : "Marcador cerrado"}
                 </p>
               )}
-
-              {pickingForTeam ? (
-                <GoalPicker
-                  mode={picker.mode}
-                  rosterNames={roster.map((row) => ({
-                    label: row.playerDisplayName,
-                    playerId: row.playerId,
-                  }))}
-                  rivalNames={rivals.map((row) => ({
-                    label: row.playerDisplayName,
-                    playerId: row.playerId,
-                  }))}
-                  onCancel={() => setPicker(null)}
-                  onPick={(pick) =>
-                    pick.kind === "unattributed"
-                      ? run(team.id, {
-                          type: "adjustStat",
-                          field: "unattributedGoals",
-                          matchId: detail.id,
-                          teamId: team.id,
-                          delta: 1,
-                        })
-                      : pick.kind === "goal"
-                        ? run(team.id, {
-                            type: "adjustStat",
-                            field: "goals",
-                            matchId: detail.id,
-                            playerId: pick.playerId,
-                            delta: 1,
-                          })
-                        : run(team.id, {
-                            type: "adjustStat",
-                            field: "ownGoals",
-                            matchId: detail.id,
-                            playerId: pick.playerId,
-                            delta: 1,
-                          })
-                  }
-                  onToggleOwn={
-                    teams.length > 1
-                      ? () =>
-                          setPicker(
-                            picker.mode === "scored"
-                              ? { mode: "own", teamId: team.id }
-                              : { mode: "scored", teamId: team.id },
-                          )
-                      : null
-                  }
-                />
-              ) : null}
             </section>
           );
         })}
       </div>
-
-      {editable ? (
-        <p className="border-t border-white/10 px-4 py-2 text-center text-[0.65rem] uppercase tracking-[0.24em] text-zinc-400">
-          Cada gol se atribuye al toque
-        </p>
-      ) : null}
+      <Sheet
+        open={picker !== null}
+        onOpenChange={(open) => {
+          if (!open) setPicker(null);
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          finalFocus={() => {
+            const trigger = returnFocus.current;
+            if (!trigger?.disabled) return trigger;
+            return (
+              trigger.parentElement?.querySelector<HTMLButtonElement>("button:not(:disabled)") ??
+              false
+            );
+          }}
+          className="max-h-[85dvh]"
+        >
+          <SheetHeader>
+            <SheetTitle>
+              {picker?.delta === -1 ? "Restar un gol" : "¿Quién la hizo?"} · {selected?.displayName}
+            </SheetTitle>
+            <SheetDescription>
+              {picker?.delta === -1
+                ? "Elegí qué gol querés restar del marcador."
+                : "Elegí al autor, un autogol rival o un gol sin autor."}
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {choices.map((choice) => (
+              <Button
+                key={choice.key}
+                variant="outline"
+                className="min-h-11 h-auto justify-between whitespace-normal px-4 py-3 text-left"
+                disabled={!editable || pending}
+                onClick={async () => {
+                  if (!picker) return;
+                  const saved = await run({
+                    type: "adjustStat",
+                    matchId: detail.id,
+                    delta: picker.delta,
+                    ...choice.action,
+                  });
+                  if (saved) {
+                    setPicker(null);
+                    if ("vibrate" in navigator) navigator.vibrate(35);
+                  }
+                }}
+              >
+                <span>{choice.label}</span>
+                {picker?.delta === -1 ? <span className="tabular-nums">{choice.count}</span> : null}
+              </Button>
+            ))}
+            {choices.length === 0 ? (
+              <p className="text-muted-foreground">No quedan goles para restar.</p>
+            ) : null}
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
     </div>
   );
-}
-
-function GoalPicker({
-  mode,
-  onCancel,
-  onPick,
-  onToggleOwn,
-  rivalNames,
-  rosterNames,
-}: {
-  mode: "scored" | "own";
-  onCancel: () => void;
-  onPick: (
-    pick:
-      | { kind: "goal"; playerId: string }
-      | { kind: "own"; playerId: string }
-      | { kind: "unattributed" },
-  ) => void;
-  onToggleOwn: (() => void) | null;
-  rivalNames: { label: string; playerId: string }[];
-  rosterNames: { label: string; playerId: string }[];
-}) {
-  const names = mode === "scored" ? rosterNames : rivalNames;
-  return (
-    <div className="absolute inset-0 z-10 flex flex-col gap-3 overflow-auto bg-zinc-950/95 p-4 backdrop-blur-sm">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
-          {mode === "scored" ? "¿Quién la hizo?" : "Autogol de…"}
-        </p>
-        <Button
-          aria-label="Cancelar"
-          onClick={onCancel}
-          size="icon-sm"
-          variant="ghost"
-          className="text-zinc-400 hover:bg-white/10 hover:text-white"
-        >
-          ✕
-        </Button>
-      </div>
-
-      {mode === "scored" ? (
-        <button
-          type="button"
-          onClick={() => onPick({ kind: "unattributed" })}
-          className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-dashed border-white/25 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/5"
-        >
-          <UserXIcon className="size-4" aria-hidden="true" />
-          Sin autor
-        </button>
-      ) : null}
-
-      {names.length === 0 ? (
-        <p className="py-4 text-center text-xs text-zinc-400">
-          {mode === "scored"
-            ? "Este equipo no tiene jugadores."
-            : "El otro equipo no tiene jugadores."}
-        </p>
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          {names.map((player) => (
-            <button
-              key={player.playerId}
-              type="button"
-              onClick={() =>
-                onPick(
-                  mode === "scored"
-                    ? { kind: "goal", playerId: player.playerId }
-                    : { kind: "own", playerId: player.playerId },
-                )
-              }
-              className="flex min-h-11 items-center justify-center truncate rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold text-white transition-transform hover:bg-white/15 active:scale-95"
-            >
-              {player.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {onToggleOwn && (mode === "own" || rivalNames.length > 0) ? (
-        <button
-          type="button"
-          onClick={onToggleOwn}
-          className="mt-auto flex min-h-10 items-center justify-center rounded-lg border border-white/15 text-xs font-semibold uppercase tracking-widest text-zinc-400 transition-colors hover:bg-white/5"
-        >
-          {mode === "scored" ? "Fue autogol" : "Volver"}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function inverseOf(command: MatchAction): MatchAction {
-  if (command.type === "adjustStat") {
-    return { ...command, delta: command.delta === 1 ? -1 : 1 };
-  }
-  return command;
-}
-
-function scoreFor(detail: Detail, teamId?: string) {
-  return detail.score.find((item) => item.teamId === teamId)?.goals ?? 0;
 }

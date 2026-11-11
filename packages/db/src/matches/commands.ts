@@ -93,6 +93,8 @@ export function createMatchCommands(
         switch (command.type) {
           case "updateMatch":
             return updateMatch(transaction, scope, locked, command);
+          case "setScorekeeper":
+            return setScorekeeper(transaction, scope, locked, command);
           case "renameTeam":
             return renameTeam(transaction, scope, locked, command);
           case "addParticipant":
@@ -567,13 +569,36 @@ async function moveParticipant(
   return bumpVersion(transaction, scope.groupId, locked);
 }
 
+async function setScorekeeper(
+  transaction: MatchTransaction,
+  scope: MatchScope,
+  locked: LockedMatch,
+  command: Extract<MatchCommand, { type: "setScorekeeper" }>,
+) {
+  requireOrganizer(locked, scope);
+  requireOpen(locked);
+  if (command.scorekeeperUserId !== null) {
+    await requireMember(transaction, scope.groupId, command.scorekeeperUserId);
+  }
+  await transaction
+    .update(match)
+    .set({ scorekeeperUserId: command.scorekeeperUserId })
+    .where(and(eq(match.groupId, scope.groupId), eq(match.id, locked.id)));
+  return bumpVersion(transaction, scope.groupId, locked);
+}
+
 async function adjustStat(
   transaction: MatchTransaction,
   scope: MatchScope,
   locked: LockedMatch,
   command: Extract<MatchCommand, { type: "adjustStat" }>,
 ) {
-  requireOrganizer(locked, scope);
+  if (
+    locked.scorekeeperUserId !== scope.actorUserId ||
+    !["goals", "ownGoals", "unattributedGoals"].includes(command.field)
+  ) {
+    requireOrganizer(locked, scope);
+  }
   requireOpen(locked);
   if (command.delta !== 1 && command.delta !== -1) {
     throw new MatchCommandError("invalid_input", "Invalid stat delta");

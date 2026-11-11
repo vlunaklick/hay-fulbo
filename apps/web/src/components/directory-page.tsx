@@ -1,4 +1,12 @@
 "use client";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@hay-fulbo/ui/components/sheet";
 
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
 import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
@@ -538,177 +546,185 @@ function PlayerDialog({
   }
 
   return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-lg">{player.displayName}</DialogTitle>
-          <DialogDescription>
+    <Sheet open onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle className="text-lg">{player.displayName}</SheetTitle>
+          <SheetDescription>
             {player.archivedAt ? "Jugador archivado" : "Jugador activo"} · Estadísticas de partidos
             cerrados.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
+        <SheetBody className="flex flex-col gap-5">
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label="Partidos jugados" value={stats.played} />
+            <Stat label="Goles" value={stats.goals} />
+            <Stat label="Asistencias" value={stats.assists} />
+            <Stat label="Goles + asistencias" value={stats.contributions} />
+            <Stat label="Victorias" value={stats.wins} />
+            <Stat label="Empates" value={stats.draws} />
+            <Stat label="Derrotas" value={stats.losses} />
+            <Stat label="% de victorias" value={`${stats.winPercentage}%`} />
+          </dl>
 
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Partidos jugados" value={stats.played} />
-          <Stat label="Goles" value={stats.goals} />
-          <Stat label="Asistencias" value={stats.assists} />
-          <Stat label="Goles + asistencias" value={stats.contributions} />
-          <Stat label="Victorias" value={stats.wins} />
-          <Stat label="Empates" value={stats.draws} />
-          <Stat label="Derrotas" value={stats.losses} />
-          <Stat label="% de victorias" value={`${stats.winPercentage}%`} />
-        </dl>
+          <Separator />
 
-        <Separator />
-
-        {role !== "member" && editing ? (
-          <form onSubmit={submit}>
-            <FieldGroup>
-              <Field data-invalid={!displayName.trim()}>
-                <FieldLabel htmlFor="player-name">Nombre</FieldLabel>
-                <Input
-                  aria-invalid={!displayName.trim()}
-                  id="player-name"
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  value={displayName}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="player-account">Cuenta vinculada</FieldLabel>
-                <Select
-                  items={accountItems}
-                  onValueChange={(value) =>
-                    setLinkedUserId(typeof value === "string" ? value : null)
-                  }
-                  value={linkedUserId}
-                >
-                  <SelectTrigger id="player-account" className="w-full">
-                    <SelectValue>{accountPresentationLabel(members, linkedUserId)}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent align="start" alignItemWithTrigger={false}>
-                    <SelectGroup>
-                      <SelectItem value={null}>Sin cuenta vinculada</SelectItem>
-                      {options.map((member) => (
-                        <SelectItem key={member.id} disabled={member.disabled} value={member.id}>
-                          <span className="flex min-w-0 flex-col">
-                            <span className="truncate">{member.name}</span>
-                            <span className="truncate text-muted-foreground">{member.email}</span>
-                          </span>
-                          {member.disabled ? <Badge variant="secondary">Ya vinculada</Badge> : null}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              {error ? <FieldError>{error}</FieldError> : null}
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setDisplayName(player.displayName);
-                    setLinkedUserId(player.linkedUserId);
-                    setEditing(false);
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={isPending || !displayName.trim()}>
-                  Guardar cambios
-                </Button>
-              </DialogFooter>
-            </FieldGroup>
-          </form>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground">Cuenta vinculada</span>
-              <span className="text-sm">
-                {accountPresentationLabel(members, player.linkedUserId)}
-              </span>
-            </div>
-            {error ? (
-              <Alert variant="destructive">
-                <CircleAlertIcon aria-hidden="true" />
-                <AlertTitle>No pudimos actualizar el jugador</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : null}
-            {role !== "member" ? (
-              <DialogFooter>
-                <Button type="button" variant="outline" disabled={isPending} onClick={onArchive}>
-                  {player.archivedAt ? "Reactivar jugador" : "Archivar jugador"}
-                </Button>
-                <Button type="button" onClick={() => setEditing(true)}>
-                  Editar jugador
-                </Button>
-              </DialogFooter>
-            ) : null}
-          </div>
-        )}
-
-        {role !== "member" ? (
-          <>
-            <Separator />
-            <section className="flex flex-col gap-3" aria-labelledby="invite-player-title">
+          {role !== "member" && editing ? (
+            <form onSubmit={submit}>
+              <FieldGroup>
+                <Field data-invalid={!displayName.trim()}>
+                  <FieldLabel htmlFor="player-name">Nombre</FieldLabel>
+                  <Input
+                    aria-invalid={!displayName.trim()}
+                    id="player-name"
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    value={displayName}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="player-account">Cuenta vinculada</FieldLabel>
+                  <Select
+                    items={accountItems}
+                    onValueChange={(value) =>
+                      setLinkedUserId(typeof value === "string" ? value : null)
+                    }
+                    value={linkedUserId}
+                  >
+                    <SelectTrigger id="player-account" className="w-full">
+                      <SelectValue>{accountPresentationLabel(members, linkedUserId)}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent align="start" alignItemWithTrigger={false}>
+                      <SelectGroup>
+                        <SelectItem value={null}>Sin cuenta vinculada</SelectItem>
+                        {options.map((member) => (
+                          <SelectItem key={member.id} disabled={member.disabled} value={member.id}>
+                            <span className="flex min-w-0 flex-col">
+                              <span className="truncate">{member.name}</span>
+                              <span className="truncate text-muted-foreground">{member.email}</span>
+                            </span>
+                            {member.disabled ? (
+                              <Badge variant="secondary">Ya vinculada</Badge>
+                            ) : null}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {error ? <FieldError role="alert">{error}</FieldError> : null}
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setDisplayName(player.displayName);
+                      setLinkedUserId(player.linkedUserId);
+                      setEditing(false);
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={isPending || !displayName.trim()}>
+                    Guardar cambios
+                  </Button>
+                </DialogFooter>
+              </FieldGroup>
+            </form>
+          ) : (
+            <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1">
-                <h3 id="invite-player-title" className="text-sm font-medium">
-                  Invitar a este jugador
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  La cuenta que acepte quedará vinculada a {player.displayName}.
-                </p>
+                <span className="text-xs text-muted-foreground">Cuenta vinculada</span>
+                <span className="text-sm">
+                  {accountPresentationLabel(members, player.linkedUserId)}
+                </span>
               </div>
-              {player.linkedUserId ? (
-                <Alert>
-                  <UserRoundIcon aria-hidden="true" />
-                  <AlertTitle>Cuenta ya vinculada</AlertTitle>
-                  <AlertDescription>
-                    Desvinculala desde Editar jugador antes de enviar otra invitación.
-                  </AlertDescription>
+              {error ? (
+                <Alert variant="destructive">
+                  <CircleAlertIcon aria-hidden="true" />
+                  <AlertTitle>No pudimos actualizar el jugador</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
-              ) : (
-                <form onSubmit={invitePlayer}>
-                  <FieldGroup>
-                    <Field data-invalid={invite.isError}>
-                      <FieldLabel htmlFor="player-invite-email">Email</FieldLabel>
-                      <Input
-                        aria-invalid={invite.isError}
-                        id="player-invite-email"
-                        onChange={(event) => {
-                          setInviteEmail(event.target.value);
-                          setInviteUrl(null);
-                          invite.reset();
-                        }}
-                        placeholder="jugador@ejemplo.com"
-                        required
-                        type="email"
-                        value={inviteEmail}
-                      />
-                      {invite.isError ? <FieldError>{invite.error.message}</FieldError> : null}
-                    </Field>
-                    <Button type="submit" disabled={invite.isPending || !inviteEmail.trim()}>
-                      <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
-                      Crear invitación
-                    </Button>
-                    {inviteUrl ? (
-                      <Field>
-                        <FieldLabel>Invitación lista</FieldLabel>
-                        <Button type="button" variant="outline" onClick={copyInvite}>
-                          <CopyIcon data-icon="inline-start" aria-hidden="true" />
-                          Copiar enlace para compartir
-                        </Button>
+              ) : null}
+              {role !== "member" ? (
+                <DialogFooter>
+                  <Button type="button" variant="outline" disabled={isPending} onClick={onArchive}>
+                    {player.archivedAt ? "Reactivar jugador" : "Archivar jugador"}
+                  </Button>
+                  <Button type="button" onClick={() => setEditing(true)}>
+                    Editar jugador
+                  </Button>
+                </DialogFooter>
+              ) : null}
+            </div>
+          )}
+
+          {role !== "member" ? (
+            <>
+              <Separator />
+              <section className="flex flex-col gap-3" aria-labelledby="invite-player-title">
+                <div className="flex flex-col gap-1">
+                  <h3 id="invite-player-title" className="text-sm font-medium">
+                    Invitar a este jugador
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    La cuenta que acepte quedará vinculada a {player.displayName}.
+                  </p>
+                </div>
+                {player.linkedUserId ? (
+                  <Alert>
+                    <UserRoundIcon aria-hidden="true" />
+                    <AlertTitle>Cuenta ya vinculada</AlertTitle>
+                    <AlertDescription>
+                      Desvinculala desde Editar jugador antes de enviar otra invitación.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <form onSubmit={invitePlayer}>
+                    <FieldGroup>
+                      <Field data-invalid={invite.isError}>
+                        <FieldLabel htmlFor="player-invite-email">Email</FieldLabel>
+                        <Input
+                          aria-invalid={invite.isError}
+                          aria-describedby={invite.isError ? "player-invite-error" : undefined}
+                          id="player-invite-email"
+                          onChange={(event) => {
+                            setInviteEmail(event.target.value);
+                            setInviteUrl(null);
+                            invite.reset();
+                          }}
+                          placeholder="jugador@ejemplo.com"
+                          required
+                          type="email"
+                          value={inviteEmail}
+                        />
+                        {invite.isError ? (
+                          <FieldError id="player-invite-error" role="alert">
+                            {invite.error.message}
+                          </FieldError>
+                        ) : null}
                       </Field>
-                    ) : null}
-                  </FieldGroup>
-                </form>
-              )}
-            </section>
-          </>
-        ) : null}
-      </DialogContent>
-    </Dialog>
+                      <Button type="submit" disabled={invite.isPending || !inviteEmail.trim()}>
+                        <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
+                        Crear invitación
+                      </Button>
+                      {inviteUrl ? (
+                        <Field>
+                          <FieldLabel>Invitación lista</FieldLabel>
+                          <Button type="button" variant="outline" onClick={copyInvite}>
+                            <CopyIcon data-icon="inline-start" aria-hidden="true" />
+                            Copiar enlace para compartir
+                          </Button>
+                        </Field>
+                      ) : null}
+                    </FieldGroup>
+                  </form>
+                )}
+              </section>
+            </>
+          ) : null}
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -770,7 +786,7 @@ function CourtDialog({
                 <ExternalLinkIcon data-icon="inline-start" aria-hidden="true" />
                 Abrir en Maps
               </Button>
-              {error ? <FieldError>{error}</FieldError> : null}
+              {error ? <FieldError role="alert">{error}</FieldError> : null}
               <DialogFooter>
                 <Button type="button" variant="outline" disabled={isPending} onClick={onArchive}>
                   {court.archivedAt ? "Reactivar cancha" : "Archivar cancha"}
@@ -875,7 +891,7 @@ function CreateDirectoryDialog({
                 prefix="new-court"
               />
             )}
-            {error ? <FieldError>{error}</FieldError> : null}
+            {error ? <FieldError role="alert">{error}</FieldError> : null}
             <Button type="submit" disabled={isPending || !valid}>
               Guardar
             </Button>
@@ -910,31 +926,49 @@ function CourtFields({
         <Input
           aria-invalid={Boolean(name && !name.trim())}
           id={`${prefix}-name`}
+          aria-describedby={name && !name.trim() ? `${prefix}-name-error` : undefined}
           onChange={(event) => onNameChange(event.target.value)}
           placeholder="Nombre de la cancha"
           value={name}
         />
+        {name && !name.trim() ? (
+          <FieldError id={`${prefix}-name-error`} role="alert">
+            Ingresá el nombre de la cancha.
+          </FieldError>
+        ) : null}
       </Field>
       <Field data-invalid={Boolean(address && !address.trim())}>
         <FieldLabel htmlFor={`${prefix}-address`}>Dirección</FieldLabel>
         <Input
           aria-invalid={Boolean(address && !address.trim())}
           id={`${prefix}-address`}
+          aria-describedby={address && !address.trim() ? `${prefix}-address-error` : undefined}
           onChange={(event) => onAddressChange(event.target.value)}
           placeholder="Calle 123, Ciudad"
           value={address}
         />
+        {address && !address.trim() ? (
+          <FieldError id={`${prefix}-address-error`} role="alert">
+            Ingresá la dirección.
+          </FieldError>
+        ) : null}
       </Field>
       <Field data-invalid={Boolean(mapsUrl && !isHttpUrl(mapsUrl))}>
         <FieldLabel htmlFor={`${prefix}-map`}>Enlace de Google Maps</FieldLabel>
         <Input
           aria-invalid={Boolean(mapsUrl && !isHttpUrl(mapsUrl))}
           id={`${prefix}-map`}
+          aria-describedby={mapsUrl && !isHttpUrl(mapsUrl) ? `${prefix}-map-error` : undefined}
           onChange={(event) => onMapsUrlChange(event.target.value)}
           placeholder="https://maps.google.com/…"
           type="url"
           value={mapsUrl}
         />
+        {mapsUrl && !isHttpUrl(mapsUrl) ? (
+          <FieldError id={`${prefix}-map-error`} role="alert">
+            Usá un enlace que empiece con https:// o http://.
+          </FieldError>
+        ) : null}
       </Field>
     </>
   );

@@ -165,7 +165,7 @@ export function GroupMembersPage() {
     return (
       <Alert>
         <CircleAlertIcon aria-hidden="true" />
-        <AlertTitle>Solo para el organizador</AlertTitle>
+        <AlertTitle>Solo para el responsable del grupo</AlertTitle>
         <AlertDescription>
           Los líderes pueden administrar partidos, jugadores y canchas, pero no los permisos del
           grupo.
@@ -428,7 +428,7 @@ export function GroupMembersPage() {
               {member.role === "owner" ? (
                 <span className="flex min-h-10 items-center gap-2 text-sm text-muted-foreground">
                   <ShieldCheckIcon className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                  Organizador
+                  Responsable del grupo
                 </span>
               ) : (
                 <>

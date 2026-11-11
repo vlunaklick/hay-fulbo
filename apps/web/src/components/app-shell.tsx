@@ -132,7 +132,31 @@ export function AppShell({
     );
   }
   if (membership.isPending) return <ShellSkeleton />;
-  if (!membership.data) return null;
+  if (membership.isError || !membership.data) {
+    return (
+      <main className="grid min-h-svh place-items-center px-4">
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>No pudimos verificar tu acceso al grupo</EmptyTitle>
+            <EmptyDescription>Reintentá para cargar tus permisos.</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button variant="outline" onClick={() => membership.refetch()}>
+              Reintentar
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() =>
+                authClient.signOut({ fetchOptions: { onSuccess: () => router.push("/login") } })
+              }
+            >
+              Salir
+            </Button>
+          </EmptyContent>
+        </Empty>
+      </main>
+    );
+  }
 
   const group = groups.data.find((item) => item.id === activeGroupId)!;
   const context: AppContextValue = {
@@ -144,6 +168,12 @@ export function AppShell({
 
   return (
     <AppContext value={context}>
+      <a
+        href="#contenido"
+        className="sr-only fixed left-4 top-4 z-50 rounded-md bg-background p-3 focus:not-sr-only focus:ring-2 focus:ring-ring"
+      >
+        Saltar al contenido
+      </a>
       <div
         className={cn(
           "min-h-svh md:grid",
@@ -203,6 +233,7 @@ export function AppShell({
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
                 aria-label={sidebarCollapsed ? item.label : undefined}
                 title={sidebarCollapsed ? item.label : undefined}
                 className={cn(
@@ -232,6 +263,7 @@ export function AppShell({
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
                 aria-label={sidebarCollapsed ? item.label : undefined}
                 title={sidebarCollapsed ? item.label : undefined}
                 className={cn(
@@ -275,11 +307,7 @@ export function AppShell({
           </div>
         </aside>
 
-        <div className="relative md:col-start-2">
-          <div
-            aria-hidden="true"
-            className="bg-noise pointer-events-none absolute inset-0 opacity-[0.04]"
-          />
+        <div className="relative min-w-0 md:col-start-2">
           <header className="sticky top-0 z-10 border-b bg-background md:hidden">
             <div className="flex h-14 items-center justify-between gap-3 px-4">
               <GroupSwitcher activeGroup={group} groups={groups.data} role={context.role} />
@@ -300,7 +328,11 @@ export function AppShell({
               </div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-28 md:px-6 md:py-5 md:pb-8 xl:px-8">
+          <main
+            id="contenido"
+            tabIndex={-1}
+            className="mx-auto w-full max-w-7xl px-4 py-4 pb-28 md:px-6 md:py-5 md:pb-8 xl:px-8"
+          >
             {children}
           </main>
         </div>
@@ -313,7 +345,12 @@ export function AppShell({
             <Button
               key={item.href}
               variant={isActivePath(pathname, item.href) ? "secondary" : "ghost"}
-              render={<Link href={item.href} />}
+              render={
+                <Link
+                  href={item.href}
+                  aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
+                />
+              }
               nativeButton={false}
               className="h-14 flex-col gap-1"
             >
@@ -355,7 +392,8 @@ function UserMenu({
   side: "bottom" | "right";
   user: AppContextValue["user"];
 }) {
-  const roleLabel = role === "owner" ? "Organizador" : role === "leader" ? "Líder" : "Miembro";
+  const roleLabel =
+    role === "owner" ? "Responsable del grupo" : role === "leader" ? "Líder" : "Miembro";
 
   return (
     <DropdownMenu>

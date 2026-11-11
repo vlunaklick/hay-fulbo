@@ -53,7 +53,12 @@ export function MemberPlayerStats({ playerId }: { playerId: string }) {
   const query = useQuery(trpc.stats.player.queryOptions({ playerId, filters }));
   if (query.isPending) return <StatsLoading />;
   if (query.error || !query.data) {
-    return <StatsError message="No encontramos las estadísticas de este jugador." />;
+    return (
+      <StatsError
+        message="No encontramos las estadísticas de este jugador."
+        onRetry={() => void query.refetch()}
+      />
+    );
   }
   return <PlayerStatsContent data={query.data} mode="member" />;
 }
@@ -67,9 +72,16 @@ export function SharedPlayerStats({ playerId }: { playerId: string }) {
     enabled: capability.ready,
     retry: false,
   });
+  if (capability.error)
+    return <StatsError message={capability.error.message} onRetry={capability.retry} />;
   if (capability.exchanging || query.isPending) return <StatsLoading />;
   if (capability.error || query.error || !query.data) {
-    return <StatsError message="El jugador no está disponible en este enlace." />;
+    return (
+      <StatsError
+        message="El jugador no está disponible en este enlace."
+        onRetry={() => void query.refetch()}
+      />
+    );
   }
   return <PlayerStatsContent data={query.data} mode="shared" />;
 }
@@ -78,7 +90,9 @@ export function MemberMatchStats({ matchId }: { matchId: string }) {
   const query = useQuery(trpc.stats.match.queryOptions({ matchId }));
   if (query.isPending) return <StatsLoading />;
   if (query.error || !query.data) {
-    return <StatsError message="No encontramos este partido." />;
+    return (
+      <StatsError message="No encontramos este partido." onRetry={() => void query.refetch()} />
+    );
   }
   return <MatchStatsContent data={query.data} mode="member" />;
 }
@@ -91,9 +105,16 @@ export function SharedMatchStats({ matchId }: { matchId: string }) {
     enabled: capability.ready,
     retry: false,
   });
+  if (capability.error)
+    return <StatsError message={capability.error.message} onRetry={capability.retry} />;
   if (capability.exchanging || query.isPending) return <StatsLoading />;
   if (capability.error || query.error || !query.data) {
-    return <StatsError message="El partido no está disponible en este enlace." />;
+    return (
+      <StatsError
+        message="El partido no está disponible en este enlace."
+        onRetry={() => void query.refetch()}
+      />
+    );
   }
   return <MatchStatsContent data={query.data} mode="shared" />;
 }
@@ -107,7 +128,12 @@ export function PublicPlayerStats({ playerId, slug }: { playerId: string; slug: 
   });
   if (query.isPending) return <StatsLoading />;
   if (query.error || !query.data) {
-    return <StatsError message="Este grupo no está disponible públicamente." />;
+    return (
+      <StatsError
+        message="Este grupo no está disponible públicamente."
+        onRetry={() => void query.refetch()}
+      />
+    );
   }
   return <PlayerStatsContent data={query.data} mode="public" slug={slug} />;
 }
@@ -120,7 +146,12 @@ export function PublicMatchStats({ matchId, slug }: { matchId: string; slug: str
   });
   if (query.isPending) return <StatsLoading />;
   if (query.error || !query.data) {
-    return <StatsError message="Este grupo no está disponible públicamente." />;
+    return (
+      <StatsError
+        message="Este grupo no está disponible públicamente."
+        onRetry={() => void query.refetch()}
+      />
+    );
   }
   return <MatchStatsContent data={query.data} mode="public" slug={slug} />;
 }
@@ -134,6 +165,9 @@ function PlayerStatsContent({
   mode: Mode;
   slug?: string;
 }) {
+  const searchParams = useSearchParams();
+  const rankingParams = new URLSearchParams(searchParams.toString());
+  rankingParams.set("tab", "ranking");
   const base =
     mode === "shared"
       ? "/compartido"
@@ -141,18 +175,15 @@ function PlayerStatsContent({
         ? (`/g/${slug ?? ""}` as Route)
         : "/dashboard/estadisticas";
   return (
-    <main
-      className={cn(
-        "mx-auto w-full max-w-5xl",
-        mode === "shared" ? "px-4 py-8 sm:px-6 lg:px-8 lg:py-12" : "",
-      )}
-    >
+    <div className="mx-auto w-full min-w-0 max-w-5xl">
       <Link
-        className={buttonVariants({
-          variant: "ghost",
-          className: "mb-8 min-h-11",
-        })}
-        href={base}
+        className={cn(
+          buttonVariants({
+            variant: "ghost",
+            className: "mb-8 min-h-11",
+          }),
+        )}
+        href={`${base}?${rankingParams}` as Route}
       >
         <ArrowLeftIcon data-icon="inline-start" />
         Volver al ranking
@@ -229,14 +260,16 @@ function PlayerStatsContent({
               <div key={match.matchId}>
                 {index > 0 ? <Separator /> : null}
                 <Link
-                  className={buttonVariants({
-                    variant: "ghost",
-                    className:
-                      "h-auto min-h-16 w-full justify-between rounded-none px-4 py-3 text-left",
-                  })}
-                  href={`${base}/partidos/${match.matchId}` as Route}
+                  className={cn(
+                    buttonVariants({
+                      variant: "ghost",
+                      className:
+                        "grid h-auto min-h-16 w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] whitespace-normal rounded-none px-4 py-3 text-left",
+                    }),
+                  )}
+                  href={`${base}/partidos/${match.matchId}?${rankingParams}` as Route}
                 >
-                  <span>
+                  <span className="min-w-0 whitespace-normal">
                     <span className="block text-sm font-medium">
                       {match.teams[0]?.displayName} {match.teams[0]?.goals} –{" "}
                       {match.teams[1]?.goals} {match.teams[1]?.displayName}
@@ -245,7 +278,7 @@ function PlayerStatsContent({
                       {formatDate(match.scheduledAt, data.group.timeZone)}
                     </span>
                   </span>
-                  <span className="flex items-center gap-2">
+                  <span className="flex flex-col items-end gap-2 sm:flex-row">
                     <Badge variant={match.outcome === "win" ? "secondary" : "outline"}>
                       {outcomeLabel(match.outcome)}
                     </Badge>
@@ -259,7 +292,7 @@ function PlayerStatsContent({
           )}
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 
@@ -272,6 +305,9 @@ function MatchStatsContent({
   mode: Mode;
   slug?: string;
 }) {
+  const searchParams = useSearchParams();
+  const rankingParams = new URLSearchParams(searchParams.toString());
+  rankingParams.set("tab", "ranking");
   const base =
     mode === "shared"
       ? "/compartido"
@@ -279,19 +315,16 @@ function MatchStatsContent({
         ? (`/g/${slug ?? ""}` as Route)
         : "/dashboard/estadisticas";
   return (
-    <main
-      className={cn(
-        "mx-auto w-full max-w-5xl",
-        mode === "shared" ? "px-4 py-8 sm:px-6 lg:px-8 lg:py-12" : "",
-      )}
-    >
+    <div className="mx-auto w-full min-w-0 max-w-5xl">
       <div className="mb-8 flex items-center justify-between gap-4">
         <Link
-          className={buttonVariants({
-            variant: "ghost",
-            className: "min-h-11",
-          })}
-          href={base}
+          className={cn(
+            buttonVariants({
+              variant: "ghost",
+              className: "min-h-11",
+            }),
+          )}
+          href={`${base}?${rankingParams}` as Route}
         >
           <ArrowLeftIcon data-icon="inline-start" />
           Volver
@@ -359,26 +392,31 @@ function MatchStatsContent({
           Actuaciones
         </h2>
         <div className="mt-4 overflow-hidden border">
-          <Table>
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>Jugador</TableHead>
+                <TableHead className="w-[44%]">Jugador</TableHead>
                 <TableHead className="text-right">G</TableHead>
                 <TableHead className="text-right">A</TableHead>
                 <TableHead className="text-right">AG</TableHead>
-                {mode !== "public" ? <TableHead className="text-right">Pago</TableHead> : null}
+                {mode !== "public" ? (
+                  <TableHead className="w-[26%] text-right">Pago</TableHead>
+                ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.appearances.map((appearance) => (
                 <TableRow key={appearance.playerId}>
-                  <TableCell>
+                  <TableCell className="whitespace-normal">
                     <Link
-                      className={buttonVariants({
-                        variant: "link",
-                        className: "h-auto min-h-11 justify-start px-0",
-                      })}
-                      href={`${base}/jugadores/${appearance.playerId}` as Route}
+                      className={cn(
+                        buttonVariants({
+                          variant: "link",
+                          className:
+                            "h-auto min-h-11 min-w-0 w-full whitespace-normal justify-start px-0 text-left",
+                        }),
+                      )}
+                      href={`${base}/jugadores/${appearance.playerId}?${rankingParams}` as Route}
                     >
                       {appearance.playerDisplayName}
                     </Link>
@@ -399,7 +437,7 @@ function MatchStatsContent({
           </Table>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 

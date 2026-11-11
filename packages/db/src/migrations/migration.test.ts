@@ -70,3 +70,10 @@ describe("database enforcement migration", () => {
     expect(migrationSql).toContain("REVOKE ALL ON FUNCTION");
   });
 });
+
+test("adds a nullable scorekeeper without changing tenant policies", async () => {
+  const sql = await readFile(join(migrationDirectory, "0011_match_scorekeeper.sql"), "utf8");
+  expect(sql).toContain('ADD COLUMN "scorekeeper_user_id" text');
+  expect(sql).toContain('REFERENCES "public"."user"("id") ON DELETE set null');
+  expect(sql).not.toMatch(/POLICY|ROW LEVEL SECURITY|NOT NULL/);
+});

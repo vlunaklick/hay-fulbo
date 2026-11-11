@@ -81,6 +81,170 @@ integration("MatchCommands public seam", () => {
     await pool.end();
   });
 
+  test("limits the designated scorekeeper to live goal totals", async () => {
+    const organizer = { groupId, actorUserId: organizerId };
+    const scorer = { groupId, actorUserId: memberId };
+    const created = await commands.execute(organizer, {
+      type: "createMatch",
+      scheduledAt: new Date("2026-01-01"),
+    });
+    const base = { matchId: created.matchId, expectedLockVersion: 0 };
+    await expect(
+      commands.execute(scorer, { ...base, type: "setScorekeeper", scorekeeperUserId: memberId }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+    await expect(
+      commands.execute(organizer, {
+        ...base,
+        type: "setScorekeeper",
+        scorekeeperUserId: outsiderId,
+      }),
+    ).rejects.toMatchObject({ code: "membership_required" });
+    let current = await commands.execute(organizer, {
+      ...base,
+      type: "setScorekeeper",
+      scorekeeperUserId: memberId,
+    });
+    const added = await commands.execute(organizer, {
+      type: "createAndAddParticipant",
+      matchId: created.matchId,
+      expectedLockVersion: current.lockVersion,
+      teamId: created.teamIds[0],
+      displayName: "Beto",
+    });
+    current = added;
+    for (const field of ["goals", "ownGoals", "unattributedGoals"] as const) {
+      for (const delta of [1, -1] as const) {
+        current = await commands.execute(scorer, {
+          type: "adjustStat",
+          matchId: created.matchId,
+          expectedLockVersion: current.lockVersion,
+          field,
+          delta,
+          ...(field === "unattributedGoals"
+            ? { teamId: created.teamIds[0] }
+            : { playerId: added.playerId }),
+        });
+        const detail = await queries.detail(scorer, created.matchId);
+        expect(detail.scorekeeperUserId).toBe(memberId);
+        expect(detail.scorekeeperName).toBe("Miembro");
+        expect(
+          field === "unattributedGoals"
+            ? detail.teams[0]!.unattributedGoals
+            : detail.teams[0]!.appearances[0]![field],
+        ).toBe(delta === 1 ? 1 : 0);
+      }
+    }
+    const versioned = { matchId: created.matchId, expectedLockVersion: current.lockVersion };
+    for (const command of [
+      { ...versioned, type: "adjustStat", field: "assists", delta: 1, playerId: added.playerId },
+      { ...versioned, type: "closeMatch" },
+      { ...versioned, type: "setScorekeeper", scorekeeperUserId: null },
+      { ...versioned, type: "updatePaid", playerId: added.playerId, paidMinor: 1n },
+      { ...versioned, type: "removeParticipant", playerId: added.playerId },
+    ] as const) {
+      await expect(commands.execute(scorer, command)).rejects.toMatchObject({ code: "forbidden" });
+    }
+    await pool.query("delete from member where id = 'member-member'");
+    await expect(
+      commands.execute(scorer, {
+        ...versioned,
+        type: "adjustStat",
+        field: "goals",
+        delta: 1,
+        playerId: added.playerId,
+      }),
+    ).rejects.toMatchObject({ code: "membership_required" });
+    await database
+      .insert(member)
+      .values({ id: "member-member", organizationId: groupId, userId: memberId, role: "member" });
+    current = await commands.execute(organizer, {
+      ...versioned,
+      type: "setScorekeeper",
+      scorekeeperUserId: null,
+    });
+    await expect(
+      commands.execute(scorer, {
+        ...versioned,
+        expectedLockVersion: current.lockVersion,
+        type: "adjustStat",
+        field: "goals",
+        delta: 1,
+        playerId: added.playerId,
+      }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  test("rejects assignment and scoring on closed or cancelled matches", async () => {
+    const scope = { groupId, actorUserId: organizerId };
+    const court = await commands.execute(scope, {
+      type: "upsertCourt",
+      name: "Cancha",
+      address: "Acá",
+      mapsUrl: "https://example.com",
+    });
+    const created = await commands.execute(scope, {
+      type: "createMatch",
+      scheduledAt: new Date("2026-01-01"),
+      courtId: court.courtId,
+      courtCostMinor: 0n,
+    });
+    let current = await commands.execute(scope, {
+      type: "setScorekeeper",
+      matchId: created.matchId,
+      expectedLockVersion: 0,
+      scorekeeperUserId: memberId,
+    });
+    for (const teamId of created.teamIds) {
+      current = await commands.execute(scope, {
+        type: "createAndAddParticipant",
+        matchId: created.matchId,
+        expectedLockVersion: current.lockVersion,
+        teamId,
+        displayName: teamId,
+      });
+    }
+    current = await commands.execute(scope, {
+      type: "closeMatch",
+      matchId: created.matchId,
+      expectedLockVersion: current.lockVersion,
+    });
+    for (const status of ["closed", "cancelled"]) {
+      if (status === "cancelled") {
+        current = await commands.execute(scope, {
+          type: "reopenMatch",
+          matchId: created.matchId,
+          expectedLockVersion: current.lockVersion,
+        });
+        current = await commands.execute(scope, {
+          type: "cancelMatch",
+          matchId: created.matchId,
+          expectedLockVersion: current.lockVersion,
+        });
+      }
+      await expect(
+        commands.execute(scope, {
+          type: "setScorekeeper",
+          matchId: created.matchId,
+          expectedLockVersion: current.lockVersion,
+          scorekeeperUserId: null,
+        }),
+      ).rejects.toMatchObject({ code: "match_not_open" });
+      await expect(
+        commands.execute(
+          { groupId, actorUserId: memberId },
+          {
+            type: "adjustStat",
+            matchId: created.matchId,
+            expectedLockVersion: current.lockVersion,
+            field: "unattributedGoals",
+            teamId: created.teamIds[0],
+            delta: 1,
+          },
+        ),
+      ).rejects.toMatchObject({ code: "match_not_open" });
+    }
+  });
+
   test("creates the match with default temporary teams and its initial event atomically", async () => {
     const scope = { groupId, actorUserId: organizerId };
     const created = await commands.execute(scope, {

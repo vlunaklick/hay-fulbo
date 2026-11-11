@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@hay-fulbo/ui/components/button";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -10,7 +11,15 @@ export function MatchParityCard({ matchId }: { matchId: string }) {
   const parity = useQuery(trpc.stats.parity.queryOptions({ matchId }));
 
   if (parity.isPending) return <Skeleton className="h-56 w-full" />;
-  if (parity.isError) return null;
+  if (parity.isError)
+    return (
+      <div role="alert" className="space-y-3 rounded-lg border bg-card p-4">
+        <p className="text-sm">No pudimos cargar cómo llega cada equipo.</p>
+        <Button variant="outline" onClick={() => parity.refetch()}>
+          Reintentar
+        </Button>
+      </div>
+    );
 
   const options = [
     {

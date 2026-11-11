@@ -9,17 +9,19 @@ import type { inferRouterOutputs } from "@trpc/server";
 import { ArrowLeftIcon, CircleAlertIcon, Maximize2Icon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useRef } from "react";
 
 import { useAppContext } from "@/components/app-shell";
-import { MatchScoreboard } from "@/components/match-scoreboard";
+import { MatchScoreboard, useMatchCommand } from "@/components/match-scoreboard";
 import { trpc } from "@/utils/trpc";
 
 type Detail = inferRouterOutputs<AppRouter>["matches"]["detail"];
 
 export function PitchMode() {
   const { matchId } = useParams<{ matchId: string }>();
-  const detail = useQuery(trpc.matches.detail.queryOptions({ matchId }));
+  const detail = useQuery({
+    ...trpc.matches.detail.queryOptions({ matchId }),
+    refetchInterval: (query) => (query.state.data?.status === "open" ? 5000 : false),
+  });
 
   if (detail.isPending) {
     return (
@@ -34,7 +36,15 @@ export function PitchMode() {
         <Alert className="max-w-md" variant="destructive">
           <CircleAlertIcon aria-hidden="true" />
           <AlertTitle>No pudimos abrir el modo cancha</AlertTitle>
-          <AlertDescription>{detail.error.message}</AlertDescription>
+          <AlertDescription>
+            Volvé al partido para revisar el acceso o intentar de nuevo.
+            <Link
+              className="mt-3 inline-flex min-h-11 items-center underline"
+              href={`/dashboard/partidos/${matchId}`}
+            >
+              Volver al partido
+            </Link>
+          </AlertDescription>
         </Alert>
       </div>
     );
@@ -45,22 +55,21 @@ export function PitchMode() {
 
 function PitchShell({ detail }: { detail: Detail }) {
   const { role, user } = useAppContext();
-  const boardRef = useRef<HTMLDivElement>(null);
   const manager = detail.organizerUserId === user.id || role !== "member";
+
+  const { run, pending } = useMatchCommand(detail);
+  const canScore = detail.status === "open" && (manager || detail.scorekeeperUserId === user.id);
 
   async function toggleFullscreen() {
     if (document.fullscreenElement) {
       await document.exitFullscreen();
       return;
     }
-    await boardRef.current?.requestFullscreen();
+    await document.documentElement.requestFullscreen();
   }
 
   return (
-    <div
-      ref={boardRef}
-      className="fixed inset-0 z-50 flex min-h-svh flex-col overflow-auto bg-zinc-950 text-zinc-50"
-    >
+    <div className="dark fixed inset-0 z-50 flex min-h-svh flex-col overflow-auto bg-zinc-950 text-zinc-50">
       <header className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-3 sm:px-6">
         <Button
           className="text-zinc-100 hover:bg-white/10 hover:text-white"
@@ -90,7 +99,7 @@ function PitchShell({ detail }: { detail: Detail }) {
       </header>
 
       <main className="grid flex-1 content-center gap-6 p-4 sm:p-8">
-        <MatchScoreboard detail={detail} manager={manager} userId={user.id} />
+        <MatchScoreboard detail={detail} canScore={canScore} pending={pending} run={run} />
       </main>
     </div>
   );

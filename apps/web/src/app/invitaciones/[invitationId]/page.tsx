@@ -1,12 +1,6 @@
 import { auth } from "@hay-fulbo/auth";
 import { Button } from "@hay-fulbo/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@hay-fulbo/ui/components/card";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -48,7 +42,7 @@ export default async function InvitationPage({
           </div>
           <Card>
             <CardHeader>
-              <CardTitle>Esta invitación no está disponible</CardTitle>
+              <h1 className="text-xl font-bold">Esta invitación no está disponible</h1>
               <CardDescription>
                 Puede haber vencido, ya fue usada o pertenece a otra cuenta.
               </CardDescription>
