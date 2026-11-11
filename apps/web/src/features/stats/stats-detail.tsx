@@ -4,7 +4,13 @@ import type { PlayerStats, StatsFilters, StatsMatchDetail } from "@hay-fulbo/db/
 import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { buttonVariants } from "@hay-fulbo/ui/components/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@hay-fulbo/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@hay-fulbo/ui/components/card";
 import { Separator } from "@hay-fulbo/ui/components/separator";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import {
@@ -223,7 +229,7 @@ function PlayerStatsContent({
         <>
           <section
             aria-label="Resumen del jugador"
-            className="mt-8 grid grid-cols-2 gap-px overflow-hidden border bg-border sm:grid-cols-4"
+            className="mt-8 grid grid-cols-2 gap-2 sm:grid-cols-4"
           >
             <Metric label="Partidos" value={data.aggregate.played} />
             <Metric label="Goles" value={data.aggregate.goals} />
@@ -458,10 +464,12 @@ function MatchStatsContent({
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-background p-4">
-      <p className="text-2xl font-semibold tabular-nums">{value}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-    </div>
+    <Card size="sm">
+      <CardContent>
+        <p className="text-2xl font-semibold tabular-nums">{value}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
   );
 }
 

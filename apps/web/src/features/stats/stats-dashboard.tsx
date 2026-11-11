@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import { Item, ItemGroup, ItemMedia } from "@hay-fulbo/ui/components/item";
 import { Progress } from "@hay-fulbo/ui/components/progress";
 import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
@@ -294,8 +295,8 @@ function StatsDashboardContent({
                   </Badge>
                 </CardHeader>
 
-                <CardContent className="relative z-10 grid grid-cols-1 p-0 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)_minmax(0,0.9fr)]">
-                  <div className="flex min-w-0 flex-col justify-between gap-4 p-5 lg:min-h-64">
+                <CardContent className="relative z-10 grid grid-cols-1 p-0 lg:flex lg:flex-row">
+                  <div className="flex min-w-0 flex-col justify-between gap-4 p-5 lg:min-h-64 lg:flex-[0.82_1_0]">
                     <div>
                       <div className="flex items-center gap-4">
                         <Avatar className="size-14 shrink-0">
@@ -319,7 +320,8 @@ function StatsDashboardContent({
                         </div>
                       </div>
 
-                      <dl className="mt-5 grid grid-cols-3 gap-3 border-y py-3">
+                      <Separator className="mt-5" />
+                      <dl className="grid grid-cols-3 gap-3 py-3">
                         <SpotlightMetric label="Goles" value={figure.goals} />
                         <SpotlightMetric label="Asist." value={figure.assists} />
                         <SpotlightMetric
@@ -327,6 +329,7 @@ function StatsDashboardContent({
                           value={formatRate(figure.contributionsPerMatch)}
                         />
                       </dl>
+                      <Separator />
                     </div>
 
                     <Link
@@ -348,7 +351,9 @@ function StatsDashboardContent({
                     </Link>
                   </div>
 
-                  <div className="min-w-0 border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
+                  <Separator className="lg:hidden" />
+                  <Separator className="hidden lg:block" orientation="vertical" />
+                  <div className="min-w-0 p-5 lg:min-h-64 lg:flex-[1.18_1_0]">
                     <div className="mb-3 flex items-end justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">Carrera G+A</p>
@@ -365,12 +370,14 @@ function StatsDashboardContent({
                     />
                   </div>
 
-                  <div className="min-w-0 border-t p-5 lg:min-h-64 lg:border-l lg:border-t-0">
+                  <Separator className="lg:hidden" />
+                  <Separator className="hidden lg:block" orientation="vertical" />
+                  <div className="min-w-0 p-5 lg:min-h-64 lg:flex-[0.9_1_0]">
                     <p className="text-sm font-semibold">Dueños de la tabla</p>
                     <p className="mb-2 text-xs text-muted-foreground">
                       Los líderes del período elegido
                     </p>
-                    <div className="divide-y">
+                    <ItemGroup className="gap-0 divide-y">
                       <HallLeader
                         icon={<CrosshairIcon />}
                         label="Goleador"
@@ -392,7 +399,7 @@ function StatsDashboardContent({
                         suffix="% victorias"
                         value={winner ? Math.round(winner.winPercentage) : 0}
                       />
-                    </div>
+                    </ItemGroup>
                   </div>
                 </CardContent>
               </Card>
@@ -767,43 +774,45 @@ function ContributionRace({
 }) {
   const maximum = players[0]?.contributions || 1;
   return (
-    <div className="flex flex-col gap-2">
+    <ItemGroup className="gap-2">
       {players.map((player, index) => (
-        <Link
-          className="group/racer flex min-h-14 items-center gap-3 rounded-md px-2 outline-none transition-colors duration-200 ease-out hover:bg-muted/55 focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
-          href={playerHref(detailBase, player.playerId, query)}
-          key={player.playerId}
-        >
-          <span
-            className={cn(
-              "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-200 motion-reduce:transition-none",
-              index === 0
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground group-hover/racer:text-foreground",
-            )}
+        <div key={player.playerId} role="listitem">
+          <Item
+            className="group/racer min-h-14 flex-nowrap gap-3 px-2 py-0"
+            render={<Link href={playerHref(detailBase, player.playerId, query)} />}
+            size="sm"
           >
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <Avatar className="size-8 shrink-0">
-            <AvatarFallback className={index === 0 ? "bg-primary/15 text-primary" : ""}>
-              {initials(player.displayName)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <span className="mb-1.5 flex items-center justify-between gap-3">
-              <span className="truncate text-sm font-medium">{player.displayName}</span>
-              <span className="shrink-0 text-xs font-semibold tabular-nums">
-                {player.contributions} G+A
-              </span>
+            <span
+              className={cn(
+                "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-colors duration-200 motion-reduce:transition-none",
+                index === 0
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground group-hover/racer:text-foreground",
+              )}
+            >
+              {String(index + 1).padStart(2, "0")}
             </span>
-            <Progress
-              aria-hidden="true"
-              value={Math.max((player.contributions / maximum) * 100, 4)}
-            />
-          </div>
-        </Link>
+            <Avatar className="size-8 shrink-0">
+              <AvatarFallback className={index === 0 ? "bg-primary/15 text-primary" : ""}>
+                {initials(player.displayName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <span className="mb-1.5 flex items-center justify-between gap-3">
+                <span className="truncate text-sm font-medium">{player.displayName}</span>
+                <span className="shrink-0 text-xs font-semibold tabular-nums">
+                  {player.contributions} G+A
+                </span>
+              </span>
+              <Progress
+                aria-hidden="true"
+                value={Math.max((player.contributions / maximum) * 100, 4)}
+              />
+            </div>
+          </Item>
+        </div>
       ))}
-    </div>
+    </ItemGroup>
   );
 }
 
@@ -832,10 +841,10 @@ function HallLeader({
   value: number;
 }) {
   return (
-    <div className="group/leader flex min-h-[3.65rem] items-center gap-3 py-2">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-primary transition-colors duration-200 ease-out group-hover/leader:bg-primary/15 motion-reduce:transition-none [&_svg]:size-4">
+    <Item className="min-h-[3.65rem] flex-nowrap px-0" role="listitem" size="sm">
+      <ItemMedia className="text-primary" variant="icon">
         {icon}
-      </span>
+      </ItemMedia>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {label}
@@ -846,7 +855,7 @@ function HallLeader({
         <span className="block text-base font-bold text-foreground">{value}</span>
         {suffix}
       </p>
-    </div>
+    </Item>
   );
 }
 

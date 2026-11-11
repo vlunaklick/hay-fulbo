@@ -53,7 +53,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import { Item, ItemDescription, ItemTitle } from "@hay-fulbo/ui/components/item";
+import { Progress } from "@hay-fulbo/ui/components/progress";
 import { Separator } from "@hay-fulbo/ui/components/separator";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@hay-fulbo/ui/components/sidebar";
 import {
   Table,
   TableBody,
@@ -150,17 +165,14 @@ function FilterControls({
         value={filters.venue}
         onValueChange={(value) => onChange({ ...filters, venue: value as VenueFilter })}
       >
-        <SelectTrigger
-          aria-label="Filtrar por cancha"
-          className="h-8 w-full gap-1.5 rounded-none px-2.5 text-xs focus-visible:ring-1 md:w-44"
-        >
+        <SelectTrigger aria-label="Filtrar por cancha" className="w-full md:w-44">
           <MapPinIcon />
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="rounded-none p-0">
+        <SelectContent>
           <SelectGroup>
             {venueOptions.map((option) => (
-              <SelectItem className="min-h-0 rounded-none" key={option.value} value={option.value}>
+              <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
             ))}
@@ -173,17 +185,14 @@ function FilterControls({
         value={filters.history}
         onValueChange={(value) => onChange({ ...filters, history: value as HistoryFilter })}
       >
-        <SelectTrigger
-          aria-label="Filtrar historial"
-          className="h-8 w-full gap-1.5 rounded-none px-2.5 text-xs focus-visible:ring-1 md:w-48"
-        >
+        <SelectTrigger aria-label="Filtrar historial" className="w-full md:w-48">
           <Clock3Icon />
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="rounded-none p-0">
+        <SelectContent>
           <SelectGroup>
             {historyOptions.map((option) => (
-              <SelectItem className="min-h-0 rounded-none" key={option.value} value={option.value}>
+              <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
             ))}
@@ -270,21 +279,23 @@ function EditorialHistory({ matches }: { matches: MatchResult[] }) {
   if (matches.length === 0) return <EmptyResults subject="historial" />;
 
   return (
-    <div className="grid gap-px bg-border md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-3">
       {matches.slice(0, 3).map((match) => (
-        <article key={match.id} className="flex flex-col gap-5 bg-card p-5">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-xs text-muted-foreground">{match.shortDate}</span>
-            <Badge variant="outline">{match.venueName}</Badge>
-          </div>
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <Card key={match.id} role="article">
+          <CardHeader>
+            <CardDescription className="font-mono">{match.shortDate}</CardDescription>
+            <CardAction>
+              <Badge variant="outline">{match.venueName}</Badge>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <span className="font-serif text-xl">{match.teamA}</span>
             <strong className="font-serif text-3xl">
               {match.scoreA}–{match.scoreB}
             </strong>
             <span className="text-right font-serif text-xl">{match.teamB}</span>
-          </div>
-        </article>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
@@ -306,12 +317,14 @@ function VariantA({
       className="hf-variant-a min-h-full overflow-auto bg-background pb-32 text-foreground"
       data-testid="variant-a"
     >
-      <header className="border-b">
+      <header>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-5 md:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center bg-primary text-primary-foreground">
-              <GoalIcon aria-hidden="true" />
-            </div>
+            <Avatar size="lg">
+              <AvatarFallback>
+                <GoalIcon aria-hidden="true" />
+              </AvatarFallback>
+            </Avatar>
             <div>
               <p className="font-serif text-2xl leading-none">Hay Fulbo</p>
               <p className="mt-1 text-xs text-muted-foreground">Los Pibes del Viernes</p>
@@ -319,10 +332,11 @@ function VariantA({
           </div>
           <PrivacyMark />
         </div>
+        <Separator />
       </header>
 
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 md:px-8 md:py-12">
-        <section className="grid gap-px bg-border lg:grid-cols-[1.65fr_0.85fr]">
+        <section className="grid gap-4 lg:grid-cols-[1.65fr_0.85fr]">
           <Card className="min-h-[390px]">
             <CardHeader>
               <Badge variant="secondary">Próxima fecha</Badge>
@@ -389,9 +403,7 @@ function VariantA({
                 <p className="font-serif text-5xl">{formatCurrency(upcomingMatch.dueAmount)}</p>
                 <p className="mt-1 text-xs text-muted-foreground">faltan cobrar</p>
               </div>
-              <div className="flex h-2 overflow-hidden bg-muted" aria-label="7 de 10 pagaron">
-                <div className="w-[70%] bg-primary" />
-              </div>
+              <Progress value={70} aria-label="7 de 10 pagaron" />
               <div className="flex flex-col gap-3">
                 {debts.map((debt) => (
                   <div key={debt.id} className="flex items-center justify-between gap-3">
@@ -430,16 +442,20 @@ function VariantA({
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[0.75fr_1.5fr]">
-          <div className="flex flex-col justify-between bg-primary p-6 text-primary-foreground">
-            <div>
-              <MedalIcon className="size-8" />
-              <p className="mt-10 font-serif text-4xl">La tabla no miente.</p>
-            </div>
-            <p className="mt-12 max-w-xs text-xs text-primary-foreground/70">
-              Solo cuentan partidos cerrados por el organizador. Los filtros se aplican al ranking y
-              al historial.
-            </p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardAction>
+                <MedalIcon />
+              </CardAction>
+              <CardTitle className="font-serif text-4xl">La tabla no miente.</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-1 items-end">
+              <CardDescription>
+                Solo cuentan partidos cerrados por el organizador. Los filtros se aplican al ranking
+                y al historial.
+              </CardDescription>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Ranking de contribuciones</CardTitle>
@@ -471,9 +487,11 @@ function TechnicalPlayerRow({ player, index }: { player: PlayerStat; index: numb
           <span className="truncate font-medium">{player.name}</span>
           <span className="font-mono text-xs">{player.contributions}</span>
         </div>
-        <div className="mt-1 h-1 bg-muted">
-          <div className="h-full bg-primary" style={{ width: `${width}%` }} />
-        </div>
+        <Progress
+          value={width}
+          aria-label={`${player.name}: ${player.contributions} G+A`}
+          className="mt-1"
+        />
       </div>
       <span className="text-right font-mono text-xs">{player.goals}G</span>
       <span className="text-right font-mono text-xs">{player.assists}A</span>
@@ -502,32 +520,41 @@ function VariantB({
       data-testid="variant-b"
     >
       <div className="mx-auto min-h-full max-w-[1500px] lg:grid lg:grid-cols-[250px_1fr]">
-        <aside className="hidden border-r lg:flex lg:flex-col lg:justify-between lg:p-6">
-          <div className="flex flex-col gap-10">
-            <div>
+        <SidebarProvider className="hidden min-h-0 w-auto lg:flex">
+          <Sidebar collapsible="none" className="border-r">
+            <SidebarHeader>
               <p className="font-mono text-xs text-muted-foreground">HF / GRUPO 01</p>
-              <p className="mt-2 text-xl font-semibold uppercase tracking-tight">
+              <p className="text-xl font-semibold uppercase tracking-tight">
                 Los Pibes
                 <br />
                 del Viernes
               </p>
-            </div>
-            <nav className="flex flex-col gap-1 text-xs" aria-label="Secciones del prototipo">
-              {["Resumen", "Partidos", "Rendimiento", "Caja"].map((item, index) => (
-                <div key={item} className="flex items-center justify-between border-b py-3">
-                  <span className={index === 0 ? "font-semibold" : "text-muted-foreground"}>
-                    {item}
-                  </span>
-                  <span className="font-mono text-muted-foreground">0{index + 1}</span>
-                </div>
-              ))}
-            </nav>
-          </div>
-          <PrivacyMark compact />
-        </aside>
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarGroupLabel>Secciones</SidebarGroupLabel>
+                <nav aria-label="Secciones del prototipo">
+                  <SidebarMenu>
+                    {["Resumen", "Partidos", "Rendimiento", "Caja"].map((item, index) => (
+                      <SidebarMenuItem key={item}>
+                        <SidebarMenuButton render={<div />} isActive={index === 0}>
+                          <span>{item}</span>
+                        </SidebarMenuButton>
+                        <SidebarMenuBadge>0{index + 1}</SidebarMenuBadge>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </nav>
+              </SidebarGroup>
+            </SidebarContent>
+            <SidebarFooter>
+              <PrivacyMark compact />
+            </SidebarFooter>
+          </Sidebar>
+        </SidebarProvider>
 
         <div>
-          <header className="flex flex-col gap-5 border-b px-4 py-5 md:px-8">
+          <header className="flex flex-col gap-5 px-4 py-5 md:px-8">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="font-mono text-xs uppercase tracking-[0.24em] text-muted-foreground">
@@ -544,7 +571,8 @@ function VariantB({
             <FilterControls filters={filters} onChange={onFiltersChange} compact />
           </header>
 
-          <div className="grid grid-cols-2 border-b md:grid-cols-4">
+          <Separator />
+          <div className="grid grid-cols-2 gap-4 p-4 md:grid-cols-4 md:px-8">
             {[
               { label: "Partidos cerrados", value: matchCount, icon: CalendarDaysIcon },
               {
@@ -563,113 +591,132 @@ function VariantB({
                 icon: ShieldCheckIcon,
               },
             ].map(({ label, value, icon: Icon }) => (
-              <div key={label} className="border-r p-4 last:border-r-0 md:p-6">
-                <Icon className="size-4 text-muted-foreground" />
-                <p className="mt-5 font-mono text-xl font-semibold md:text-2xl">{value}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-              </div>
+              <Card key={label} size="sm">
+                <CardHeader>
+                  <CardAction>
+                    <Icon className="text-muted-foreground" />
+                  </CardAction>
+                  <CardDescription>{label}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-mono text-xl font-semibold md:text-2xl">{value}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
 
-          <div className="grid gap-px bg-border xl:grid-cols-[1.25fr_0.75fr]">
-            <section className="bg-card p-4 md:p-8" aria-labelledby="technical-upcoming">
-              <div className="flex items-center justify-between gap-4">
+          <Separator />
+          <div className="grid gap-4 p-4 md:p-8 xl:grid-cols-[1.25fr_0.75fr]">
+            <Card role="region" aria-labelledby="technical-upcoming">
+              <CardHeader>
                 <div>
                   <p className="font-mono text-xs text-muted-foreground">PRÓXIMO / 31 JUL</p>
                   <h2 id="technical-upcoming" className="mt-2 text-2xl font-semibold uppercase">
                     {upcomingMatch.venue} · {upcomingMatch.time}
                   </h2>
                 </div>
-                <Badge>{upcomingMatch.expectedPlayers} citados</Badge>
-              </div>
-
-              <div className="relative mt-6 min-h-[330px] overflow-hidden border bg-muted/40 p-5 md:p-8">
-                <div className="absolute inset-y-0 left-1/2 w-px bg-border" />
-                <div className="absolute left-1/2 top-1/2 size-24 -translate-x-1/2 -translate-y-1/2 rounded-full border" />
-                <div className="relative grid min-h-[270px] grid-cols-2 gap-8">
-                  <div className="flex flex-col justify-between">
-                    <div>
-                      <p className="font-mono text-xs text-muted-foreground">CAPITÁN A</p>
-                      <p className="mt-1 text-xl font-semibold">{upcomingMatch.captains[0]}</p>
+                <CardAction>
+                  <Badge>{upcomingMatch.expectedPlayers} citados</Badge>
+                </CardAction>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="relative min-h-[330px] overflow-hidden border bg-muted/40 p-5 md:p-8">
+                  <div className="absolute inset-y-0 left-1/2 w-px bg-border" />
+                  <div className="absolute left-1/2 top-1/2 size-24 -translate-x-1/2 -translate-y-1/2 rounded-full border" />
+                  <div className="relative grid min-h-[270px] grid-cols-2 gap-8">
+                    <div className="flex flex-col justify-between">
+                      <div>
+                        <p className="font-mono text-xs text-muted-foreground">CAPITÁN A</p>
+                        <p className="mt-1 text-xl font-semibold">{upcomingMatch.captains[0]}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Plantel</p>
+                        <p className="mt-1 font-mono">5 lugares</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Plantel</p>
-                      <p className="mt-1 font-mono">5 lugares</p>
+                    <div className="flex flex-col items-end justify-between text-right">
+                      <div>
+                        <p className="font-mono text-xs text-muted-foreground">CAPITÁN B</p>
+                        <p className="mt-1 text-xl font-semibold">{upcomingMatch.captains[1]}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Plantel</p>
+                        <p className="mt-1 font-mono">5 lugares</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end justify-between text-right">
-                    <div>
-                      <p className="font-mono text-xs text-muted-foreground">CAPITÁN B</p>
-                      <p className="mt-1 text-xl font-semibold">{upcomingMatch.captains[1]}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Plantel</p>
-                      <p className="mt-1 font-mono">5 lugares</p>
-                    </div>
-                  </div>
                 </div>
-              </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="border p-3">
-                  <p className="text-xs text-muted-foreground">Dirección</p>
-                  <p className="mt-1 text-xs font-medium">{upcomingMatch.address}</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Card size="sm">
+                    <CardHeader>
+                      <CardDescription>Dirección</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs font-medium">{upcomingMatch.address}</p>
+                    </CardContent>
+                  </Card>
+                  <Card size="sm">
+                    <CardHeader>
+                      <CardDescription>Costo total</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="font-mono text-sm">{formatCurrency(upcomingMatch.price)}</p>
+                    </CardContent>
+                  </Card>
+                  <Button
+                    className="h-full min-h-14"
+                    nativeButton={false}
+                    render={<a href={upcomingMatch.mapsUrl} target="_blank" rel="noreferrer" />}
+                  >
+                    <NavigationIcon data-icon="inline-start" />
+                    Navegar
+                  </Button>
                 </div>
-                <div className="border p-3">
-                  <p className="text-xs text-muted-foreground">Costo total</p>
-                  <p className="mt-1 font-mono text-sm">{formatCurrency(upcomingMatch.price)}</p>
-                </div>
-                <Button
-                  className="h-full min-h-14"
-                  nativeButton={false}
-                  render={<a href={upcomingMatch.mapsUrl} target="_blank" rel="noreferrer" />}
-                >
-                  <NavigationIcon data-icon="inline-start" />
-                  Navegar
-                </Button>
-              </div>
-            </section>
+              </CardContent>
+            </Card>
 
-            <section
-              className="flex flex-col bg-card p-4 md:p-8"
-              aria-labelledby="technical-ranking"
-            >
-              <div className="flex items-center justify-between">
+            <Card role="region" aria-labelledby="technical-ranking">
+              <CardHeader>
                 <div>
                   <p className="font-mono text-xs text-muted-foreground">RANKING / G+A</p>
                   <h2 id="technical-ranking" className="mt-2 text-xl font-semibold uppercase">
                     Rendimiento
                   </h2>
                 </div>
-                <ChartNoAxesCombinedIcon className="size-5" />
-              </div>
-              <div className="mt-6 flex flex-1 flex-col">
-                {players.length > 0 ? (
-                  players
-                    .slice(0, 6)
-                    .map((player, index) => (
-                      <TechnicalPlayerRow key={player.id} player={player} index={index} />
-                    ))
-                ) : (
-                  <EmptyResults subject="ranking" />
-                )}
-              </div>
-              {players.length > 0 ? (
-                <div className="mt-5 grid grid-cols-4 gap-px bg-border text-center">
-                  {[
-                    ["PJ", "Partidos"],
-                    ["G", "Goles"],
-                    ["A", "Asist."],
-                    ["G+A", "Total"],
-                  ].map(([key, label]) => (
-                    <div key={key} className="bg-muted p-2">
-                      <p className="font-mono text-xs">{key}</p>
-                      <p className="mt-1 text-[10px] text-muted-foreground">{label}</p>
-                    </div>
-                  ))}
+                <CardAction>
+                  <ChartNoAxesCombinedIcon />
+                </CardAction>
+              </CardHeader>
+              <CardContent className="flex flex-1 flex-col gap-5">
+                <div className="flex flex-1 flex-col">
+                  {players.length > 0 ? (
+                    players
+                      .slice(0, 6)
+                      .map((player, index) => (
+                        <TechnicalPlayerRow key={player.id} player={player} index={index} />
+                      ))
+                  ) : (
+                    <EmptyResults subject="ranking" />
+                  )}
                 </div>
-              ) : null}
-            </section>
+                {players.length > 0 ? (
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    {[
+                      ["PJ", "Partidos"],
+                      ["G", "Goles"],
+                      ["A", "Asist."],
+                      ["G+A", "Total"],
+                    ].map(([key, label]) => (
+                      <Item key={key} variant="muted" size="xs" className="flex-col gap-1">
+                        <ItemTitle className="font-mono">{key}</ItemTitle>
+                        <ItemDescription className="text-center">{label}</ItemDescription>
+                      </Item>
+                    ))}
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
           </div>
 
           <Separator />
@@ -683,25 +730,27 @@ function VariantB({
               </span>
             </div>
             {history.length > 0 ? (
-              <div className="grid gap-px bg-border md:grid-cols-3">
+              <div className="grid gap-4 px-4 pb-4 md:grid-cols-3 md:px-8 md:pb-8">
                 {history.slice(0, 3).map((match) => (
-                  <article key={match.id} className="bg-card p-4">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="font-mono">{match.shortDate}</span>
-                      <span>{match.venueName}</span>
-                    </div>
-                    <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                  <Card key={match.id} size="sm" role="article">
+                    <CardHeader>
+                      <CardDescription className="font-mono">{match.shortDate}</CardDescription>
+                      <CardAction>
+                        <CardDescription>{match.venueName}</CardDescription>
+                      </CardAction>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <span>{match.teamA}</span>
                       <strong className="font-mono text-xl">
                         {match.scoreA}:{match.scoreB}
                       </strong>
                       <span className="text-right">{match.teamB}</span>
-                    </div>
-                  </article>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             ) : (
-              <div className="bg-card px-4 md:px-8">
+              <div className="px-4 md:px-8">
                 <EmptyResults subject="historial" />
               </div>
             )}
@@ -718,9 +767,11 @@ function FeedMatch({ match }: { match: MatchResult }) {
   return (
     <article className="grid grid-cols-[2.5rem_1fr] gap-3">
       <div className="flex flex-col items-center">
-        <div className="flex size-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-          <TrophyIcon className="size-4" />
-        </div>
+        <Avatar size="lg">
+          <AvatarFallback>
+            <TrophyIcon aria-hidden="true" />
+          </AvatarFallback>
+        </Avatar>
         <div className="mt-2 w-px flex-1 bg-border" />
       </div>
       <Card className="mb-4">
@@ -767,9 +818,11 @@ function VariantC({
         <header className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <SparklesIcon />
-              </div>
+              <Avatar size="lg">
+                <AvatarFallback>
+                  <SparklesIcon aria-hidden="true" />
+                </AvatarFallback>
+              </Avatar>
               <div>
                 <p className="font-serif text-2xl leading-none">El vestuario</p>
                 <p className="mt-1 text-xs text-muted-foreground">Los Pibes del Viernes</p>
@@ -950,38 +1003,30 @@ function PrototypeSwitcher({
 
   return (
     <aside
-      className="fixed inset-x-3 bottom-3 z-40 mx-auto flex max-w-xl items-center justify-between gap-2 rounded-full bg-foreground p-1.5 text-background shadow-2xl"
+      className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-xl"
       aria-label="Selector de variantes del prototipo"
       data-testid="prototype-switcher"
     >
-      <Button
-        variant="secondary"
-        size="icon"
-        className="rounded-full"
-        onClick={previous}
-        aria-label="Variante anterior"
-      >
-        <ArrowLeftIcon />
-      </Button>
-      <div className="min-w-0 text-center">
-        <p className="truncate text-xs font-medium">
-          {active.key.toUpperCase()} — {active.name}
-        </p>
-        <p className="truncate text-[10px] text-background/60">
-          {periodLabels[filters.period]} ·{" "}
-          {venueOptions.find((option) => option.value === filters.venue)?.label} ·{" "}
-          {historyOptions.find((option) => option.value === filters.history)?.label}
-        </p>
-      </div>
-      <Button
-        variant="secondary"
-        size="icon"
-        className="rounded-full"
-        onClick={next}
-        aria-label="Variante siguiente"
-      >
-        <ArrowRightIcon />
-      </Button>
+      <Card size="sm" className="shadow-2xl">
+        <CardContent className="flex items-center justify-between gap-2">
+          <Button variant="outline" size="icon" onClick={previous} aria-label="Variante anterior">
+            <ArrowLeftIcon />
+          </Button>
+          <div className="min-w-0 text-center">
+            <p className="truncate text-xs font-medium">
+              {active.key.toUpperCase()} — {active.name}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              {periodLabels[filters.period]} ·{" "}
+              {venueOptions.find((option) => option.value === filters.venue)?.label} ·{" "}
+              {historyOptions.find((option) => option.value === filters.history)?.label}
+            </p>
+          </div>
+          <Button variant="outline" size="icon" onClick={next} aria-label="Variante siguiente">
+            <ArrowRightIcon />
+          </Button>
+        </CardContent>
+      </Card>
     </aside>
   );
 }

@@ -2,6 +2,7 @@
 
 import { Button } from "@hay-fulbo/ui/components/button";
 import { Card } from "@hay-fulbo/ui/components/card";
+import { Separator } from "@hay-fulbo/ui/components/separator";
 import { DownloadIcon, Share2Icon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,8 +53,9 @@ export function MatchResultCard({
   return (
     <section
       aria-labelledby="share-result-title"
-      className="grid gap-3 border-y py-4 md:grid-cols-[minmax(0,1fr)_11rem] md:items-center"
+      className="grid gap-3 py-3 md:grid-cols-[minmax(0,1fr)_11rem] md:items-center"
     >
+      <Separator className="md:col-span-2" />
       <header className="flex items-center justify-between gap-3 md:col-span-2">
         <h2 id="share-result-title" className="text-sm font-medium">
           Resultado para compartir
@@ -91,6 +93,7 @@ export function MatchResultCard({
           Descargar SVG
         </Button>
       </div>
+      <Separator className="md:col-span-2" />
     </section>
   );
 }

@@ -110,7 +110,7 @@ export function HomeDashboard() {
       />
 
       <section aria-label="Tu resumen">
-        <dl className="grid gap-px overflow-hidden border bg-border sm:grid-cols-3">
+        <dl className="grid gap-2 sm:grid-cols-3">
           <PersonalMetric label="Tu aporte">
             {!me ? (
               <span className="text-sm text-muted-foreground">
@@ -360,12 +360,13 @@ function NextMatchHero({
 
 function PersonalMetric({ children, label }: { children: React.ReactNode; label: string }) {
   return (
-    <div className="flex min-h-20 flex-col justify-center gap-1 bg-card px-4 py-3">
+    // dt/dd sit directly in the Card: a <dl> group may only be one <div> deep.
+    <Card size="sm" className="min-h-20 justify-center gap-1 px-(--card-spacing)">
       <dt className="flex items-center gap-1.5 truncate text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
         {label}
       </dt>
       <dd>{children}</dd>
-    </div>
+    </Card>
   );
 }
 

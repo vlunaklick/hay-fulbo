@@ -11,12 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import { EyeIcon, LockIcon, TrophyIcon } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 
 import type { AppRouter } from "@hay-fulbo/api/routers/index";
@@ -113,66 +114,66 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
                   className={cn("h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
                   aria-hidden="true"
                 />
-                <CardContent className="flex flex-col divide-y py-3">
-                  {team.appearances.map((appearance) => {
+                <CardContent className="flex flex-col py-3">
+                  {team.appearances.map((appearance, index) => {
                     const summary = data.players.find(
                       (player) => player.playerId === appearance.playerId,
                     );
                     const isSelf = appearance.playerId === data.viewerPlayerId;
                     const current = valueFor(appearance.playerId);
                     return (
-                      <div
-                        key={appearance.playerId}
-                        className="flex min-h-11 items-center justify-between gap-3 py-1.5"
-                      >
-                        <span className="truncate text-sm font-medium">
-                          {appearance.playerDisplayName}
-                        </span>
-                        <div className="flex shrink-0 items-center gap-2">
-                          {data.revealed && summary?.average !== null && summary ? (
-                            <span className="font-mono text-sm font-bold tabular-nums text-muted-foreground">
-                              {summary.average}
-                              {summary.votes !== null && summary.votes > 1
-                                ? ` · ${summary.votes} votos`
-                                : ""}
-                            </span>
-                          ) : null}
-                          {isSelf ? (
-                            <span className="text-xs text-muted-foreground">vos</span>
-                          ) : (
-                            <Select
-                              disabled={save.isPending}
-                              items={scoreItems}
-                              value={current === null ? null : current.toString()}
-                              onValueChange={(next) => {
-                                const score = Number(next);
-                                if (!Number.isInteger(score)) return;
-                                setDraft((currentDraft) => ({
-                                  ...currentDraft,
-                                  [appearance.playerId]: score,
-                                }));
-                              }}
-                            >
-                              <SelectTrigger
-                                aria-label={`Nota para ${appearance.playerDisplayName}`}
-                                className="h-8 w-[4.5rem]"
-                                size="sm"
+                      <Fragment key={appearance.playerId}>
+                        {index > 0 ? <Separator /> : null}
+                        <div className="flex min-h-11 items-center justify-between gap-3 py-1.5">
+                          <span className="truncate text-sm font-medium">
+                            {appearance.playerDisplayName}
+                          </span>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {data.revealed && summary?.average !== null && summary ? (
+                              <span className="font-mono text-sm font-bold tabular-nums text-muted-foreground">
+                                {summary.average}
+                                {summary.votes !== null && summary.votes > 1
+                                  ? ` · ${summary.votes} votos`
+                                  : ""}
+                              </span>
+                            ) : null}
+                            {isSelf ? (
+                              <span className="text-xs text-muted-foreground">vos</span>
+                            ) : (
+                              <Select
+                                disabled={save.isPending}
+                                items={scoreItems}
+                                value={current === null ? null : current.toString()}
+                                onValueChange={(next) => {
+                                  const score = Number(next);
+                                  if (!Number.isInteger(score)) return;
+                                  setDraft((currentDraft) => ({
+                                    ...currentDraft,
+                                    [appearance.playerId]: score,
+                                  }));
+                                }}
                               >
-                                <SelectValue placeholder="Nota" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  {scoreItems.map((item) => (
-                                    <SelectItem key={item.value} value={item.value}>
-                                      {item.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
-                          )}
+                                <SelectTrigger
+                                  aria-label={`Nota para ${appearance.playerDisplayName}`}
+                                  className="h-8 w-[4.5rem]"
+                                  size="sm"
+                                >
+                                  <SelectValue placeholder="Nota" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectGroup>
+                                    {scoreItems.map((item) => (
+                                      <SelectItem key={item.value} value={item.value}>
+                                        {item.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      </Fragment>
                     );
                   })}
                 </CardContent>

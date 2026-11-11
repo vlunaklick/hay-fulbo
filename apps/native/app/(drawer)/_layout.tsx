@@ -1,29 +1,32 @@
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Link } from "expo-router";
 import { Drawer } from "expo-router/drawer";
-import { useThemeColor } from "heroui-native";
+import { HouseIcon, PanelBottomIcon, PlusIcon } from "lucide-react-native";
 import React, { useCallback } from "react";
-import { Pressable, Text } from "react-native";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
+import { Text } from "@/components/ui/text";
+import { useAppTheme } from "@/contexts/app-theme-context";
 
 function DrawerLayout() {
-  const themeColorForeground = useThemeColor("foreground");
-  const themeColorBackground = useThemeColor("background");
+  const { colors } = useAppTheme();
 
   const renderThemeToggle = useCallback(() => <ThemeToggle />, []);
 
   return (
     <Drawer
       screenOptions={{
-        headerTintColor: themeColorForeground,
-        headerStyle: { backgroundColor: themeColorBackground },
+        headerTintColor: colors.foreground,
+        headerStyle: { backgroundColor: colors.background },
         headerTitleStyle: {
           fontWeight: "600",
-          color: themeColorForeground,
+          color: colors.foreground,
         },
         headerRight: renderThemeToggle,
-        drawerStyle: { backgroundColor: themeColorBackground },
+        drawerStyle: { backgroundColor: colors.background },
+        drawerActiveTintColor: colors.accentForeground,
+        drawerActiveBackgroundColor: colors.accent,
       }}
     >
       <Drawer.Screen
@@ -31,14 +34,10 @@ function DrawerLayout() {
         options={{
           headerTitle: "Home",
           drawerLabel: ({ color, focused }) => (
-            <Text style={{ color: focused ? color : themeColorForeground }}>Home</Text>
+            <Text style={{ color: focused ? color : colors.foreground }}>Home</Text>
           ),
           drawerIcon: ({ size, color, focused }) => (
-            <Ionicons
-              name="home-outline"
-              size={size}
-              color={focused ? color : themeColorForeground}
-            />
+            <HouseIcon size={size} color={focused ? color : colors.foreground} />
           ),
         }}
       />
@@ -47,20 +46,16 @@ function DrawerLayout() {
         options={{
           headerTitle: "Tabs",
           drawerLabel: ({ color, focused }) => (
-            <Text style={{ color: focused ? color : themeColorForeground }}>Tabs</Text>
+            <Text style={{ color: focused ? color : colors.foreground }}>Tabs</Text>
           ),
           drawerIcon: ({ size, color, focused }) => (
-            <MaterialIcons
-              name="border-bottom"
-              size={size}
-              color={focused ? color : themeColorForeground}
-            />
+            <PanelBottomIcon size={size} color={focused ? color : colors.foreground} />
           ),
           headerRight: () => (
             <Link href="/modal" asChild>
-              <Pressable className="mr-4">
-                <Ionicons name="add-outline" size={24} color={themeColorForeground} />
-              </Pressable>
+              <Button variant="ghost" size="icon" accessibilityLabel="Open modal" className="mr-2">
+                <Icon as={PlusIcon} className="size-6 text-foreground" />
+              </Button>
             </Link>
           ),
         }}

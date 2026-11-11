@@ -190,14 +190,16 @@ test("a designated planillero scores persisted goals without organizer permissio
     }
     const matchUrl = `/dashboard/partidos/${created.matchId}`;
     await page.goto(matchUrl);
-    await expect(page.getByLabel("Planillero", { exact: true })).toBeVisible();
-    await page.getByLabel("Planillero", { exact: true }).selectOption({ label: "Planillero E2E" });
+    const scorekeeperSelect = page.getByRole("combobox", { name: "Planillero", exact: true });
+    await expect(scorekeeperSelect).toBeVisible();
+    await scorekeeperSelect.click();
+    await page.getByRole("option", { name: "Planillero E2E", exact: true }).click();
     await expect(page.getByText("Planillero: Planillero E2E", { exact: true })).toBeVisible();
     await scorer.goto(matchUrl);
     await expect(scorer.getByRole("button", { name: "Cerrar partido", exact: true })).toHaveCount(
       0,
     );
-    await expect(scorer.getByLabel("Planillero", { exact: true })).toHaveCount(0);
+    await expect(scorer.getByRole("combobox", { name: "Planillero", exact: true })).toHaveCount(0);
     await scorer.getByRole("button", { name: "Modo cancha" }).click();
     await expect(scorer).toHaveURL(new RegExp(`${matchUrl}/cancha$`));
     const plus = scorer.getByRole("button", { name: "Sumar un gol a Equipo 1", exact: true });

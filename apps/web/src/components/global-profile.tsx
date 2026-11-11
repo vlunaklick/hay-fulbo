@@ -58,8 +58,8 @@ export function GlobalProfile() {
         </div>
       </header>
 
-      <Card className="py-0">
-        <dl className="grid grid-cols-3 md:grid-cols-6">
+      <section aria-label="Totales">
+        <dl className="grid grid-cols-3 gap-2 md:grid-cols-6">
           <Metric label="Partidos" value={totals.played} />
           <Metric label="Ganados" value={totals.wins} />
           <Metric label="Empatados" value={totals.draws} />
@@ -67,7 +67,7 @@ export function GlobalProfile() {
           <Metric label="Asistencias" value={totals.assists} />
           <Metric label="% victorias" value={formatPercentage(totals.winPercentage)} />
         </dl>
-      </Card>
+      </section>
 
       <Card>
         <CardHeader>
@@ -108,10 +108,11 @@ export function GlobalProfile() {
 
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="flex flex-col gap-1 border-l px-3 py-4 first:border-l-0 md:px-4">
+    // dt/dd sit directly in the Card: a <dl> group may only be one <div> deep.
+    <Card size="sm" className="gap-1 px-(--card-spacing)">
       <dt className="truncate text-xs text-muted-foreground">{label}</dt>
       <dd className="text-xl font-bold tabular-nums">{value}</dd>
-    </div>
+    </Card>
   );
 }
 

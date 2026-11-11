@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, AlertDescription } from "@hay-fulbo/ui/components/alert";
+import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Button } from "@hay-fulbo/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@hay-fulbo/ui/components/card";
 import { Spinner } from "@hay-fulbo/ui/components/spinner";
@@ -50,9 +51,11 @@ export function InvitationAcceptance({
         </div>
         <Card>
           <CardHeader>
-            <div className="mb-2 flex size-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <MailCheckIcon aria-hidden="true" />
-            </div>
+            <Avatar className="mb-2 size-10">
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                <MailCheckIcon aria-hidden="true" />
+              </AvatarFallback>
+            </Avatar>
             <h1 className="text-xl font-bold">Te invitaron a {groupName}</h1>
             <CardDescription>
               Al aceptar, tu cuenta {email} va a quedar vinculada con tu jugador en este grupo.
