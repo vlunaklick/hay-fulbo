@@ -39,12 +39,14 @@ export function PitchMode() {
           <AlertTitle>No pudimos abrir el modo cancha</AlertTitle>
           <AlertDescription>
             Volvé al partido para revisar el acceso o intentar de nuevo.
-            <Link
-              className="mt-3 inline-flex min-h-11 items-center underline"
-              href={`/dashboard/partidos/${matchId}`}
+            <Button
+              className="mt-3 min-h-11"
+              nativeButton={false}
+              render={<Link href={`/dashboard/partidos/${matchId}`} />}
+              variant="link"
             >
               Volver al partido
-            </Link>
+            </Button>
           </AlertDescription>
         </Alert>
       </div>

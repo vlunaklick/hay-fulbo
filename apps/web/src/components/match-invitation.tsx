@@ -18,6 +18,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@hay-fulbo/ui/components/item";
+import { Separator } from "@hay-fulbo/ui/components/separator";
 import {
   Select,
   SelectContent,
@@ -122,8 +123,8 @@ export function MatchInvitation({
           </Badge>
         </header>
 
-        <Card className="overflow-hidden border-primary/30">
-          <CardHeader className="border-b bg-primary/5">
+        <Card className="overflow-hidden">
+          <CardHeader className="border-b">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
               {invitation.match.status === "open" ? "Próximo partido" : "Partido"}
             </p>
@@ -135,13 +136,15 @@ export function MatchInvitation({
               {invitation.match.court ? ` · ${invitation.match.court.name}` : " · Cancha a definir"}
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-6 py-6 sm:grid-cols-[1fr_0.85fr]">
-            <p className="flex items-center gap-3 text-lg font-semibold">
+          <CardContent className="flex flex-col gap-6 py-6 sm:flex-row">
+            <p className="flex items-center gap-3 text-lg font-semibold sm:flex-[1_1_0]">
               <UsersIcon className="size-5 text-primary" aria-hidden="true" />
               {invitation.summary.playing}{" "}
               {invitation.summary.playing === 1 ? "anotado" : "anotados"}
             </p>
-            <div className="flex flex-col justify-center gap-3 border-t pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+            <Separator className="sm:hidden" />
+            <Separator className="hidden sm:block" orientation="vertical" />
+            <div className="flex flex-col justify-center gap-3 sm:flex-[0.85_1_0]">
               {invitation.match.court ? (
                 <Item
                   size="sm"

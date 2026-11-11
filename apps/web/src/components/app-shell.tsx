@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
-import { Button, buttonVariants } from "@hay-fulbo/ui/components/button";
+import { Button } from "@hay-fulbo/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,9 +19,24 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
-import { Separator } from "@hay-fulbo/ui/components/separator";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+  SidebarTrigger,
+  useSidebar,
+} from "@hay-fulbo/ui/components/sidebar";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
-import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   HouseIcon,
@@ -31,8 +46,6 @@ import {
   CircleUserRoundIcon,
   LogOutIcon,
   MapPinIcon,
-  PanelLeftCloseIcon,
-  PanelLeftOpenIcon,
   PlusIcon,
   SettingsIcon,
   TrophyIcon,
@@ -79,16 +92,17 @@ const groupNavigation = [
 
 export function AppShell({
   activeGroupId,
+  defaultSidebarOpen = true,
   user,
   children,
 }: {
   activeGroupId: string | null;
+  defaultSidebarOpen?: boolean;
   user: AppContextValue["user"];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const groups = useQuery(trpc.group.list.queryOptions());
   const membership = useQuery({
     ...trpc.group.membership.queryOptions({ groupId: activeGroupId ?? "" }),
@@ -167,6 +181,9 @@ export function AppShell({
     user,
   };
 
+  const signOut = () =>
+    authClient.signOut({ fetchOptions: { onSuccess: () => router.push("/login") } });
+
   return (
     <AppContext value={context}>
       <a
@@ -175,140 +192,18 @@ export function AppShell({
       >
         Saltar al contenido
       </a>
-      <div
-        className={cn(
-          "min-h-svh md:grid",
-          sidebarCollapsed ? "md:grid-cols-[4.5rem_1fr]" : "md:grid-cols-[15rem_1fr]",
-        )}
-      >
-        <aside
-          className={cn(
-            "fixed inset-y-0 left-0 z-20 hidden flex-col border-r bg-sidebar md:flex",
-            sidebarCollapsed ? "w-18 p-3" : "w-60 p-4",
-          )}
-        >
-          <div
-            className={cn(
-              "flex items-center",
-              sidebarCollapsed ? "flex-col gap-2" : "justify-between gap-2",
-            )}
-          >
-            <Brand collapsed={sidebarCollapsed} />
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={sidebarCollapsed ? "Expandir navegación" : "Contraer navegación"}
-              title={sidebarCollapsed ? "Expandir navegación" : "Contraer navegación"}
-              onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-            >
-              {sidebarCollapsed ? (
-                <PanelLeftOpenIcon aria-hidden="true" />
-              ) : (
-                <PanelLeftCloseIcon aria-hidden="true" />
-              )}
-            </Button>
-          </div>
-          <div
-            className={cn(
-              "border-y py-3",
-              sidebarCollapsed ? "mt-3" : "mt-5 flex flex-col gap-1 px-1",
-            )}
-          >
-            {sidebarCollapsed ? null : (
-              <span className="px-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Grupo
-              </span>
-            )}
-            <GroupSwitcher
-              activeGroup={group}
-              compact={sidebarCollapsed}
-              groups={groups.data}
-              role={context.role}
-            />
-          </div>
-          <nav
-            className={cn("mt-4 flex flex-col gap-2", sidebarCollapsed && "items-center")}
-            aria-label="Principal"
-          >
-            {navigation.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
-                aria-label={sidebarCollapsed ? item.label : undefined}
-                title={sidebarCollapsed ? item.label : undefined}
-                className={cn(
-                  buttonVariants({
-                    size: sidebarCollapsed ? "icon" : "default",
-                    variant: isActivePath(pathname, item.href) ? "secondary" : "ghost",
-                  }),
-                  "w-full",
-                  !sidebarCollapsed && "justify-start",
-                )}
-              >
-                <item.icon
-                  data-icon={sidebarCollapsed ? undefined : "inline-start"}
-                  aria-hidden="true"
-                />
-                {sidebarCollapsed ? null : item.label}
-              </Link>
-            ))}
-            {sidebarCollapsed ? (
-              <Separator className="my-1 data-horizontal:w-6" />
-            ) : (
-              <span className="mt-3 px-3 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Grupo
-              </span>
-            )}
-            {groupNavigation.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
-                aria-label={sidebarCollapsed ? item.label : undefined}
-                title={sidebarCollapsed ? item.label : undefined}
-                className={cn(
-                  buttonVariants({
-                    size: sidebarCollapsed ? "icon" : "default",
-                    variant: isActivePath(pathname, item.href) ? "secondary" : "ghost",
-                  }),
-                  "w-full",
-                  !sidebarCollapsed && "justify-start",
-                )}
-              >
-                <item.icon
-                  data-icon={sidebarCollapsed ? undefined : "inline-start"}
-                  aria-hidden="true"
-                />
-                {sidebarCollapsed ? null : item.label}
-              </Link>
-            ))}
-          </nav>
-          <div
-            className={cn(
-              "mt-auto flex gap-2 border-t pt-3",
-              sidebarCollapsed ? "flex-col items-center" : "items-center",
-            )}
-          >
-            <ModeToggle />
-            <div className={sidebarCollapsed ? undefined : "min-w-0 flex-1"}>
-              <UserMenu
-                compact={sidebarCollapsed}
-                role={context.role}
-                side="right"
-                user={user}
-                onProfile={() => router.push("/dashboard/perfil")}
-                onSignOut={() =>
-                  authClient.signOut({
-                    fetchOptions: { onSuccess: () => router.push("/login") },
-                  })
-                }
-              />
-            </div>
-          </div>
-        </aside>
+      <SidebarProvider defaultOpen={defaultSidebarOpen}>
+        <ShellSidebar
+          group={group}
+          groups={groups.data}
+          pathname={pathname}
+          role={context.role}
+          user={user}
+          onProfile={() => router.push("/dashboard/perfil")}
+          onSignOut={signOut}
+        />
 
-        <div className="relative min-w-0 md:col-start-2">
+        <SidebarInset id="contenido" tabIndex={-1} className="min-w-0">
           <header className="sticky top-0 z-10 border-b bg-background md:hidden">
             <div className="flex h-14 items-center justify-between gap-3 px-4">
               <GroupSwitcher activeGroup={group} groups={groups.data} role={context.role} />
@@ -320,23 +215,15 @@ export function AppShell({
                   side="bottom"
                   user={user}
                   onProfile={() => router.push("/dashboard/perfil")}
-                  onSignOut={() =>
-                    authClient.signOut({
-                      fetchOptions: { onSuccess: () => router.push("/login") },
-                    })
-                  }
+                  onSignOut={signOut}
                 />
               </div>
             </div>
           </header>
-          <main
-            id="contenido"
-            tabIndex={-1}
-            className="mx-auto w-full max-w-7xl px-4 py-4 pb-28 md:px-6 md:py-5 md:pb-8 xl:px-8"
-          >
+          <div className="mx-auto w-full max-w-7xl px-4 py-4 pb-28 md:px-6 md:py-5 md:pb-8 xl:px-8">
             {children}
-          </main>
-        </div>
+          </div>
+        </SidebarInset>
 
         <nav
           className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t bg-sidebar px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden"
@@ -360,8 +247,104 @@ export function AppShell({
             </Button>
           ))}
         </nav>
-      </div>
+      </SidebarProvider>
     </AppContext>
+  );
+}
+
+type GroupSummary = { id: string; name: string; slug: string };
+
+function ShellSidebar({
+  group,
+  groups,
+  onProfile,
+  onSignOut,
+  pathname,
+  role,
+  user,
+}: {
+  group: GroupSummary;
+  groups: readonly GroupSummary[];
+  onProfile: () => void;
+  onSignOut: () => void;
+  pathname: string;
+  role: AppContextValue["role"];
+  user: AppContextValue["user"];
+}) {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const toggleLabel = collapsed ? "Expandir navegación" : "Contraer navegación";
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:flex-col">
+        <Brand collapsed={collapsed} />
+        <SidebarTrigger aria-label={toggleLabel} title={toggleLabel} />
+      </SidebarHeader>
+      <SidebarSeparator />
+      <SidebarGroup className="group-data-[collapsible=icon]:items-center">
+        <SidebarGroupLabel>Grupo</SidebarGroupLabel>
+        <GroupSwitcher activeGroup={group} compact={collapsed} groups={groups} role={role} />
+      </SidebarGroup>
+      <SidebarSeparator />
+      <SidebarContent>
+        <nav aria-label="Principal" className="flex flex-col">
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <NavMenu items={navigation} pathname={pathname} />
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>Grupo</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <NavMenu items={groupNavigation} pathname={pathname} />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </nav>
+      </SidebarContent>
+      <SidebarSeparator />
+      <SidebarFooter className="flex-row items-center group-data-[collapsible=icon]:flex-col">
+        <ModeToggle />
+        <div className="min-w-0 flex-1 group-data-[collapsible=icon]:flex-none">
+          <UserMenu
+            compact={collapsed}
+            role={role}
+            side="right"
+            user={user}
+            onProfile={onProfile}
+            onSignOut={onSignOut}
+          />
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
+
+function NavMenu({
+  items,
+  pathname,
+}: {
+  items: ReadonlyArray<(typeof navigation)[number] | (typeof groupNavigation)[number]>;
+  pathname: string;
+}) {
+  return (
+    <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
+      {items.map((item) => {
+        const active = isActivePath(pathname, item.href);
+        return (
+          <SidebarMenuItem key={item.href}>
+            <SidebarMenuButton
+              isActive={active}
+              tooltip={item.label}
+              render={<Link href={item.href} aria-current={active ? "page" : undefined} />}
+            >
+              <item.icon aria-hidden="true" />
+              <span>{item.label}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
   );
 }
 

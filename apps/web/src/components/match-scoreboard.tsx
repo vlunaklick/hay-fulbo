@@ -158,7 +158,6 @@ export function MatchScoreboard({
                     aria-label={`Restar un gol a ${team.displayName}`}
                     disabled={pending || score === 0}
                     variant="outline"
-                    className="min-h-11"
                     onClick={(event) => {
                       returnFocus.current = event.currentTarget;
                       setPicker({ teamId: team.id, delta: -1 });
@@ -170,12 +169,7 @@ export function MatchScoreboard({
                   <Button
                     aria-label={`Sumar un gol a ${team.displayName}`}
                     disabled={pending}
-                    className={cn(
-                      "min-h-11",
-                      team.slot === 1
-                        ? "bg-team-blue text-team-blue-ink hover:bg-team-blue/90"
-                        : "bg-team-amber text-team-amber-ink hover:bg-team-amber/90",
-                    )}
+                    variant={team.slot === 1 ? "team-blue" : "team-amber"}
                     onClick={(event) => {
                       returnFocus.current = event.currentTarget;
                       setPicker({ teamId: team.id, delta: 1 });

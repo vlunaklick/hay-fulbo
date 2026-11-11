@@ -17,6 +17,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
+import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import {
   Table,
@@ -88,8 +89,8 @@ export function SocietiesPage() {
       </header>
 
       {leader ? (
-        <Card className="overflow-hidden border-primary/30">
-          <CardHeader className="border-b bg-primary/5">
+        <Card className="overflow-hidden">
+          <CardHeader className="border-b">
             <div className="flex items-center gap-2 text-primary">
               <MedalIcon className="size-4" aria-hidden="true" />
               <span className="text-xs font-bold uppercase tracking-[0.15em]">Sociedad líder</span>
@@ -101,13 +102,16 @@ export function SocietiesPage() {
               {leader.points} puntos en {leader.played} partidos juntos
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-4 divide-x py-5">
+          <CardContent className="flex py-5">
             <Metric label="Victorias" value={leader.wins} />
+            <Separator orientation="vertical" />
             <Metric label="Efectividad" value={`${formatNumber(leader.winPercentage)}%`} />
+            <Separator orientation="vertical" />
             <Metric
               label="Dif. gol"
               value={`${leader.goalDifference > 0 ? "+" : ""}${leader.goalDifference}`}
             />
+            <Separator orientation="vertical" />
             <Metric label="G+A" value={leader.contributions} />
           </CardContent>
         </Card>
@@ -176,7 +180,7 @@ export function SocietiesPage() {
 
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="px-2 text-center">
+    <div className="flex-1 px-2 text-center">
       <strong className="block text-xl tabular-nums sm:text-2xl">{value}</strong>
       <span className="text-[0.65rem] text-muted-foreground sm:text-xs">{label}</span>
     </div>

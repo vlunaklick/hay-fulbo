@@ -1,5 +1,6 @@
 "use client";
 
+import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Button } from "@hay-fulbo/ui/components/button";
 import {
   Card,
@@ -51,9 +52,11 @@ export function GroupJoinAcceptance({
         </div>
         <Card>
           <CardHeader>
-            <div className="mb-2 flex size-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <UsersRoundIcon aria-hidden="true" />
-            </div>
+            <Avatar className="mb-2 size-10">
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                <UsersRoundIcon aria-hidden="true" />
+              </AvatarFallback>
+            </Avatar>
             <CardTitle>Sumate a {groupName}</CardTitle>
             <CardDescription>
               Vas a entrar con {userEmail} como miembro. Después el organizador puede vincular tu

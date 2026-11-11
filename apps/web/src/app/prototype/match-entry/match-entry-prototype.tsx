@@ -271,27 +271,29 @@ function Switcher({ current, change }: { current: VariantKey; change: (key: Vari
   const prev = VARIANTS[(index - 1 + VARIANTS.length) % VARIANTS.length]!;
   const next = VARIANTS[(index + 1) % VARIANTS.length]!;
   return (
-    <div className="fixed bottom-3 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 border border-border bg-foreground p-1 text-background shadow-2xl">
-      <Button
-        aria-label="Variante anterior"
-        size="icon-sm"
-        variant="secondary"
-        onClick={() => change(prev.key)}
-      >
-        <ChevronLeftIcon />
-      </Button>
-      <p className="min-w-36 px-2 text-center text-xs font-medium">
-        {current} — {VARIANTS[index]!.name}
-      </p>
-      <Button
-        aria-label="Variante siguiente"
-        size="icon-sm"
-        variant="secondary"
-        onClick={() => change(next.key)}
-      >
-        <ChevronRightIcon />
-      </Button>
-    </div>
+    <Card size="sm" className="fixed bottom-3 left-1/2 z-50 -translate-x-1/2 shadow-2xl">
+      <CardContent className="flex items-center gap-2">
+        <Button
+          aria-label="Variante anterior"
+          size="icon-sm"
+          variant="outline"
+          onClick={() => change(prev.key)}
+        >
+          <ChevronLeftIcon />
+        </Button>
+        <p className="min-w-36 px-2 text-center text-xs font-medium">
+          {current} — {VARIANTS[index]!.name}
+        </p>
+        <Button
+          aria-label="Variante siguiente"
+          size="icon-sm"
+          variant="outline"
+          onClick={() => change(next.key)}
+        >
+          <ChevronRightIcon />
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -366,15 +368,15 @@ function MatchData({ model, actions, editable }: SharedProps) {
           disabled={!editable}
           onValueChange={(value) => actions.venue(value ?? "")}
         >
-          <SelectTrigger className="h-8 w-full gap-1.5 rounded-none px-2.5 text-xs focus-visible:ring-1">
+          <SelectTrigger className="w-full">
             <SelectValue>
               {(value) => items.find((item) => item.value === value)?.label}
             </SelectValue>
           </SelectTrigger>
-          <SelectContent className="rounded-none p-0" alignItemWithTrigger={false}>
+          <SelectContent alignItemWithTrigger={false}>
             <SelectGroup>
               {VENUES.map((venue) => (
-                <SelectItem className="min-h-0 rounded-none" key={venue.id} value={venue.id}>
+                <SelectItem key={venue.id} value={venue.id}>
                   {venue.name}
                 </SelectItem>
               ))}
@@ -433,21 +435,17 @@ function TeamSettings({ model, actions, editable }: SharedProps) {
                 disabled={!editable || !players.length}
                 onValueChange={(value) => actions.captain(team, value ?? "")}
               >
-                <SelectTrigger className="h-8 w-full gap-1.5 rounded-none px-2.5 text-xs focus-visible:ring-1">
+                <SelectTrigger className="w-full">
                   <SelectValue>
                     {(value) =>
                       items.find((item) => item.value === value)?.label ?? "Elegir capitán"
                     }
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="rounded-none p-0" alignItemWithTrigger={false}>
+                <SelectContent alignItemWithTrigger={false}>
                   <SelectGroup>
                     {players.map((player) => (
-                      <SelectItem
-                        className="min-h-0 rounded-none"
-                        key={player.id}
-                        value={player.id}
-                      >
+                      <SelectItem key={player.id} value={player.id}>
                         {player.name}
                       </SelectItem>
                     ))}
@@ -838,20 +836,28 @@ function Lifecycle({ model, actions, validation }: SharedProps) {
 
 function StateView({ model }: { model: MatchModel }) {
   return (
-    <Collapsible className="flex flex-col gap-3 border border-dashed border-border bg-muted p-3 text-xs">
-      <CollapsibleTrigger className="cursor-pointer text-left font-mono font-semibold">
-        Estado completo del prototipo
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <pre className="overflow-auto whitespace-pre-wrap text-[10px]">
-          {JSON.stringify(
-            { ...model, players: model.players.filter((player) => player.team) },
-            null,
-            2,
-          )}
-        </pre>
-      </CollapsibleContent>
-    </Collapsible>
+    <Card size="sm">
+      <Collapsible className="flex flex-col gap-3">
+        <CardHeader>
+          <CollapsibleTrigger
+            render={<Button variant="ghost" size="sm" className="justify-start" />}
+          >
+            Estado completo del prototipo
+          </CollapsibleTrigger>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent>
+            <pre className="overflow-auto whitespace-pre-wrap text-xs">
+              {JSON.stringify(
+                { ...model, players: model.players.filter((player) => player.team) },
+                null,
+                2,
+              )}
+            </pre>
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
   );
 }
 

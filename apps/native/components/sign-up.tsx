@@ -1,18 +1,15 @@
 import { useForm } from "@tanstack/react-form";
-import {
-  Button,
-  FieldError,
-  Input,
-  Label,
-  Spinner,
-  Surface,
-  TextField,
-  useToast,
-} from "heroui-native";
 import { useRef } from "react";
-import { Text, TextInput, View } from "react-native";
+import { ActivityIndicator, type TextInput, View } from "react-native";
+import { toast } from "sonner-native";
 import z from "zod";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Text } from "@/components/ui/text";
+import { useAppTheme } from "@/contexts/app-theme-context";
 import { authClient } from "@/lib/auth-client";
 import { queryClient } from "@/utils/trpc";
 
@@ -52,7 +49,7 @@ function getErrorMessage(error: unknown): string | null {
 export function SignUp() {
   const emailInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
-  const { toast } = useToast();
+  const { colors } = useAppTheme();
 
   const form = useForm({
     defaultValues: {
@@ -72,17 +69,11 @@ export function SignUp() {
         },
         {
           onError(error) {
-            toast.show({
-              variant: "danger",
-              label: error.error?.message || "Failed to sign up",
-            });
+            toast.error(error.error?.message || "Failed to sign up");
           },
           onSuccess() {
             formApi.reset();
-            toast.show({
-              variant: "success",
-              label: "Account created successfully",
-            });
+            toast.success("Account created successfully");
             queryClient.refetchQueries();
           },
         },
@@ -91,102 +82,111 @@ export function SignUp() {
   });
 
   return (
-    <Surface variant="secondary" className="p-4 rounded-lg">
-      <Text className="text-foreground font-medium mb-4">Create Account</Text>
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Create Account</CardTitle>
+      </CardHeader>
 
-      <form.Subscribe
-        selector={(state) => ({
-          isSubmitting: state.isSubmitting,
-          validationError: getErrorMessage(state.errorMap.onSubmit),
-        })}
-      >
-        {({ isSubmitting, validationError }) => {
-          const formError = validationError;
+      <CardContent>
+        <form.Subscribe
+          selector={(state) => ({
+            isSubmitting: state.isSubmitting,
+            validationError: getErrorMessage(state.errorMap.onSubmit),
+          })}
+        >
+          {({ isSubmitting, validationError }) => {
+            const formError = validationError;
 
-          return (
-            <>
-              <FieldError isInvalid={!!formError} className="mb-3">
-                {formError}
-              </FieldError>
+            return (
+              <>
+                {formError ? (
+                  <Text role="alert" className="mb-3 text-sm text-destructive">
+                    {formError}
+                  </Text>
+                ) : null}
 
-              <View className="gap-3">
-                <form.Field name="name">
-                  {(field) => (
-                    <TextField>
-                      <Label>Name</Label>
-                      <Input
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChangeText={field.handleChange}
-                        placeholder="John Doe"
-                        autoComplete="name"
-                        textContentType="name"
-                        returnKeyType="next"
-                        blurOnSubmit={false}
-                        onSubmitEditing={() => {
-                          emailInputRef.current?.focus();
-                        }}
-                      />
-                    </TextField>
-                  )}
-                </form.Field>
+                <View className="gap-3">
+                  <form.Field name="name">
+                    {(field) => (
+                      <View className="gap-1.5">
+                        <Label htmlFor="sign-up-name">Name</Label>
+                        <Input
+                          id="sign-up-name"
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChangeText={field.handleChange}
+                          placeholder="John Doe"
+                          autoComplete="name"
+                          textContentType="name"
+                          returnKeyType="next"
+                          submitBehavior="submit"
+                          onSubmitEditing={() => {
+                            emailInputRef.current?.focus();
+                          }}
+                        />
+                      </View>
+                    )}
+                  </form.Field>
 
-                <form.Field name="email">
-                  {(field) => (
-                    <TextField>
-                      <Label>Email</Label>
-                      <Input
-                        ref={emailInputRef}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChangeText={field.handleChange}
-                        placeholder="email@example.com"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoComplete="email"
-                        textContentType="emailAddress"
-                        returnKeyType="next"
-                        blurOnSubmit={false}
-                        onSubmitEditing={() => {
-                          passwordInputRef.current?.focus();
-                        }}
-                      />
-                    </TextField>
-                  )}
-                </form.Field>
+                  <form.Field name="email">
+                    {(field) => (
+                      <View className="gap-1.5">
+                        <Label htmlFor="sign-up-email">Email</Label>
+                        <Input
+                          id="sign-up-email"
+                          ref={emailInputRef}
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChangeText={field.handleChange}
+                          placeholder="email@example.com"
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          autoComplete="email"
+                          textContentType="emailAddress"
+                          returnKeyType="next"
+                          submitBehavior="submit"
+                          onSubmitEditing={() => {
+                            passwordInputRef.current?.focus();
+                          }}
+                        />
+                      </View>
+                    )}
+                  </form.Field>
 
-                <form.Field name="password">
-                  {(field) => (
-                    <TextField>
-                      <Label>Password</Label>
-                      <Input
-                        ref={passwordInputRef}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChangeText={field.handleChange}
-                        placeholder="••••••••"
-                        secureTextEntry
-                        autoComplete="new-password"
-                        textContentType="newPassword"
-                        returnKeyType="go"
-                        onSubmitEditing={form.handleSubmit}
-                      />
-                    </TextField>
-                  )}
-                </form.Field>
+                  <form.Field name="password">
+                    {(field) => (
+                      <View className="gap-1.5">
+                        <Label htmlFor="sign-up-password">Password</Label>
+                        <Input
+                          id="sign-up-password"
+                          ref={passwordInputRef}
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChangeText={field.handleChange}
+                          placeholder="••••••••"
+                          secureTextEntry
+                          autoComplete="new-password"
+                          textContentType="newPassword"
+                          returnKeyType="go"
+                          onSubmitEditing={form.handleSubmit}
+                        />
+                      </View>
+                    )}
+                  </form.Field>
 
-                <Button onPress={form.handleSubmit} isDisabled={isSubmitting} className="mt-1">
-                  {isSubmitting ? (
-                    <Spinner size="sm" color="default" />
-                  ) : (
-                    <Button.Label>Create Account</Button.Label>
-                  )}
-                </Button>
-              </View>
-            </>
-          );
-        }}
-      </form.Subscribe>
-    </Surface>
+                  <Button onPress={form.handleSubmit} disabled={isSubmitting} className="mt-1">
+                    {isSubmitting ? (
+                      <ActivityIndicator size="small" color={colors.primaryForeground} />
+                    ) : (
+                      <Text>Create Account</Text>
+                    )}
+                  </Button>
+                </View>
+              </>
+            );
+          }}
+        </form.Subscribe>
+      </CardContent>
+    </Card>
   );
 }

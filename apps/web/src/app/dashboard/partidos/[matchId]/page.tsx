@@ -37,7 +37,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@hay-fulbo/ui/components/dropdown-menu";
-import { Field, FieldLabel } from "@hay-fulbo/ui/components/field";
+import { Field, FieldDescription, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
 import {
   Item,
@@ -76,12 +76,14 @@ import {
   ArrowLeftIcon,
   CalendarClockIcon,
   CheckIcon,
+  ChevronDownIcon,
   CircleAlertIcon,
   LockKeyholeIcon,
   MapPinIcon,
   Maximize2Icon,
   PlusIcon,
   MoreHorizontalIcon,
+  PencilIcon,
   UserXIcon,
   WalletIcon,
 } from "lucide-react";
@@ -189,6 +191,10 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
   const readyToClose = issues.length === 0;
   const { run, pending } = useMatchCommand(detail);
   const canScore = isOpen && (manager || detail.scorekeeperUserId === user.id);
+  const scorekeeperItems: Array<{ label: string; value: string | null }> = [
+    { label: "Sin planillero", value: null },
+    ...directory.members.map((member) => ({ label: member.name, value: member.id })),
+  ];
 
   async function closeMatch() {
     await run({ type: "closeMatch", matchId: detail.id });
@@ -255,17 +261,27 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
               run={run}
             />
             <MatchShareRow court={court ?? null} detail={detail} groupName={groupName} />
-            <Collapsible className="rounded-xl border">
-              <CollapsibleTrigger className="w-full cursor-pointer px-4 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-                Cómo llegan · balance histórico de estos equipos
-              </CollapsibleTrigger>
-              <CollapsibleContent keepMounted>
-                <Separator />
-                <div className="px-4 py-4">
-                  <MatchParityCard matchId={detail.id} />
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+            <Card size="sm" className="gap-0 py-0">
+              <Collapsible>
+                <CollapsibleTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      className="h-auto min-h-11 w-full justify-between whitespace-normal text-left"
+                    />
+                  }
+                >
+                  Cómo llegan · balance histórico de estos equipos
+                  <ChevronDownIcon data-icon="inline-end" aria-hidden="true" />
+                </CollapsibleTrigger>
+                <CollapsibleContent keepMounted>
+                  <Separator />
+                  <CardContent className="py-4">
+                    <MatchParityCard matchId={detail.id} />
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
           </Section>
 
           <Section
@@ -273,11 +289,10 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
             title="El partido"
             action={
               <Button
-                className={canScore ? "border-primary text-primary" : undefined}
                 render={<Link href={`/dashboard/partidos/${detail.id}/cancha` as Route} />}
                 nativeButton={false}
                 size="sm"
-                variant="outline"
+                variant={canScore ? "secondary" : "outline"}
               >
                 <Maximize2Icon data-icon="inline-start" aria-hidden="true" />
                 Modo cancha
@@ -287,29 +302,34 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
             {editable ? (
               <Field>
                 <FieldLabel htmlFor="scorekeeper">Planillero</FieldLabel>
-                <select
-                  id="scorekeeper"
-                  className="min-h-11 w-full rounded-lg border bg-card px-3 text-base sm:max-w-sm"
-                  value={detail.scorekeeperUserId ?? ""}
+                <Select
+                  items={scorekeeperItems}
+                  value={detail.scorekeeperUserId ?? null}
                   disabled={pending}
-                  onChange={(event) => {
+                  onValueChange={(value) => {
                     void run({
                       type: "setScorekeeper",
                       matchId: detail.id,
-                      scorekeeperUserId: event.target.value || null,
+                      scorekeeperUserId: value,
                     });
                   }}
                 >
-                  <option value="">Sin planillero</option>
-                  {directory.members.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-sm text-muted-foreground">
+                  <SelectTrigger id="scorekeeper" className="w-full sm:max-w-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {scorekeeperItems.map((item) => (
+                        <SelectItem key={item.value ?? "none"} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
                   Puede sumar y restar goles mientras el partido esté abierto.
-                </p>
+                </FieldDescription>
               </Field>
             ) : null}
             <MatchScoreboard detail={detail} canScore={canScore} pending={pending} run={run} />
@@ -596,17 +616,19 @@ function TeamNameEditor({
   }
   if (!editing) {
     return (
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="sm"
+        className="min-w-0 justify-start px-1"
         onClick={() => {
           setName(team.displayName);
           setExpectedLockVersion(detail.lockVersion);
           setEditing(true);
         }}
-        className="min-h-11 rounded px-1 text-left underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 transition-colors hover:text-primary"
       >
-        {team.displayName}
-      </button>
+        <span className="truncate">{team.displayName}</span>
+        <PencilIcon data-icon="inline-end" aria-hidden="true" />
+      </Button>
     );
   }
   return (
@@ -1086,27 +1108,33 @@ function PlanillaCard({
         className={cn("h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
         aria-hidden="true"
       />
-      <CardContent className="flex flex-col divide-y">
-        {team.appearances.map((appearance) => (
-          <PlanillaRow
-            key={appearance.playerId}
-            appearance={appearance}
-            costKnown={costKnown}
-            detail={detail}
-            editableStats={editable && detail.status === "open"}
-            editablePayments={editable}
-            pending={pending}
-            run={run}
-          />
-        ))}
-        {editable && detail.status === "open" ? (
-          <UnattributedStepper detail={detail} pending={pending} run={run} team={team} />
-        ) : team.unattributedGoals > 0 ? (
-          <div className="flex min-h-10 items-center justify-between py-2 text-sm text-muted-foreground">
-            Goles sin autor
-            <span className="font-mono font-bold tabular-nums">{team.unattributedGoals}</span>
-          </div>
-        ) : null}
+      <CardContent>
+        <ItemGroup className="gap-0 divide-y">
+          {team.appearances.map((appearance) => (
+            <PlanillaRow
+              key={appearance.playerId}
+              appearance={appearance}
+              costKnown={costKnown}
+              detail={detail}
+              editableStats={editable && detail.status === "open"}
+              editablePayments={editable}
+              pending={pending}
+              run={run}
+            />
+          ))}
+          {editable && detail.status === "open" ? (
+            <UnattributedStepper detail={detail} pending={pending} run={run} team={team} />
+          ) : team.unattributedGoals > 0 ? (
+            <Item role="listitem" size="xs" className="min-h-10 px-0">
+              <ItemContent>
+                <ItemDescription>Goles sin autor</ItemDescription>
+              </ItemContent>
+              <ItemActions className="font-mono font-bold tabular-nums">
+                {team.unattributedGoals}
+              </ItemActions>
+            </Item>
+          ) : null}
+        </ItemGroup>
       </CardContent>
     </Card>
   );
@@ -1130,9 +1158,9 @@ function PlanillaRow({
   run: RunMatchAction;
 }) {
   return (
-    <div className="flex flex-col gap-3 py-3">
-      <span className="truncate text-sm font-medium">{appearance.playerDisplayName}</span>
-      <div className="flex flex-col gap-3">
+    <Item role="listitem" className="flex-col items-stretch gap-3 px-0 py-3">
+      <ItemTitle className="w-full truncate">{appearance.playerDisplayName}</ItemTitle>
+      <ItemContent className="gap-3">
         <StatSteppers
           appearance={appearance}
           detail={detail}
@@ -1149,8 +1177,8 @@ function PlanillaRow({
             run={run}
           />
         ) : null}
-      </div>
-    </div>
+      </ItemContent>
+    </Item>
   );
 }
 
@@ -1170,19 +1198,27 @@ function ClosingBar({
       <Card size="sm" className="shadow-lg">
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
           {readyToClose ? (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckIcon className="size-4 text-primary" aria-hidden="true" />
-              Todo listo para cerrar.
-            </p>
+            <Item size="xs" className="w-auto px-0">
+              <ItemMedia variant="icon">
+                <CheckIcon aria-hidden="true" />
+              </ItemMedia>
+              <ItemContent>
+                <ItemDescription>Todo listo para cerrar.</ItemDescription>
+              </ItemContent>
+            </Item>
           ) : (
-            <ul className="min-w-0 text-sm text-muted-foreground">
+            <ItemGroup className="w-auto min-w-0 flex-1 gap-0">
               {issues.map((issue) => (
-                <li key={issue} className="flex items-start gap-2 py-0.5 text-xs">
-                  <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
-                  {issueText[issue]}
-                </li>
+                <Item key={issue} role="listitem" size="xs" className="px-0 py-0.5">
+                  <ItemMedia variant="icon">
+                    <CircleAlertIcon aria-hidden="true" />
+                  </ItemMedia>
+                  <ItemContent>
+                    <ItemDescription>{issueText[issue]}</ItemDescription>
+                  </ItemContent>
+                </Item>
               ))}
-            </ul>
+            </ItemGroup>
           )}
           <Button disabled={!readyToClose || pending} onClick={onClose} size="lg">
             <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
@@ -1354,8 +1390,14 @@ function UnattributedStepper({
 }) {
   const editable = detail.status === "open";
   return (
-    <div className="flex min-h-11 items-center justify-between gap-3 py-1.5">
-      <span className="truncate text-sm text-muted-foreground">Sin autor</span>
+    <Item
+      role="listitem"
+      size="xs"
+      className="min-h-11 flex-nowrap justify-between gap-3 px-0 py-1.5"
+    >
+      <ItemContent className="min-w-0">
+        <ItemDescription className="truncate">Sin autor</ItemDescription>
+      </ItemContent>
       <Stepper
         disabled={!editable || pending}
         hideZero
@@ -1380,7 +1422,7 @@ function UnattributedStepper({
         }
         value={team.unattributedGoals}
       />
-    </div>
+    </Item>
   );
 }
 
