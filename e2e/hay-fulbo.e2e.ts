@@ -14,7 +14,7 @@ test("an anonymous visitor reaches an accessible login instead of private pages"
   await page.goto("/dashboard");
 
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "El partido, bajo control." })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^El partido,/ })).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Contraseña")).toBeVisible();
   await expectWcagAA(page);

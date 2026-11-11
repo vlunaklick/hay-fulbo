@@ -10,6 +10,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@clerk/react": "^6.18.0",
     "@hay-fulbo/api": "workspace:*",
     "@hay-fulbo/auth": "workspace:*",
     "@hay-fulbo/db": "workspace:*",

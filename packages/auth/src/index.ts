@@ -17,6 +17,7 @@ import {
   sendInvitationEmail,
   sendVerificationEmail,
 } from "./email";
+import { clerkBridge } from "./clerk-bridge";
 import { createVerificationPolicy } from "./verification-policy";
 
 export function createAuth() {
@@ -167,6 +168,14 @@ export function createAuth() {
           },
         },
       }),
+      ...(env.CLERK_SECRET_KEY
+        ? [
+            clerkBridge({
+              secretKey: env.CLERK_SECRET_KEY,
+              authorizedParties: [env.CORS_ORIGIN, env.BETTER_AUTH_URL],
+            }),
+          ]
+        : []),
       expo(),
       nextCookies(),
     ],
