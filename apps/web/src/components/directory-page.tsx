@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/al
 import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
+import { Card } from "@hay-fulbo/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +30,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
-import { cn } from "@hay-fulbo/ui/lib/utils";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
 import {
@@ -63,7 +63,7 @@ import {
   XIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppContext } from "@/components/app-shell";
@@ -327,48 +327,46 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
           </EmptyContent>
         </Empty>
       ) : isPlayers ? (
-        <div className="overflow-hidden rounded-lg border">
+        <Card className="gap-0 py-0">
           {visiblePlayers.map((player, index) => (
-            <Button
-              key={player.id}
-              aria-label={`Ver detalle de ${player.displayName}`}
-              className={cn(
-                "h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal sm:px-5",
-                index > 0 && "border-t",
-              )}
-              onClick={() => {
-                setError(null);
-                setSelectedId(player.id);
-              }}
-              variant="ghost"
-            >
-              <PlayerRow
-                player={player}
-                stats={rankingByPlayer.get(player.id) ?? EMPTY_PLAYER_STATS}
-              />
-            </Button>
+            <Fragment key={player.id}>
+              {index > 0 ? <Separator /> : null}
+              <Button
+                aria-label={`Ver detalle de ${player.displayName}`}
+                className="h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal sm:px-5"
+                onClick={() => {
+                  setError(null);
+                  setSelectedId(player.id);
+                }}
+                variant="ghost"
+              >
+                <PlayerRow
+                  player={player}
+                  stats={rankingByPlayer.get(player.id) ?? EMPTY_PLAYER_STATS}
+                />
+              </Button>
+            </Fragment>
           ))}
-        </div>
+        </Card>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <Card className="gap-0 py-0">
           {courts.map((court, index) => (
-            <Button
-              key={court.id}
-              aria-label={`Ver detalle de ${court.name}`}
-              className={cn(
-                "h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal sm:px-5",
-                index > 0 && "border-t",
-              )}
-              onClick={() => {
-                setError(null);
-                setSelectedId(court.id);
-              }}
-              variant="ghost"
-            >
-              <CourtRow court={court} />
-            </Button>
+            <Fragment key={court.id}>
+              {index > 0 ? <Separator /> : null}
+              <Button
+                aria-label={`Ver detalle de ${court.name}`}
+                className="h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal sm:px-5"
+                onClick={() => {
+                  setError(null);
+                  setSelectedId(court.id);
+                }}
+                variant="ghost"
+              >
+                <CourtRow court={court} />
+              </Button>
+            </Fragment>
           ))}
-        </div>
+        </Card>
       )}
 
       {isPlayers && selectedPlayer ? (

@@ -26,9 +26,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemGroup,
+  ItemMedia,
+} from "@hay-fulbo/ui/components/item";
 import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
-import { cn } from "@hay-fulbo/ui/lib/utils";
+import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CircleAlertIcon,
@@ -230,7 +237,11 @@ export function GroupMembersPage() {
                   onClick={() => renewJoinLink.mutate({ groupId: activeGroupId })}
                   variant="outline"
                 >
-                  <RefreshCwIcon data-icon="inline-start" aria-hidden="true" />
+                  {renewJoinLink.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <RefreshCwIcon data-icon="inline-start" aria-hidden="true" />
+                  )}
                   {renewJoinLink.isPending ? "Renovando…" : "Renovar link"}
                 </Button>
                 <Button
@@ -238,7 +249,11 @@ export function GroupMembersPage() {
                   onClick={() => revokeJoinLink.mutate({ groupId: activeGroupId })}
                   variant="ghost"
                 >
-                  <UnlinkIcon data-icon="inline-start" aria-hidden="true" />
+                  {revokeJoinLink.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <UnlinkIcon data-icon="inline-start" aria-hidden="true" />
+                  )}
                   {revokeJoinLink.isPending ? "Desactivando…" : "Desactivar"}
                 </Button>
                 <span className="text-xs text-muted-foreground">
@@ -252,7 +267,11 @@ export function GroupMembersPage() {
                 disabled={renewJoinLink.isPending}
                 onClick={() => renewJoinLink.mutate({ groupId: activeGroupId })}
               >
-                <LinkIcon data-icon="inline-start" aria-hidden="true" />
+                {renewJoinLink.isPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <LinkIcon data-icon="inline-start" aria-hidden="true" />
+                )}
                 {renewJoinLink.isPending ? "Creando…" : "Crear link"}
               </Button>
               <p className="text-xs text-muted-foreground">
@@ -318,7 +337,11 @@ export function GroupMembersPage() {
                   }
                   variant="outline"
                 >
-                  <UnlinkIcon data-icon="inline-start" aria-hidden="true" />
+                  {updateVisibility.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <UnlinkIcon data-icon="inline-start" aria-hidden="true" />
+                  )}
                   {updateVisibility.isPending ? "Guardando…" : "Hacer privado"}
                 </Button>
               </div>
@@ -331,7 +354,11 @@ export function GroupMembersPage() {
                   updateVisibility.mutate({ groupId: activeGroupId, publicVisibility: true })
                 }
               >
-                <GlobeIcon data-icon="inline-start" aria-hidden="true" />
+                {updateVisibility.isPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <GlobeIcon data-icon="inline-start" aria-hidden="true" />
+                )}
                 {updateVisibility.isPending ? "Activando…" : "Hacer público"}
               </Button>
               <p className="text-xs text-muted-foreground">
@@ -409,29 +436,25 @@ export function GroupMembersPage() {
           <AlertDescription>{directory.error.message}</AlertDescription>
         </Alert>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
-          {(directory.data.members as GroupMember[]).map((member, index) => (
-            <div
-              key={member.membershipId}
-              className={cn(
-                "flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5",
-                index > 0 && "border-t",
-              )}
-            >
-              <Avatar className="size-10">
-                <AvatarFallback>{initials(member.name)}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1 basis-40">
+        <ItemGroup className="gap-0 divide-y overflow-hidden rounded-lg border">
+          {(directory.data.members as GroupMember[]).map((member) => (
+            <Item key={member.membershipId} role="listitem" className="gap-3 px-4 py-3 sm:px-5">
+              <ItemMedia>
+                <Avatar className="size-10">
+                  <AvatarFallback>{initials(member.name)}</AvatarFallback>
+                </Avatar>
+              </ItemMedia>
+              <ItemContent className="min-w-0 basis-40 gap-0">
                 <p className="truncate text-sm font-medium">{member.name}</p>
                 <p className="truncate text-xs text-muted-foreground">{member.email}</p>
-              </div>
+              </ItemContent>
               {member.role === "owner" ? (
-                <span className="flex min-h-10 items-center gap-2 text-sm text-muted-foreground">
+                <ItemActions className="min-h-10 text-sm text-muted-foreground">
                   <ShieldCheckIcon className="size-4 shrink-0 text-primary" aria-hidden="true" />
                   Responsable del grupo
-                </span>
+                </ItemActions>
               ) : (
-                <>
+                <ItemActions className="gap-3">
                   <Select
                     disabled={updateRole.isPending || removeMember.isPending}
                     value={member.role}
@@ -464,11 +487,11 @@ export function GroupMembersPage() {
                   >
                     <Trash2Icon aria-hidden="true" />
                   </Button>
-                </>
+                </ItemActions>
               )}
-            </div>
+            </Item>
           ))}
-        </div>
+        </ItemGroup>
       )}
 
       <Dialog open={Boolean(removeTarget)} onOpenChange={(open) => !open && setRemoveTarget(null)}>

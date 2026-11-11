@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
+import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import {
   Card,
@@ -43,9 +44,11 @@ export function GlobalProfile() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-center gap-4">
-        <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <CircleUserRoundIcon aria-hidden="true" />
-        </div>
+        <Avatar className="size-12">
+          <AvatarFallback className="bg-primary text-primary-foreground">
+            <CircleUserRoundIcon aria-hidden="true" />
+          </AvatarFallback>
+        </Avatar>
         <div>
           <p className="text-sm font-semibold text-primary">Mi perfil</p>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{user.name}</h1>
@@ -55,14 +58,16 @@ export function GlobalProfile() {
         </div>
       </header>
 
-      <dl className="grid grid-cols-3 overflow-hidden rounded-lg border bg-card md:grid-cols-6">
-        <Metric label="Partidos" value={totals.played} />
-        <Metric label="Ganados" value={totals.wins} />
-        <Metric label="Empatados" value={totals.draws} />
-        <Metric label="Goles" value={totals.goals} />
-        <Metric label="Asistencias" value={totals.assists} />
-        <Metric label="% victorias" value={formatPercentage(totals.winPercentage)} />
-      </dl>
+      <Card className="py-0">
+        <dl className="grid grid-cols-3 md:grid-cols-6">
+          <Metric label="Partidos" value={totals.played} />
+          <Metric label="Ganados" value={totals.wins} />
+          <Metric label="Empatados" value={totals.draws} />
+          <Metric label="Goles" value={totals.goals} />
+          <Metric label="Asistencias" value={totals.assists} />
+          <Metric label="% victorias" value={formatPercentage(totals.winPercentage)} />
+        </dl>
+      </Card>
 
       <Card>
         <CardHeader>

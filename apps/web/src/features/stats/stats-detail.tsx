@@ -27,7 +27,7 @@ import {
 import Link from "next/link";
 import type { Route } from "next";
 import { useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 
 import { trpc, trpcHttpClient } from "@/utils/trpc";
 
@@ -266,7 +266,7 @@ function PlayerStatsContent({
             Partidos
           </h2>
         </div>
-        <div className="mt-4 border">
+        <Card className="mt-4 gap-0 py-0">
           {data.matches.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">
               No hay partidos cerrados para mostrar.
@@ -306,7 +306,7 @@ function PlayerStatsContent({
               </div>
             ))
           )}
-        </div>
+        </Card>
       </section>
     </div>
   );
@@ -356,10 +356,10 @@ function MatchStatsContent({
       <header>
         <Badge variant="secondary">{statusLabel(data.status)}</Badge>
         {data.figure ? (
-          <span className="mt-3 flex w-fit items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-            <TrophyIcon className="size-3.5" aria-hidden="true" />
+          <Badge variant="outline" className="mt-3 flex">
+            <TrophyIcon data-icon="inline-start" aria-hidden="true" />
             Figura: {data.figure.displayName} · {data.figure.average}
-          </span>
+          </Badge>
         ) : null}
         <h1 className={cn("text-3xl font-semibold tracking-tight", data.figure && "mt-3")}>
           {data.teams[0]?.displayName} {data.teams[0]?.goals} – {data.teams[1]?.goals}{" "}
@@ -385,21 +385,20 @@ function MatchStatsContent({
         </div>
       </header>
 
-      <section aria-label="Equipos" className="mt-8 overflow-hidden rounded-lg border">
-        {data.teams.map((team, index) => (
-          <div
-            key={team.id}
-            className={cn(
-              "flex items-center justify-between gap-4 px-4 py-3 sm:px-5",
-              index > 0 && "border-t",
-            )}
-          >
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{team.displayName}</p>
-            </div>
-            <span className="text-2xl font-bold tabular-nums">{team.goals}</span>
-          </div>
-        ))}
+      <section aria-label="Equipos" className="mt-8">
+        <Card className="gap-0 py-0">
+          {data.teams.map((team, index) => (
+            <Fragment key={team.id}>
+              {index > 0 ? <Separator /> : null}
+              <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{team.displayName}</p>
+                </div>
+                <span className="text-2xl font-bold tabular-nums">{team.goals}</span>
+              </div>
+            </Fragment>
+          ))}
+        </Card>
       </section>
 
       <Separator className="my-10" />
@@ -407,7 +406,7 @@ function MatchStatsContent({
         <h2 className="text-xl font-semibold" id="appearances-title">
           Actuaciones
         </h2>
-        <div className="mt-4 overflow-hidden border">
+        <Card className="mt-4 gap-0 py-0">
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
@@ -451,7 +450,7 @@ function MatchStatsContent({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </Card>
       </section>
     </div>
   );

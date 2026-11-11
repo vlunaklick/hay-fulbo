@@ -2,6 +2,7 @@
 
 import { ClerkProvider, useClerk } from "@clerk/react";
 import { Button } from "@hay-fulbo/ui/components/button";
+import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { useState } from "react";
 
 import { safeReturnTo } from "./return-to";
@@ -56,7 +57,7 @@ function GoogleButton({ onError }: { onError: (message: string) => void }) {
 
   return (
     <Button type="button" variant="outline" onClick={start} disabled={redirecting}>
-      <GoogleIcon />
+      {redirecting ? <Spinner data-icon="inline-start" /> : <GoogleIcon />}
       {redirecting ? "Abriendo Google…" : "Continuar con Google"}
     </Button>
   );

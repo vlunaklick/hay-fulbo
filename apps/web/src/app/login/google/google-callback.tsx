@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthenticateWithRedirectCallback, ClerkProvider, useAuth, useClerk } from "@clerk/react";
+import { Alert, AlertDescription } from "@hay-fulbo/ui/components/alert";
 import { Button } from "@hay-fulbo/ui/components/button";
 import Link from "next/link";
 import { useRef, useState } from "react";
@@ -55,9 +56,9 @@ function Exchange() {
   if (error) {
     return (
       <div className="flex flex-col items-center gap-4 text-center">
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
         <Button render={<Link href="/login" />} nativeButton={false}>
           Volver al login
         </Button>

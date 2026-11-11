@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@hay-fulbo/ui/components/button";
+import { Card } from "@hay-fulbo/ui/components/card";
 import { DownloadIcon, Share2Icon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -61,7 +62,7 @@ export function MatchResultCard({
           Final
         </span>
       </header>
-      <div className="relative overflow-hidden rounded-lg border bg-card px-4 py-5 text-card-foreground">
+      <Card className="relative gap-0 px-4 py-5">
         <p className="relative truncate text-center text-[0.625rem] font-bold uppercase tracking-[0.22em] text-muted-foreground">
           Hay Fulbo · {dateLabel}
         </p>
@@ -79,7 +80,7 @@ export function MatchResultCard({
         <p className="relative mt-2 truncate text-center text-xs text-muted-foreground">
           {groupName}
         </p>
-      </div>
+      </Card>
       <div className="grid grid-cols-2 gap-2 md:flex md:flex-col">
         <Button onClick={share}>
           <Share2Icon data-icon="inline-start" aria-hidden="true" />

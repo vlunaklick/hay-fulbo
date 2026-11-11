@@ -2,6 +2,7 @@
 
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
+import { Card, CardContent } from "@hay-fulbo/ui/components/card";
 import {
   Select,
   SelectContent,
@@ -89,10 +90,10 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
           </Badge>
         )}
         {data.figure ? (
-          <span className="flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-            <TrophyIcon className="size-3.5" aria-hidden="true" />
+          <Badge variant="outline">
+            <TrophyIcon data-icon="inline-start" aria-hidden="true" />
             Figura: {data.figure.displayName} · {data.figure.average}
-          </span>
+          </Badge>
         ) : null}
       </div>
 
@@ -107,12 +108,12 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
         <>
           <div className="grid gap-4 lg:grid-cols-2">
             {teams.map((team) => (
-              <div key={team.id} className="overflow-hidden rounded-xl border bg-card">
+              <Card key={team.id} className="gap-0 py-0">
                 <div
                   className={cn("h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
                   aria-hidden="true"
                 />
-                <div className="flex flex-col divide-y px-4 py-3">
+                <CardContent className="flex flex-col divide-y py-3">
                   {team.appearances.map((appearance) => {
                     const summary = data.players.find(
                       (player) => player.playerId === appearance.playerId,
@@ -174,8 +175,8 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
                       </div>
                     );
                   })}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
           <div>

@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@hay-fulbo/ui/components/card";
+import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { ArrowRightIcon, UsersRoundIcon } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -65,6 +66,7 @@ export function GroupJoinAcceptance({
               disabled={accept.isPending}
               onClick={() => accept.mutate({ token })}
             >
+              {accept.isPending ? <Spinner data-icon="inline-start" /> : null}
               {accept.isPending ? "Sumándote…" : "Sumarme al grupo"}
               <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
             </Button>

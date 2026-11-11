@@ -5,6 +5,18 @@ import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/al
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
 import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@hay-fulbo/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@hay-fulbo/ui/components/collapsible";
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -28,6 +40,16 @@ import {
 import { Field, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
 import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@hay-fulbo/ui/components/item";
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -35,6 +57,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import {
   Sheet,
@@ -45,6 +68,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@hay-fulbo/ui/components/sheet";
+import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -231,14 +255,17 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
               run={run}
             />
             <MatchShareRow court={court ?? null} detail={detail} groupName={groupName} />
-            <details className="group rounded-xl border">
-              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            <Collapsible className="rounded-xl border">
+              <CollapsibleTrigger className="w-full cursor-pointer px-4 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
                 Cómo llegan · balance histórico de estos equipos
-              </summary>
-              <div className="border-t px-4 py-4">
-                <MatchParityCard matchId={detail.id} />
-              </div>
-            </details>
+              </CollapsibleTrigger>
+              <CollapsibleContent keepMounted>
+                <Separator />
+                <div className="px-4 py-4">
+                  <MatchParityCard matchId={detail.id} />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </Section>
 
           <Section
@@ -408,120 +435,123 @@ function Cover({
   }
 
   return (
-    <section
-      aria-labelledby="match-overview-title"
-      className="relative overflow-hidden rounded-2xl border bg-card"
-    >
-      <div className="flex flex-col gap-4 px-5 py-5">
-        <div className="flex items-center justify-between gap-3 text-xs font-medium text-muted-foreground">
-          <span className="flex items-center gap-2">
-            <CalendarClockIcon className="size-4" aria-hidden="true" />
-            {formatDate(detail.scheduledAt)}
-          </span>
-          {editable ? (
-            <Button
-              onClick={() => {
-                if (!editing) {
-                  setExpectedLockVersion(detail.lockVersion);
-                  setScheduledAt(toLocalInputValue(detail.scheduledAt));
-                  setCourtId(detail.courtId);
-                  setCost(
-                    detail.courtCostMinor === null
-                      ? ""
-                      : String(Number(detail.courtCostMinor) / 100),
-                  );
-                }
-                setEditing((current) => !current);
-              }}
-              size="sm"
-              variant="ghost"
-            >
-              {editing ? "Cerrar edición" : "Editar datos"}
-            </Button>
-          ) : null}
-        </div>
-
-        <div className="grid gap-x-6 gap-y-3 sm:grid-cols-[1fr_auto] sm:items-end">
-          <h1 id="match-overview-title" className="text-2xl font-bold tracking-tight">
-            {detail.teams[0]?.displayName ?? "Equipo 1"}
-            <span className="mx-2 font-mono text-lg font-semibold tabular-nums text-muted-foreground">
-              {detail.status === "open" && detail.teams.length > 1
-                ? `${scoreFor(detail, detail.teams[0]?.id)} – ${scoreFor(detail, detail.teams[1]?.id)}`
-                : "vs."}
+    <section aria-labelledby="match-overview-title">
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3 text-xs font-medium text-muted-foreground">
+            <span className="flex items-center gap-2">
+              <CalendarClockIcon className="size-4" aria-hidden="true" />
+              {formatDate(detail.scheduledAt)}
             </span>
-            {detail.teams[1]?.displayName ?? "Equipo 2"}
-          </h1>
-          <p className="flex items-center gap-2 text-sm text-muted-foreground sm:justify-self-end">
-            <MapPinIcon className="size-4 shrink-0" aria-hidden="true" />
-            {courtName ?? "Cancha a definir"}
-            {detail.courtCostMinor !== null ? (
-              <>
-                <span aria-hidden="true">·</span>
-                {formatMoney(detail.courtCostMinor)}
-              </>
-            ) : null}
-          </p>
-        </div>
-
-        {editing ? (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              save();
-            }}
-            className="grid gap-4 border-t pt-4 sm:grid-cols-3"
-          >
-            <Field>
-              <FieldLabel htmlFor="match-date">Fecha y hora</FieldLabel>
-              <Input
-                id="match-date"
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(event) => setScheduledAt(event.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="match-court">Cancha</FieldLabel>
-              <Select
-                items={courtItemsFor(courts, detail.courtId)}
-                value={courtId}
-                onValueChange={setCourtId}
+            {editable ? (
+              <Button
+                onClick={() => {
+                  if (!editing) {
+                    setExpectedLockVersion(detail.lockVersion);
+                    setScheduledAt(toLocalInputValue(detail.scheduledAt));
+                    setCourtId(detail.courtId);
+                    setCost(
+                      detail.courtCostMinor === null
+                        ? ""
+                        : String(Number(detail.courtCostMinor) / 100),
+                    );
+                  }
+                  setEditing((current) => !current);
+                }}
+                size="sm"
+                variant="ghost"
               >
-                <SelectTrigger id="match-court" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {courtItemsFor(courts, detail.courtId).map((item) => (
-                      <SelectItem key={item.value ?? "no-court"} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="match-cost">Precio total</FieldLabel>
-              <Input
-                id="match-cost"
-                inputMode="decimal"
-                placeholder="Ej. 48000"
-                value={cost}
-                onChange={(event) => setCost(event.target.value)}
-              />
-            </Field>
-            <div className="sm:col-span-3">
-              <Button disabled={pending} size="sm" type="submit">
-                <CheckIcon data-icon="inline-start" aria-hidden="true" />
-                Guardar datos
+                {editing ? "Cerrar edición" : "Editar datos"}
               </Button>
-            </div>
-          </form>
-        ) : null}
+            ) : null}
+          </div>
 
+          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-[1fr_auto] sm:items-end">
+            <h1 id="match-overview-title" className="text-2xl font-bold tracking-tight">
+              {detail.teams[0]?.displayName ?? "Equipo 1"}
+              <span className="mx-2 font-mono text-lg font-semibold tabular-nums text-muted-foreground">
+                {detail.status === "open" && detail.teams.length > 1
+                  ? `${scoreFor(detail, detail.teams[0]?.id)} – ${scoreFor(detail, detail.teams[1]?.id)}`
+                  : "vs."}
+              </span>
+              {detail.teams[1]?.displayName ?? "Equipo 2"}
+            </h1>
+            <p className="flex items-center gap-2 text-sm text-muted-foreground sm:justify-self-end">
+              <MapPinIcon className="size-4 shrink-0" aria-hidden="true" />
+              {courtName ?? "Cancha a definir"}
+              {detail.courtCostMinor !== null ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  {formatMoney(detail.courtCostMinor)}
+                </>
+              ) : null}
+            </p>
+          </div>
+
+          {editing ? <Separator /> : null}
+          {editing ? (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                save();
+              }}
+              className="grid gap-4 sm:grid-cols-3"
+            >
+              <Field>
+                <FieldLabel htmlFor="match-date">Fecha y hora</FieldLabel>
+                <Input
+                  id="match-date"
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(event) => setScheduledAt(event.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="match-court">Cancha</FieldLabel>
+                <Select
+                  items={courtItemsFor(courts, detail.courtId)}
+                  value={courtId}
+                  onValueChange={setCourtId}
+                >
+                  <SelectTrigger id="match-court" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {courtItemsFor(courts, detail.courtId).map((item) => (
+                        <SelectItem key={item.value ?? "no-court"} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="match-cost">Precio total</FieldLabel>
+                <Input
+                  id="match-cost"
+                  inputMode="decimal"
+                  placeholder="Ej. 48000"
+                  value={cost}
+                  onChange={(event) => setCost(event.target.value)}
+                />
+              </Field>
+              <div className="sm:col-span-3">
+                <Button disabled={pending} size="sm" type="submit">
+                  {pending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <CheckIcon data-icon="inline-start" aria-hidden="true" />
+                  )}
+                  Guardar datos
+                </Button>
+              </div>
+            </form>
+          ) : null}
+        </CardContent>
         {onReopen || onRestore || onCancelMatch ? (
-          <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+          <CardFooter className="flex-wrap gap-2">
             {onReopen ? (
               <Button onClick={onReopen} size="sm" variant="outline">
                 Reabrir partido
@@ -533,18 +563,13 @@ function Cover({
               </Button>
             ) : null}
             {onCancelMatch ? (
-              <Button
-                className="text-destructive hover:text-destructive"
-                onClick={onCancelMatch}
-                size="sm"
-                variant="ghost"
-              >
+              <Button onClick={onCancelMatch} size="sm" variant="destructive">
                 Cancelar partido
               </Button>
             ) : null}
-          </div>
+          </CardFooter>
         ) : null}
-      </div>
+      </Card>
     </section>
   );
 }
@@ -691,25 +716,26 @@ function AbsencesList({
   run: RunMatchAction;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-dashed bg-card">
-      <p className="border-b px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
-        Dijeron que venían y no vinieron
-      </p>
-      <ul className="flex flex-col divide-y">
+    <Card className="gap-0 py-0">
+      <CardHeader className="border-b py-3">
+        <CardTitle>Dijeron que venían y no vinieron</CardTitle>
+      </CardHeader>
+      <ItemGroup className="gap-0 divide-y">
         {detail.absences.map((absence) => (
-          <li
-            key={absence.playerId}
-            className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2"
-          >
-            <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-              <UserXIcon className="size-4 shrink-0" aria-hidden="true" />
-              <span className="truncate">{absence.playerDisplayName}</span>
-              {absence.owesContribution ? (
-                <Badge variant="secondary">Ausente · aporta</Badge>
-              ) : null}
-            </span>
+          <Item key={absence.playerId} role="listitem" className="min-h-11 px-4 py-2">
+            <ItemMedia variant="icon">
+              <UserXIcon aria-hidden="true" />
+            </ItemMedia>
+            <ItemContent className="min-w-0">
+              <ItemTitle>
+                <span className="truncate">{absence.playerDisplayName}</span>
+                {absence.owesContribution ? (
+                  <Badge variant="secondary">Ausente · aporta</Badge>
+                ) : null}
+              </ItemTitle>
+            </ItemContent>
             {editable ? (
-              <span className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+              <ItemActions className="w-full min-w-0 flex-wrap sm:w-auto">
                 {absence.owesContribution && detail.courtCostMinor !== null ? (
                   <PaymentCell
                     appearance={absence}
@@ -734,12 +760,12 @@ function AbsencesList({
                 >
                   Vino al final
                 </Button>
-              </span>
+              </ItemActions>
             ) : null}
-          </li>
+          </Item>
         ))}
-      </ul>
-    </div>
+      </ItemGroup>
+    </Card>
   );
 }
 
@@ -759,12 +785,12 @@ function TeamRoster({
   team: Detail["teams"][number];
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <Card className="pt-0">
       <div
         className={cn("flex h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
         aria-hidden="true"
       />
-      <div className="flex flex-col gap-3 px-4 py-4">
+      <CardContent className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <TeamNameEditor
             editable={editable}
@@ -781,35 +807,43 @@ function TeamRoster({
         {team.appearances.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground">Sin jugadores todavía.</p>
         ) : (
-          <ul className="flex flex-col divide-y">
+          <ItemGroup className="gap-0 divide-y">
             {team.appearances.map((appearance) => (
-              <li
+              <Item
                 key={appearance.playerId}
-                className="group flex min-h-10 items-center justify-between gap-2 py-1"
+                role="listitem"
+                size="xs"
+                className="min-h-10 flex-nowrap px-0 py-1"
               >
-                <span className="truncate text-sm">{appearance.playerDisplayName}</span>
+                <ItemContent className="min-w-0">
+                  <ItemTitle>{appearance.playerDisplayName}</ItemTitle>
+                </ItemContent>
                 {editable ? (
-                  <RosterActions
-                    detail={detail}
-                    pending={pending}
-                    appearance={appearance}
-                    run={run}
-                  />
+                  <ItemActions>
+                    <RosterActions
+                      detail={detail}
+                      pending={pending}
+                      appearance={appearance}
+                      run={run}
+                    />
+                  </ItemActions>
                 ) : null}
-              </li>
+              </Item>
             ))}
-          </ul>
+          </ItemGroup>
         )}
 
+        {editable ? <Separator /> : null}
         {editable ? (
-          <div className="flex flex-col gap-2 border-t pt-3">
+          <div className="flex flex-col gap-2">
             {available.length > 0 ? (
               <div className="-m-1 flex max-h-32 flex-wrap content-start gap-1.5 overflow-y-auto p-1">
                 {available.map((player) => (
-                  <button
+                  <Button
                     key={player.id}
-                    type="button"
                     disabled={pending}
+                    size="xs"
+                    variant="outline"
                     onClick={() =>
                       run({
                         type: "addParticipant",
@@ -818,11 +852,10 @@ function TeamRoster({
                         teamId: team.id,
                       })
                     }
-                    className="flex min-h-11 items-center gap-1 rounded-full border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:pointer-events-none disabled:opacity-40"
                   >
-                    <PlusIcon className="size-3 shrink-0" aria-hidden="true" />
+                    <PlusIcon data-icon="inline-start" aria-hidden="true" />
                     <span className="max-w-36 truncate">{player.displayName}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             ) : (
@@ -831,8 +864,8 @@ function TeamRoster({
             <NewPlayerInput detail={detail} disabled={pending} run={run} teamId={team.id} />
           </div>
         ) : null}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1048,12 +1081,12 @@ function PlanillaCard({
   team: Detail["teams"][number];
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <Card size="sm" className="gap-0 pt-0">
       <div
         className={cn("h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
         aria-hidden="true"
       />
-      <div className="flex flex-col divide-y px-4 py-3">
+      <CardContent className="flex flex-col divide-y">
         {team.appearances.map((appearance) => (
           <PlanillaRow
             key={appearance.playerId}
@@ -1074,8 +1107,8 @@ function PlanillaCard({
             <span className="font-mono font-bold tabular-nums">{team.unattributedGoals}</span>
           </div>
         ) : null}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1134,27 +1167,29 @@ function ClosingBar({
 }) {
   return (
     <div className={cn(readyToClose && "sticky bottom-20 z-10 md:bottom-6")}>
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3 shadow-lg">
-        {readyToClose ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckIcon className="size-4 text-primary" aria-hidden="true" />
-            Todo listo para cerrar.
-          </p>
-        ) : (
-          <ul className="min-w-0 text-sm text-muted-foreground">
-            {issues.map((issue) => (
-              <li key={issue} className="flex items-start gap-2 py-0.5 text-xs">
-                <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
-                {issueText[issue]}
-              </li>
-            ))}
-          </ul>
-        )}
-        <Button disabled={!readyToClose || pending} onClick={onClose} size="lg">
-          <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
-          Cerrar partido
-        </Button>
-      </div>
+      <Card size="sm" className="shadow-lg">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          {readyToClose ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckIcon className="size-4 text-primary" aria-hidden="true" />
+              Todo listo para cerrar.
+            </p>
+          ) : (
+            <ul className="min-w-0 text-sm text-muted-foreground">
+              {issues.map((issue) => (
+                <li key={issue} className="flex items-start gap-2 py-0.5 text-xs">
+                  <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
+                  {issueText[issue]}
+                </li>
+              ))}
+            </ul>
+          )}
+          <Button disabled={!readyToClose || pending} onClick={onClose} size="lg">
+            <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
+            Cerrar partido
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1276,15 +1311,15 @@ function Stepper({
       <span className="w-full text-xs text-muted-foreground" aria-hidden="true">
         {tag}
       </span>
-      <button
-        type="button"
+      <Button
         aria-label={`${label}: restar`}
-        className="grid size-11 shrink-0 place-items-center rounded-full border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
         disabled={disabled || value === 0}
         onClick={onDecrement}
+        size="icon"
+        variant="outline"
       >
         −
-      </button>
+      </Button>
       <span
         className={cn(
           "min-w-5 text-center font-mono font-bold tabular-nums",
@@ -1293,15 +1328,15 @@ function Stepper({
       >
         {value}
       </span>
-      <button
-        type="button"
+      <Button
         aria-label={`${label}: sumar`}
-        className="grid size-11 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-30"
         disabled={disabled}
         onClick={onIncrement}
+        size="icon"
+        variant="outline"
       >
         +
-      </button>
+      </Button>
     </span>
   );
 }
@@ -1351,10 +1386,18 @@ function UnattributedStepper({
 
 const statusStyles = {
   exempt: "text-muted-foreground",
-  overpaid: "text-sky-600 dark:text-sky-400",
-  paid: "text-emerald-600 dark:text-emerald-400",
-  partial: "text-amber-600 dark:text-amber-400",
-  pending: "text-red-600 dark:text-red-400",
+  overpaid: "text-foreground",
+  paid: "text-foreground",
+  partial: "text-foreground",
+  pending: "text-destructive",
+} as const;
+
+const statusBadge = {
+  exempt: { label: "Exento", variant: "ghost" },
+  pending: { label: "Pendiente", variant: "destructive" },
+  partial: { label: "Parcial", variant: "outline" },
+  paid: { label: "Pagado", variant: "default" },
+  overpaid: { label: "Excedido", variant: "secondary" },
 } as const;
 
 function PaymentsSheet({
@@ -1401,7 +1444,7 @@ function PaymentsSheet({
           </SheetDescription>
         </SheetHeader>
         <SheetBody className="px-0 py-0">
-          <ul className="flex flex-col divide-y">
+          <ItemGroup className="gap-0 divide-y">
             {rows.map((appearance) => (
               <PaymentRow
                 key={appearance.playerId}
@@ -1412,7 +1455,7 @@ function PaymentsSheet({
                 run={run}
               />
             ))}
-          </ul>
+          </ItemGroup>
         </SheetBody>
       </SheetContent>
     </Sheet>
@@ -1433,21 +1476,23 @@ function PaymentRow({
   run: RunMatchAction;
 }) {
   return (
-    <li className="flex min-h-12 flex-col gap-3 px-4 py-3">
-      <span className="text-sm">
-        {appearance.playerDisplayName}
-        {appearance.owesContribution ? (
-          <span className="ml-2 text-xs text-muted-foreground">Ausente · aporta</span>
-        ) : null}
-      </span>
-      <PaymentCell
-        appearance={appearance}
-        detail={detail}
-        editable={editable}
-        pending={pending}
-        run={run}
-      />
-    </li>
+    <Item role="listitem" className="min-h-12 gap-3 px-4 py-3">
+      <ItemContent>
+        <ItemTitle>
+          {appearance.playerDisplayName}
+          {appearance.owesContribution ? <Badge variant="secondary">Ausente · aporta</Badge> : null}
+        </ItemTitle>
+      </ItemContent>
+      <ItemFooter>
+        <PaymentCell
+          appearance={appearance}
+          detail={detail}
+          editable={editable}
+          pending={pending}
+          run={run}
+        />
+      </ItemFooter>
+    </Item>
   );
 }
 
@@ -1502,6 +1547,7 @@ function PaymentCell({
           onChange={(event) => setAmount(event.target.value)}
         />
         <Button disabled={pending} type="submit">
+          {pending ? <Spinner data-icon="inline-start" /> : null}
           Guardar
         </Button>
         <Button disabled={pending} type="button" variant="ghost" onClick={() => setEditing(false)}>
@@ -1526,16 +1572,8 @@ function PaymentCell({
         <span className="block font-sans text-xs font-normal">Pagó</span>
         {formatMoney(appearance.paidMinor)}
       </strong>
-      <Badge variant="secondary">
-        {
-          {
-            exempt: "Exento",
-            pending: "Pendiente",
-            partial: "Parcial",
-            paid: "Pagado",
-            overpaid: "Excedido",
-          }[appearance.contributionStatus]
-        }
+      <Badge variant={statusBadge[appearance.contributionStatus].variant}>
+        {statusBadge[appearance.contributionStatus].label}
       </Badge>
       {editable ? (
         <>
@@ -1578,35 +1616,45 @@ function ReadOnlyStats({ detail }: { detail: Detail }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {detail.teams.map((team) => (
-        <div key={team.id} className="overflow-hidden rounded-xl border bg-card">
+        <Card key={team.id} size="sm" className="pt-0">
           <div
             className={cn("h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
             aria-hidden="true"
           />
-          <div className="px-4 py-3">
-            <p className="mb-1 text-sm font-semibold">{team.displayName}</p>
-            <ul className="divide-y">
+          <CardHeader>
+            <CardTitle>{team.displayName}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ItemGroup className="gap-0 divide-y">
               {team.appearances.map((appearance) => (
-                <li
+                <Item
                   key={appearance.playerId}
-                  className="flex min-h-10 items-center justify-between gap-3 text-sm"
+                  role="listitem"
+                  size="xs"
+                  className="min-h-10 flex-nowrap px-0"
                 >
-                  <span className="truncate">{appearance.playerDisplayName}</span>
-                  <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                  <ItemContent className="min-w-0">
+                    <ItemTitle>{appearance.playerDisplayName}</ItemTitle>
+                  </ItemContent>
+                  <ItemDescription className="shrink-0 font-mono tabular-nums">
                     {appearance.goals}G · {appearance.assists}A
                     {appearance.ownGoals > 0 ? ` · ${appearance.ownGoals}AG` : ""}
-                  </span>
-                </li>
+                  </ItemDescription>
+                </Item>
               ))}
               {team.unattributedGoals > 0 ? (
-                <li className="flex min-h-10 items-center justify-between text-sm text-muted-foreground">
-                  Sin autor
-                  <span className="font-mono text-xs tabular-nums">{team.unattributedGoals}G</span>
-                </li>
+                <Item role="listitem" size="xs" className="min-h-10 flex-nowrap px-0">
+                  <ItemContent>
+                    <ItemDescription>Sin autor</ItemDescription>
+                  </ItemContent>
+                  <ItemDescription className="shrink-0 font-mono tabular-nums">
+                    {team.unattributedGoals}G
+                  </ItemDescription>
+                </Item>
               ) : null}
-            </ul>
-          </div>
-        </div>
+            </ItemGroup>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );

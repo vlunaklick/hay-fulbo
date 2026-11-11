@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
@@ -38,6 +38,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@hay-fulbo/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@hay-fulbo/ui/components/collapsible";
 import { Checkbox } from "@hay-fulbo/ui/components/checkbox";
 import {
   Field,
@@ -55,6 +60,7 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@hay-fulbo/ui/components/input-group";
+import { Progress } from "@hay-fulbo/ui/components/progress";
 import {
   Select,
   SelectContent,
@@ -313,20 +319,26 @@ function Facts({ model }: { model: MatchModel }) {
   const selected = model.players.filter((player) => player.team);
   return (
     <div className="grid grid-cols-3 gap-2 text-center">
-      <div className="border border-border bg-card p-2">
-        <MapPinIcon className="mx-auto mb-1 size-4" />
-        <p className="truncate text-xs">{venue?.name}</p>
-      </div>
-      <div className="border border-border bg-card p-2">
-        <UsersIcon className="mx-auto mb-1 size-4" />
-        <p className="text-xs">{selected.length} juegan</p>
-      </div>
-      <div className="border border-border bg-card p-2">
-        <CircleDollarSignIcon className="mx-auto mb-1 size-4" />
-        <p className="truncate text-xs">
-          {money(selected.reduce((sum, player) => sum + player.paid, 0))}
-        </p>
-      </div>
+      <Card size="sm">
+        <CardContent className="min-w-0">
+          <MapPinIcon className="mx-auto mb-1 size-4" />
+          <p className="truncate text-xs">{venue?.name}</p>
+        </CardContent>
+      </Card>
+      <Card size="sm">
+        <CardContent className="min-w-0">
+          <UsersIcon className="mx-auto mb-1 size-4" />
+          <p className="text-xs">{selected.length} juegan</p>
+        </CardContent>
+      </Card>
+      <Card size="sm">
+        <CardContent className="min-w-0">
+          <CircleDollarSignIcon className="mx-auto mb-1 size-4" />
+          <p className="truncate text-xs">
+            {money(selected.reduce((sum, player) => sum + player.paid, 0))}
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -826,18 +838,20 @@ function Lifecycle({ model, actions, validation }: SharedProps) {
 
 function StateView({ model }: { model: MatchModel }) {
   return (
-    <details className="border border-dashed border-border bg-muted p-3 text-xs">
-      <summary className="cursor-pointer font-mono font-semibold">
+    <Collapsible className="flex flex-col gap-3 border border-dashed border-border bg-muted p-3 text-xs">
+      <CollapsibleTrigger className="cursor-pointer text-left font-mono font-semibold">
         Estado completo del prototipo
-      </summary>
-      <pre className="mt-3 overflow-auto whitespace-pre-wrap text-[10px]">
-        {JSON.stringify(
-          { ...model, players: model.players.filter((player) => player.team) },
-          null,
-          2,
-        )}
-      </pre>
-    </details>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <pre className="overflow-auto whitespace-pre-wrap text-[10px]">
+          {JSON.stringify(
+            { ...model, players: model.players.filter((player) => player.team) },
+            null,
+            2,
+          )}
+        </pre>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -862,9 +876,7 @@ function VariantA(props: SharedProps) {
             <span>Paso {step + 1} de 5</span>
             <span>{current.label}</span>
           </div>
-          <div className="h-1.5 bg-muted">
-            <div className="h-full bg-primary" style={{ width: `${((step + 1) / 5) * 100}%` }} />
-          </div>
+          <Progress value={((step + 1) / 5) * 100} className="gap-0" />
         </div>
         <Card>
           <CardHeader>
@@ -888,24 +900,27 @@ function VariantA(props: SharedProps) {
           <StateView model={props.model} />
         </div>
       </div>
-      <div className="fixed inset-x-0 bottom-16 mx-auto flex max-w-md gap-2 border-t border-border bg-background p-3">
-        <Button
-          className="flex-1"
-          variant="outline"
-          disabled={!step}
-          onClick={() => setStep((value) => value - 1)}
-        >
-          <ArrowLeftIcon data-icon="inline-start" />
-          Atrás
-        </Button>
-        <Button
-          className="flex-1"
-          disabled={step === 4}
-          onClick={() => setStep((value) => value + 1)}
-        >
-          Siguiente
-          <ArrowRightIcon data-icon="inline-end" />
-        </Button>
+      <div className="fixed inset-x-0 bottom-16 mx-auto flex max-w-md flex-col bg-background">
+        <Separator />
+        <div className="flex gap-2 p-3">
+          <Button
+            className="flex-1"
+            variant="outline"
+            disabled={!step}
+            onClick={() => setStep((value) => value - 1)}
+          >
+            <ArrowLeftIcon data-icon="inline-start" />
+            Atrás
+          </Button>
+          <Button
+            className="flex-1"
+            disabled={step === 4}
+            onClick={() => setStep((value) => value + 1)}
+          >
+            Siguiente
+            <ArrowRightIcon data-icon="inline-end" />
+          </Button>
+        </div>
       </div>
     </main>
   );
@@ -972,54 +987,54 @@ function TeamBoard({ team, model, actions, editable }: SharedProps & { team: Tea
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-4">
-          {players.map((player) => (
-            <div
-              key={player.id}
-              className="flex flex-col gap-2 border-b border-border pb-3 last:border-0"
-            >
-              <div className="flex items-center justify-between">
-                <span className="truncate text-sm font-semibold">{player.name}</span>
-                {model.teams[team].captainId === player.id ? (
-                  <ShieldIcon className="size-4" />
-                ) : null}
+          {players.map((player, index) => (
+            <Fragment key={player.id}>
+              {index > 0 ? <Separator /> : null}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="truncate text-sm font-semibold">{player.name}</span>
+                  {model.teams[team].captainId === player.id ? (
+                    <ShieldIcon className="size-4" />
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Counter
+                    label="G"
+                    value={player.goals}
+                    disabled={!editable}
+                    change={(delta) => actions.stat(player.id, "goals", delta)}
+                  />
+                  <Counter
+                    label="A"
+                    value={player.assists}
+                    disabled={!editable}
+                    change={(delta) => actions.stat(player.id, "assists", delta)}
+                  />
+                </div>
+                <Field>
+                  <FieldLabel htmlFor={`board-paid-${player.id}`}>
+                    Pagó · {payState(player)}
+                  </FieldLabel>
+                  <Input
+                    id={`board-paid-${player.id}`}
+                    type="number"
+                    value={player.paid}
+                    disabled={!editable}
+                    onChange={(event) => actions.paid(player.id, Number(event.target.value))}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor={`board-expected-${player.id}`}>Debe</FieldLabel>
+                  <Input
+                    id={`board-expected-${player.id}`}
+                    type="number"
+                    value={player.expected}
+                    disabled={!editable}
+                    onChange={(event) => actions.expected(player.id, Number(event.target.value))}
+                  />
+                </Field>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Counter
-                  label="G"
-                  value={player.goals}
-                  disabled={!editable}
-                  change={(delta) => actions.stat(player.id, "goals", delta)}
-                />
-                <Counter
-                  label="A"
-                  value={player.assists}
-                  disabled={!editable}
-                  change={(delta) => actions.stat(player.id, "assists", delta)}
-                />
-              </div>
-              <Field>
-                <FieldLabel htmlFor={`board-paid-${player.id}`}>
-                  Pagó · {payState(player)}
-                </FieldLabel>
-                <Input
-                  id={`board-paid-${player.id}`}
-                  type="number"
-                  value={player.paid}
-                  disabled={!editable}
-                  onChange={(event) => actions.paid(player.id, Number(event.target.value))}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor={`board-expected-${player.id}`}>Debe</FieldLabel>
-                <Input
-                  id={`board-expected-${player.id}`}
-                  type="number"
-                  value={player.expected}
-                  disabled={!editable}
-                  onChange={(event) => actions.expected(player.id, Number(event.target.value))}
-                />
-              </Field>
-            </div>
+            </Fragment>
           ))}
         </div>
       </CardContent>
