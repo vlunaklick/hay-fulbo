@@ -133,7 +133,7 @@ export function HomeDashboard() {
                 Todavía no tenés un aporte asignado.
               </span>
             ) : myDebt <= 0n ? (
-              <Badge variant="secondary">{myDebt < 0n ? "Excedido" : "Al día"}</Badge>
+              <Badge variant="secondary">{myDebt < 0n ? "A favor" : "Al día"}</Badge>
             ) : (
               <strong className="text-xl font-bold tabular-nums text-destructive">
                 Te falta {formatMoney(myDebt.toString())}

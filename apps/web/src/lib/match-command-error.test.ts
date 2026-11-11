@@ -82,3 +82,12 @@ test("uses read copy for match query errors", () => {
     "Revisá tu conexión y volvé a intentar",
   );
 });
+
+test("tells the organizer when the chosen planillero already left the group", () => {
+  expect(
+    matchCommandErrorMessage(
+      { data: { domainCode: "membership_required" } },
+      { type: "setScorekeeper" },
+    ),
+  ).toBe("Esa persona ya no está en el grupo");
+});

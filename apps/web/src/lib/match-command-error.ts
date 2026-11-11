@@ -24,6 +24,9 @@ export function matchCommandErrorMessage(
   if (code === "player_archived") return "Ese jugador está archivado";
   if (code === "court_archived") return "Esa cancha está archivada";
   if (code === "match_not_open") return "El partido ya se cerró";
+  if (action?.type === "setScorekeeper" && code === "membership_required") {
+    return "Esa persona ya no está en el grupo";
+  }
   if (
     code === "forbidden" ||
     code === "membership_required" ||

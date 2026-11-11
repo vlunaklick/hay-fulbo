@@ -118,19 +118,42 @@ export default function MatchPage() {
       </div>
     );
   }
-  if (detail.isError || directory.isError) {
+  const readError = detail.error ?? directory.error;
+  if (!detail.data || !directory.data) {
     return (
       <Alert variant="destructive">
         <CircleAlertIcon aria-hidden="true" />
         <AlertTitle>No pudimos abrir el partido</AlertTitle>
-        <AlertDescription>
-          {matchReadErrorMessage(detail.error ?? directory.error)}
-        </AlertDescription>
+        <AlertDescription>{matchReadErrorMessage(readError)}</AlertDescription>
       </Alert>
     );
   }
 
-  return <MatchWorkspace key={detail.data.id} detail={detail.data} directory={directory.data} />;
+  // A failed background poll keeps the cached workspace (and any open drafts) mounted.
+  return (
+    <>
+      {readError ? (
+        <Alert role="status">
+          <CircleAlertIcon aria-hidden="true" />
+          <AlertTitle>No pudimos actualizar el partido</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center gap-3">
+            {matchReadErrorMessage(readError)}
+            <Button
+              onClick={() => {
+                void detail.refetch();
+                void directory.refetch();
+              }}
+              size="sm"
+              variant="outline"
+            >
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      <MatchWorkspace key={detail.data.id} detail={detail.data} directory={directory.data} />
+    </>
+  );
 }
 
 function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Directory }) {
