@@ -3,7 +3,7 @@
 import { AuthenticateWithRedirectCallback, ClerkProvider, useAuth, useClerk } from "@clerk/react";
 import { Button } from "@hay-fulbo/ui/components/button";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
@@ -12,8 +12,12 @@ import { safeReturnTo } from "../return-to";
 function ExchangeSession({ onError }: { onError: (message: string) => void }) {
   const { getToken } = useAuth();
   const clerk = useClerk();
+  // StrictMode replays mount effects in development; the session must be exchanged once.
+  const started = useRef(false);
 
   useMountEffect(() => {
+    if (started.current) return;
+    started.current = true;
     const returnTo = safeReturnTo(new URLSearchParams(window.location.search).get("returnTo"));
     void (async () => {
       try {
@@ -54,7 +58,9 @@ function Exchange() {
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
-        <Button render={<Link href="/login" />}>Volver al login</Button>
+        <Button render={<Link href="/login" />} nativeButton={false}>
+          Volver al login
+        </Button>
       </div>
     );
   }

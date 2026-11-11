@@ -42,14 +42,15 @@ export function clerkBridge(options: { secretKey: string; authorizedParties: str
           }
 
           const adapter = ctx.context.internalAdapter;
-          const linked = await adapter.findAccountByProviderId(
-            identity.clerkUserId,
-            CLERK_PROVIDER_ID,
-          );
-          let user = linked ? await adapter.findUserById(linked.userId) : null;
-          if (!user) {
+          const findOrCreateUser = async () => {
+            const linked = await adapter.findAccountByProviderId(
+              identity.clerkUserId,
+              CLERK_PROVIDER_ID,
+            );
+            const linkedUser = linked ? await adapter.findUserById(linked.userId) : null;
+            if (linkedUser) return linkedUser;
             const existing = await adapter.findUserByEmail(identity.email);
-            user =
+            const user =
               existing?.user ??
               (await adapter.createUser({
                 email: identity.email,
@@ -64,7 +65,10 @@ export function clerkBridge(options: { secretKey: string; authorizedParties: str
                 userId: user.id,
               });
             }
-          }
+            return user;
+          };
+          // A concurrent first sign-in can lose the race on the unique email; the retry finds the winner's row.
+          let user = await findOrCreateUser().catch(findOrCreateUser);
           if (!user.emailVerified) {
             user = await adapter.updateUser(user.id, { emailVerified: true });
           }
