@@ -299,11 +299,6 @@ function NextMatchHero({
           />
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">No hay próxima fecha</h2>
-            <p className="text-sm text-muted-foreground">
-              {canCreate
-                ? "Createla y empezá a convocar a los jugadores."
-                : "Cuando el organizador la cree, va a aparecer acá."}
-            </p>
           </div>
         </div>
         {canCreate ? (

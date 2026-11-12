@@ -35,7 +35,6 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Partidos"
-        description="Lo próximo y lo que ya quedó cerrado."
         actions={
           canManage ? (
             <Button onClick={() => setCreateOpen(true)}>
@@ -58,12 +57,7 @@ export default function DashboardPage() {
       ) : matches.data.length === 0 ? (
         <div className="flex flex-col items-start gap-4 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center">
           <CalendarDaysIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <p className="text-sm font-medium">Todavía no hay partidos</p>
-            <p className="text-sm text-muted-foreground">
-              Cargá la fecha, la cancha y los dos equipos para arrancar.
-            </p>
-          </div>
+          <p className="min-w-0 flex-1 text-sm font-medium">Todavía no hay partidos</p>
           {canManage ? (
             <Button variant="outline" onClick={() => setCreateOpen(true)}>
               Crear el primero

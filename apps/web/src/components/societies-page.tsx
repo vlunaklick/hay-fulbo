@@ -60,7 +60,7 @@ export function SocietiesPage() {
       </Button>
       <PageHeader
         title="Sociedades"
-        description={`${stats.data.group.name} · las parejas que mejor funcionan cuando comparten equipo, con mínimo 2 PJ juntos.`}
+        description={`${stats.data.group.name} · mínimo 2 PJ juntos`}
       />
 
       {leader ? (
@@ -88,14 +88,9 @@ export function SocietiesPage() {
           </section>
 
           <section aria-labelledby="tabla-duplas" className="flex flex-col gap-3">
-            <div className="flex flex-col gap-0.5">
-              <h2 id="tabla-duplas" className="text-base font-semibold">
-                Tabla de duplas
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Ordenada por puntos, efectividad y diferencia de gol.
-              </p>
-            </div>
+            <h2 id="tabla-duplas" className="text-base font-semibold">
+              Tabla de duplas
+            </h2>
             <Card className="py-0">
               <Table className="text-sm">
                 <TableHeader>
