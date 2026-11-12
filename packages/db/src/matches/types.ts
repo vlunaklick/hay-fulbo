@@ -267,6 +267,13 @@ export type MatchDirectory = {
     address: string;
     mapsUrl: string;
     archivedAt: Date | null;
+    /** Closed matches played at this court. */
+    played: number;
+    lastPlayedAt: Date | null;
+    /** Earliest open match scheduled from now on. */
+    nextMatchAt: Date | null;
+    /** Court cost of the latest non-cancelled match, in minor units. */
+    lastCostMinor: string | null;
   }[];
   members: {
     id: string;

@@ -52,3 +52,12 @@ export function formatTime(value: string | Date) {
     hourCycle: "h23",
   }).format(new Date(value));
 }
+
+/** "hace 5 días", "mañana", "en 2 meses": relative to now, in whole days. */
+export function formatRelativeDays(value: string | Date, now: Date = new Date()) {
+  const days = Math.round((new Date(value).getTime() - now.getTime()) / 86_400_000);
+  const formatter = new Intl.RelativeTimeFormat("es-AR", { numeric: "auto" });
+  if (Math.abs(days) < 30) return formatter.format(days, "day");
+  if (Math.abs(days) < 365) return formatter.format(Math.round(days / 30), "month");
+  return formatter.format(Math.round(days / 365), "year");
+}
