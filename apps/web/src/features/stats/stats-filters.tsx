@@ -2,15 +2,6 @@
 
 import type { StatsFilters } from "@hay-fulbo/db/stats";
 import { Button } from "@hay-fulbo/ui/components/button";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@hay-fulbo/ui/components/sheet";
-import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { CheckIcon } from "lucide-react";
 import type { Route } from "next";
@@ -18,6 +9,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { DrillRow } from "@/components/next-step";
+import { DrillDetail } from "@/components/next-step-layout";
 
 export const STATS_BASE = "/dashboard/estadisticas";
 
@@ -82,17 +74,24 @@ export type StatsFilterState = ReturnType<typeof useStatsFilters>;
 
 /**
  * "Período: Siempre ›": the filters are a row, not a toolbar. The row opens one
- * sheet with period, court and result.
+ * DrillDetail (bottom sheet on mobile, right column on desktop) with period,
+ * court and result.
  */
 export function StatsFilterRow({
   courts,
   filters,
+  onOpenChange,
+  open: controlledOpen,
 }: {
   courts: readonly { id: string; name: string }[];
   filters: StatsFilterState;
+  /** Controlled by pages that keep one detail open at a time. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const mobile = useIsMobile();
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = onOpenChange ?? setLocalOpen;
   const extra = (filters.court !== "all" ? 1 : 0) + (filters.result !== "all" ? 1 : 0);
   const value = extra
     ? `${filters.periodLabel} · +${extra} ${extra === 1 ? "filtro" : "filtros"}`
@@ -100,48 +99,47 @@ export function StatsFilterRow({
 
   return (
     <>
-      <DrillRow label="Período" onClick={() => setOpen(true)} value={value} />
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side={mobile ? "bottom" : "right"} className="max-h-[85dvh] sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Filtrar estadísticas</SheetTitle>
-            <SheetDescription>Solo cuentan partidos cerrados.</SheetDescription>
-          </SheetHeader>
-          <SheetBody className="flex flex-col gap-6">
-            <ChoiceList
-              label="Período"
-              onChange={(next) => filters.set("period", next)}
-              options={PERIODS}
-              value={filters.period}
-            />
-            <ChoiceList
-              label="Cancha"
-              onChange={(next) => filters.set("court", next)}
-              options={[
-                { value: "all", label: "Todas las canchas" },
-                ...courts.map((court) => ({ value: court.id, label: court.name })),
-              ]}
-              value={filters.court}
-            />
-            <ChoiceList
-              label="Resultado"
-              onChange={(next) => filters.set("result", next)}
-              options={RESULTS}
-              value={filters.result}
-            />
-            <div className="flex gap-2">
-              <Button className="flex-1" onClick={() => setOpen(false)}>
-                Ver resultados
+      <DrillRow label="Período" onClick={() => setOpen(true)} selected={open} value={value} />
+      <DrillDetail
+        description="Solo cuentan partidos cerrados."
+        onOpenChange={setOpen}
+        open={open}
+        title="Filtrar estadísticas"
+      >
+        <div className="flex flex-col gap-6">
+          <ChoiceList
+            label="Período"
+            onChange={(next) => filters.set("period", next)}
+            options={PERIODS}
+            value={filters.period}
+          />
+          <ChoiceList
+            label="Cancha"
+            onChange={(next) => filters.set("court", next)}
+            options={[
+              { value: "all", label: "Todas las canchas" },
+              ...courts.map((court) => ({ value: court.id, label: court.name })),
+            ]}
+            value={filters.court}
+          />
+          <ChoiceList
+            label="Resultado"
+            onChange={(next) => filters.set("result", next)}
+            options={RESULTS}
+            value={filters.result}
+          />
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={() => setOpen(false)}>
+              Ver resultados
+            </Button>
+            {filters.active ? (
+              <Button onClick={filters.reset} variant="ghost">
+                Limpiar
               </Button>
-              {filters.active ? (
-                <Button onClick={filters.reset} variant="ghost">
-                  Limpiar
-                </Button>
-              ) : null}
-            </div>
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
+            ) : null}
+          </div>
+        </div>
+      </DrillDetail>
     </>
   );
 }
