@@ -2,7 +2,6 @@
 
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
-import { Card } from "@hay-fulbo/ui/components/card";
 import {
   Select,
   SelectContent,
@@ -106,87 +105,85 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
 
       {data.viewerCanRate ? (
         <>
-          <Card className="py-0">
-            <div className="grid divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
-              {teams.map((team) => (
-                <div key={team.id} className="flex min-w-0 flex-col px-4 py-3">
-                  <h3 className="flex min-h-9 items-center gap-2 text-sm font-semibold">
-                    <span
-                      className={cn(
-                        "size-2 shrink-0 rounded-full",
-                        team.slot === 1 ? "bg-team-blue" : "bg-team-amber",
-                      )}
-                      aria-hidden="true"
-                    />
-                    {team.displayName}
-                  </h3>
-                  <ul className="flex flex-col divide-y">
-                    {team.appearances.map((appearance) => {
-                      const summary = data.players.find(
-                        (player) => player.playerId === appearance.playerId,
-                      );
-                      const isSelf = appearance.playerId === data.viewerPlayerId;
-                      const current = valueFor(appearance.playerId);
-                      return (
-                        <li
-                          key={appearance.playerId}
-                          className="flex min-h-13 items-center justify-between gap-3 py-1"
-                        >
-                          <span className="truncate text-sm">{appearance.playerDisplayName}</span>
-                          <div className="flex shrink-0 items-center gap-3">
-                            {data.revealed && summary?.average !== null && summary ? (
-                              <span className="text-sm font-semibold tabular-nums text-muted-foreground">
-                                {summary.average}
-                                {summary.votes !== null && summary.votes > 1
-                                  ? ` · ${summary.votes} votos`
-                                  : ""}
-                              </span>
-                            ) : null}
-                            {isSelf ? (
-                              <span className="w-24 text-center text-xs text-muted-foreground">
-                                vos
-                              </span>
-                            ) : (
-                              <Select
-                                disabled={save.isPending}
-                                items={scoreItems}
-                                value={current === null ? null : current.toString()}
-                                onValueChange={(next) => {
-                                  const score = Number(next);
-                                  if (!Number.isInteger(score)) return;
-                                  setDraft((currentDraft) => ({
-                                    ...currentDraft,
-                                    [appearance.playerId]: score,
-                                  }));
-                                }}
+          <div className="flex flex-col gap-4">
+            {teams.map((team) => (
+              <div key={team.id} className="flex min-w-0 flex-col">
+                <h3 className="flex min-h-9 items-center gap-2 text-sm font-semibold">
+                  <span
+                    className={cn(
+                      "size-2 shrink-0 rounded-full",
+                      team.slot === 1 ? "bg-team-blue" : "bg-team-amber",
+                    )}
+                    aria-hidden="true"
+                  />
+                  {team.displayName}
+                </h3>
+                <ul className="flex flex-col divide-y">
+                  {team.appearances.map((appearance) => {
+                    const summary = data.players.find(
+                      (player) => player.playerId === appearance.playerId,
+                    );
+                    const isSelf = appearance.playerId === data.viewerPlayerId;
+                    const current = valueFor(appearance.playerId);
+                    return (
+                      <li
+                        key={appearance.playerId}
+                        className="flex min-h-13 items-center justify-between gap-3 py-1"
+                      >
+                        <span className="truncate text-sm">{appearance.playerDisplayName}</span>
+                        <div className="flex shrink-0 items-center gap-3">
+                          {data.revealed && summary?.average !== null && summary ? (
+                            <span className="text-sm font-semibold tabular-nums text-muted-foreground">
+                              {summary.average}
+                              {summary.votes !== null && summary.votes > 1
+                                ? ` · ${summary.votes} votos`
+                                : ""}
+                            </span>
+                          ) : null}
+                          {isSelf ? (
+                            <span className="w-24 text-center text-xs text-muted-foreground">
+                              vos
+                            </span>
+                          ) : (
+                            <Select
+                              disabled={save.isPending}
+                              items={scoreItems}
+                              value={current === null ? null : current.toString()}
+                              onValueChange={(next) => {
+                                const score = Number(next);
+                                if (!Number.isInteger(score)) return;
+                                setDraft((currentDraft) => ({
+                                  ...currentDraft,
+                                  [appearance.playerId]: score,
+                                }));
+                              }}
+                            >
+                              <SelectTrigger
+                                aria-label={`Nota para ${appearance.playerDisplayName}`}
+                                className="w-24"
+                                size="sm"
                               >
-                                <SelectTrigger
-                                  aria-label={`Nota para ${appearance.playerDisplayName}`}
-                                  className="w-24"
-                                  size="sm"
-                                >
-                                  <SelectValue placeholder="Nota" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectGroup>
-                                    {scoreItems.map((item) => (
-                                      <SelectItem key={item.value} value={item.value}>
-                                        {item.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </Card>
+                                <SelectValue placeholder="Nota" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  {scoreItems.map((item) => (
+                                    <SelectItem key={item.value} value={item.value}>
+                                      {item.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button disabled={save.isPending || pendingPlayerIds.length === 0} onClick={saveAll}>
               Guardar notas

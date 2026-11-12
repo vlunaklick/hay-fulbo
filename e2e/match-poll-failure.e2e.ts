@@ -17,16 +17,19 @@ test("a failed background poll keeps open drafts", async ({ page }, testInfo) =>
   await page.getByRole("button", { name: /^Crear / }).click();
   await expect(page).toHaveURL(/\/dashboard\/partidos\/[0-9a-f-]{36}$/);
 
-  await page.getByRole("button", { name: "Editar datos" }).click();
+  await page.getByRole("button", { name: /^Datos del partido/ }).click();
   await page.getByLabel("Precio total").fill("12345");
 
   await page.route("**/api/trpc/**matches.detail**", (route) => route.abort());
   await expect(page.getByText("No pudimos actualizar el partido")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByLabel("Precio total")).toHaveValue(/12\.?345/);
 
+  // The draft also survives closing the sheet to retry.
+  await page.keyboard.press("Escape");
   await page.unroute("**/api/trpc/**matches.detail**");
   await page.getByRole("button", { name: "Reintentar" }).click();
   await expect(page.getByText("No pudimos actualizar el partido")).toBeHidden({ timeout: 15_000 });
+  await page.getByRole("button", { name: /^Datos del partido/ }).click();
   await expect(page.getByLabel("Precio total")).toHaveValue(/12\.?345/);
 });
 

@@ -81,9 +81,11 @@ test("an organizer can create a group and its first match", async ({ page }, tes
   await expect(page.getByText("Equipo 1", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Equipo 2", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Por jugar", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Caja/ })).toBeVisible();
+  await page.getByRole("button", { name: /^Equipos/ }).click();
   await expect(page.getByRole("heading", { name: "Cómo llegan" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Equipos" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("tab", { name: /Caja/ })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   if (process.env.MATCH_SCREENSHOT_PHASE) {
     await page.setViewportSize(
       desktop ? { width: 1440, height: 900 } : { width: 375, height: 812 },
@@ -198,11 +200,14 @@ test("a designated planillero scores persisted goals without organizer permissio
     }
     const matchUrl = `/dashboard/partidos/${created.matchId}`;
     await page.goto(matchUrl);
+    await page.getByRole("button", { name: /^Goles/ }).click();
     const scorekeeperSelect = page.getByRole("combobox", { name: "Planillero", exact: true });
     await expect(scorekeeperSelect).toBeVisible();
     await scorekeeperSelect.click();
     await page.getByRole("option", { name: "Planillero E2E", exact: true }).click();
     await expect(page.getByText("Planillero: Planillero E2E", { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await scorer.goto(matchUrl);
     await expect(scorer.getByRole("button", { name: "Cerrar partido", exact: true })).toHaveCount(
       0,
@@ -306,19 +311,21 @@ test("a designated planillero scores persisted goals without organizer permissio
       timeout: 12000,
     });
 
-    await page.getByRole("tab", { name: "Equipos" }).click();
+    await page.getByRole("button", { name: /^Equipos/ }).click();
     await page.getByRole("button", { name: "Opciones de Pepe" }).click();
     await page.getByRole("menuitem", { name: "No vino", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Pepe no vino" })).toBeVisible();
     await page.getByRole("button", { name: "Sí, aporta" }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Pepe no vino" })).toHaveCount(0);
     const absenceAction = await page
       .getByRole("button", { name: /Quitar la marca de ausente de Pepe/ })
       .boundingBox();
     expect(absenceAction).not.toBeNull();
     expect(absenceAction!.x + absenceAction!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
-    await page.getByRole("tab", { name: /Caja/ }).click();
-    const caja = page.getByRole("tabpanel", { name: /Caja/ });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByRole("button", { name: /^Caja/ }).click();
+    const caja = page.getByRole("dialog", { name: "Caja" });
     await expect(caja.getByText("Ausente · aporta", { exact: true })).toBeVisible();
     await caja.getByRole("button", { name: "Editar pago de Beto" }).click();
     await caja.getByLabel("Pagó Beto").fill("50");
@@ -335,6 +342,8 @@ test("a designated planillero scores persisted goals without organizer permissio
         fullPage: false,
       });
     }
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Cerrar partido", exact: true })).toBeEnabled();
     if (process.env.MATCH_SCREENSHOT_DIR) {
       await page.screenshot({
@@ -391,16 +400,16 @@ test("a polled match preserves stale drafts until an explicit conflict retry", a
     const url = `/dashboard/partidos/${match.matchId}`;
     await page.goto(url);
     await manager.goto(url);
-    await page.getByRole("button", { name: "Editar datos", exact: true }).click();
+    await page.getByRole("button", { name: /^Datos del partido/ }).click();
     await page.getByLabel("Precio total").fill("12000");
-    await manager.getByRole("button", { name: "Editar datos", exact: true }).click();
+    await manager.getByRole("button", { name: /^Datos del partido/ }).click();
     await manager.getByLabel("Precio total").fill("15000");
     const polled = page.waitForResponse(async (response) => {
       if (!response.url().includes("matches.detail") || !response.ok()) return false;
       return (await response.text()).includes('"courtCostMinor":"1500000"');
     });
     await manager.getByRole("button", { name: "Guardar datos", exact: true }).click();
-    await expect(manager.getByRole("button", { name: "Editar datos", exact: true })).toBeVisible();
+    await expect(manager.getByRole("dialog")).toHaveCount(0);
     await polled;
     await expect(page.getByLabel("Precio total")).toHaveValue("12000");
     const conflict = page.waitForResponse(
@@ -418,7 +427,7 @@ test("a polled match preserves stale drafts until an explicit conflict retry", a
     };
     expect(await readCost()).toBe("1500000");
     await page.getByRole("button", { name: "Guardar datos", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Editar datos", exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(await readCost()).toBe("1200000");
   } finally {
     await managerContext.close();
