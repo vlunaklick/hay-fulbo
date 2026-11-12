@@ -11,10 +11,11 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
-import { DrillSheet } from "@/components/drill-sheet";
 import { MatchShareRow } from "@/components/match-share-row";
-import { NewMatchSheet } from "@/components/new-match-dialog";
+import { MatchSummary } from "@/components/match-summary";
+import { NewMatchDetail } from "@/components/new-match-dialog";
 import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
+import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { formatDayTitle, formatMoney, formatShortWeekday, formatTime } from "@/lib/format";
 import { relativeDay } from "@/lib/match-schedule";
 import { type HomeStep, pickHomeStep } from "@/lib/next-step";
@@ -23,7 +24,8 @@ import { trpc } from "@/utils/trpc";
 /** Results listed in the "Último resultado" sheet before linking to the full list. */
 const shownResults = 6;
 
-type Sheet = "results" | "debts" | "create" | null;
+/** What a row opens: a bottom sheet on phones, the right column on desktop. */
+type Detail = "live" | "next" | "results" | "debts" | "create";
 
 function matchHref(id: string) {
   return `/dashboard/partidos/${id}` as Route;
@@ -54,15 +56,19 @@ export function HomeDashboard() {
     ...trpc.matches.detail.queryOptions({ matchId: upcomingId ?? "" }),
     enabled: Boolean(upcomingId),
   });
-  const [sheet, setSheet] = useState<Sheet>(null);
+  const desktop = useIsDesktop();
+  // `undefined` until the viewer picks a row: desktop then opens the most relevant one.
+  const [picked, setPicked] = useState<Detail | null>();
 
   if (stats.isPending || directory.isPending || list.isPending) {
     return (
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-6" aria-label="Cargando resumen">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-36 w-full" />
-        <Skeleton className="h-60 w-full" />
-      </div>
+      <NextStepLayout>
+        <div className="flex flex-col gap-6" aria-label="Cargando resumen">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-60 w-full" />
+        </div>
+      </NextStepLayout>
     );
   }
 
@@ -116,9 +122,27 @@ export function HomeDashboard() {
   const lastResult = dashboard.history[0];
   const debt = finances ? BigInt(finances.debtMinor) : 0n;
   const activePlayers = directory.data.players.filter((player) => !player.archivedAt).length;
+  const showDebts = Boolean(finances && upcoming && finances.participantCount > 0);
+  const preferred: Detail | null = live
+    ? "live"
+    : showDebts && (step?.kind === "collect" || step?.kind === "pay")
+      ? "debts"
+      : upcoming
+        ? "next"
+        : canManage
+          ? "create"
+          : lastResult
+            ? "results"
+            : null;
+  const detail = picked === undefined ? (desktop ? preferred : null) : picked;
+  const setSheet = (next: Detail | null) => setPicked(next);
+  const detailProps = (key: Detail) => ({
+    open: detail === key,
+    onOpenChange: (open: boolean) => setSheet(open ? key : null),
+  });
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+    <NextStepLayout emptyDetail="Elegí una fila para ver el detalle.">
       <StatusHeader
         title="Resumen del grupo"
         meta={groupName}
@@ -150,6 +174,7 @@ export function HomeDashboard() {
                 court={upcoming.court}
                 detail={upcomingDetail.data}
                 groupName={groupName}
+                size="default"
                 variant="default"
               />
             ) : null
@@ -158,14 +183,29 @@ export function HomeDashboard() {
       ) : null}
 
       <DrillList>
+        {live ? (
+          <DrillRow
+            label="Partido en juego"
+            value={resultValue(live)}
+            selected={detail === "live"}
+            onClick={() => setSheet("live")}
+          />
+        ) : null}
+
         {upcoming ? (
           <DrillRow
             label="Próximo partido"
             value={`${formatShortWeekday(upcoming.scheduledAt)} ${new Date(upcoming.scheduledAt).getDate()} · ${formatTime(upcoming.scheduledAt)}`}
-            render={linkTo(matchHref(upcoming.matchId))}
+            selected={detail === "next"}
+            onClick={() => setSheet("next")}
           />
         ) : canManage ? (
-          <DrillRow label="Próximo partido" value="Sin fecha" onClick={() => setSheet("create")} />
+          <DrillRow
+            label="Próximo partido"
+            value="Sin fecha"
+            selected={detail === "create"}
+            onClick={() => setSheet("create")}
+          />
         ) : (
           <DrillRow label="Próximo partido" value="Sin fecha" static />
         )}
@@ -174,16 +214,18 @@ export function HomeDashboard() {
           <DrillRow
             label="Último resultado"
             value={resultValue(lastResult)}
+            selected={detail === "results"}
             onClick={() => setSheet("results")}
           />
         ) : (
           <DrillRow label="Último resultado" value="—" static />
         )}
 
-        {finances && finances.participantCount > 0 ? (
+        {showDebts ? (
           <DrillRow
             label="Deudas"
             value={debt > 0n ? `falta ${formatMoney(debt.toString())}` : "Al día"}
+            selected={detail === "debts"}
             onClick={() => setSheet("debts")}
           />
         ) : null}
@@ -201,22 +243,27 @@ export function HomeDashboard() {
         <DrillRow label="Todos los partidos" render={linkTo("/dashboard/partidos")} />
       </DrillList>
 
-      <DrillSheet
-        open={sheet === "results"}
-        onOpenChange={(open) => setSheet(open ? "results" : null)}
-        title="Últimos resultados"
-        footer={
-          <Button
-            variant="outline"
-            render={<Link href="/dashboard/partidos" />}
-            nativeButton={false}
-          >
-            {dashboard.history.length > shownResults
-              ? `Ver los ${dashboard.history.length} partidos`
-              : "Ver todos los partidos"}
-          </Button>
-        }
-      >
+      {live ? (
+        <DrillDetail
+          {...detailProps("live")}
+          title="Partido en juego"
+          description={`Empezó a las ${formatTime(live.scheduledAt)}`}
+        >
+          <MatchSummary matchId={live.id} />
+        </DrillDetail>
+      ) : null}
+
+      {upcoming ? (
+        <DrillDetail
+          {...detailProps("next")}
+          title="Próximo partido"
+          description={`${formatDayTitle(upcoming.scheduledAt)} · ${formatTime(upcoming.scheduledAt)} · ${upcoming.court?.name ?? "Cancha a definir"}`}
+        >
+          <MatchSummary matchId={upcoming.matchId} />
+        </DrillDetail>
+      ) : null}
+
+      <DrillDetail {...detailProps("results")} title="Últimos resultados">
         <DrillList>
           {results.map((match) => (
             <DrillRow
@@ -231,19 +278,23 @@ export function HomeDashboard() {
             />
           ))}
         </DrillList>
-      </DrillSheet>
+        <Button
+          variant="outline"
+          className="mt-4 w-full"
+          render={<Link href="/dashboard/partidos" />}
+          nativeButton={false}
+        >
+          {dashboard.history.length > shownResults
+            ? `Ver los ${dashboard.history.length} partidos`
+            : "Ver todos los partidos"}
+        </Button>
+      </DrillDetail>
 
       {finances && upcoming ? (
-        <DrillSheet
-          open={sheet === "debts"}
-          onOpenChange={(open) => setSheet(open ? "debts" : null)}
+        <DrillDetail
+          {...detailProps("debts")}
           title="Deudas del próximo partido"
           description={`${formatDayTitle(upcoming.scheduledAt)} · pagaron ${finances.paidCount} de ${finances.participantCount}`}
-          footer={
-            <Button render={<Link href={matchHref(upcoming.matchId)} />} nativeButton={false}>
-              Abrir la caja
-            </Button>
-          }
         >
           <DrillList>
             {myDebt !== null ? (
@@ -272,14 +323,18 @@ export function HomeDashboard() {
               <p className="py-3 text-sm text-muted-foreground">Nadie debe nada.</p>
             )}
           </DrillList>
-        </DrillSheet>
+          <Button
+            className="mt-4 w-full"
+            render={<Link href={matchHref(upcoming.matchId)} />}
+            nativeButton={false}
+          >
+            Abrir la caja
+          </Button>
+        </DrillDetail>
       ) : null}
 
-      <NewMatchSheet
-        open={sheet === "create"}
-        onOpenChange={(open) => setSheet(open ? "create" : null)}
-      />
-    </div>
+      <NewMatchDetail {...detailProps("create")} />
+    </NextStepLayout>
   );
 }
 

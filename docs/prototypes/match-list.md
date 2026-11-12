@@ -42,3 +42,7 @@ La pregunta más frecuente al abrir la vista es "¿cuándo jugamos y dónde?", y
 ## Rediseño "Próximo paso" (nov 2026)
 
 Se mantiene la decisión de La próxima con el patrón de `docs/prototypes/proximo-paso.md`. `NextStep` muestra, en orden: el partido en juego, el primer partido sin cerrar (organizadores), la próxima fecha o, sin fecha, el alta rápida con fechas sugeridas. Los próximos y "Armar otra fecha" (abre una sheet con el alta) van en filas. Los jugados se agrupan por mes en filas fecha · resultado. El alta rápida es `QuickCreateForm` en `new-match-dialog.tsx`, y el inicio la abre en una sheet.
+
+### Escritorio
+
+Desde `lg`, `NextStepLayout`: la derecha muestra el resumen (`MatchSummary`) del partido en foco (en juego, sin cerrar, próximo o último jugado). Las filas siguen siendo links al partido; en escritorio un clic simple lo muestra a la derecha y el resumen tiene "Abrir partido" (cmd/ctrl-clic sigue abriendo la página). "Armar otra fecha" abre el alta en la misma columna.
