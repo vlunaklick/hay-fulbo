@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@hay-fulbo/ui/components/badge";
+import type { StatsFilters } from "@hay-fulbo/db/stats";
 import { Button } from "@hay-fulbo/ui/components/button";
 import {
   Sheet,
@@ -10,25 +10,21 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@hay-fulbo/ui/components/sheet";
-import { Tabs, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
 import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { cn } from "@hay-fulbo/ui/lib/utils";
-import { CheckIcon, SlidersHorizontalIcon } from "lucide-react";
-import { useState } from "react";
+import { CheckIcon } from "lucide-react";
+import type { Route } from "next";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 
-export type StatsFilterValues = {
-  period: string;
-  court: string;
-  result: string;
-  active: boolean;
-  set: (key: "period" | "court" | "result", value: string) => void;
-  reset: () => void;
-};
+import { DrillRow } from "@/components/next-step";
+
+export const STATS_BASE = "/dashboard/estadisticas";
 
 const PERIODS = [
   { value: "all", label: "Siempre" },
   { value: "year", label: "Este año" },
-  { value: "30d", label: "30 días" },
+  { value: "30d", label: "Últimos 30 días" },
 ];
 
 const RESULTS = [
@@ -37,46 +33,74 @@ const RESULTS = [
   { value: "draws", label: "Empates" },
 ];
 
+type FilterKey = "period" | "court" | "result";
+
+/** Filters live in the URL so every stats subpage reads the same period. */
+export function useStatsFilters() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const period = searchParams.get("period") ?? "all";
+  const court = searchParams.get("court") ?? "all";
+  const result = searchParams.get("result") ?? "all";
+  const api = useMemo<StatsFilters>(
+    () => ({
+      ...periodDates(period),
+      courtId: court === "all" ? undefined : court,
+      result: result === "draws" || result === "decided" ? result : "all",
+    }),
+    [court, period, result],
+  );
+  const query = filterQuery(searchParams);
+
+  function replace(params: URLSearchParams) {
+    const next = params.toString();
+    router.replace((next ? `${pathname}?${next}` : pathname) as Route, { scroll: false });
+  }
+
+  return {
+    active: period !== "all" || court !== "all" || result !== "all",
+    api,
+    court,
+    period,
+    periodLabel: PERIODS.find((item) => item.value === period)?.label ?? "Siempre",
+    query,
+    result,
+    /** Builds a stats link that keeps the current filters. */
+    href: (path: string) => `${path}${query ? `?${query}` : ""}` as Route,
+    reset: () => replace(new URLSearchParams()),
+    set(key: FilterKey, value: string) {
+      const next = new URLSearchParams(query);
+      if (value === "all") next.delete(key);
+      else next.set(key, value);
+      replace(next);
+    },
+  };
+}
+
+export type StatsFilterState = ReturnType<typeof useStatsFilters>;
+
 /**
- * Period is the filter people change, so it stays one tap away. Court and result
- * are changed rarely and live behind one button with a count.
+ * "Período: Siempre ›": the filters are a row, not a toolbar. The row opens one
+ * sheet with period, court and result.
  */
-export function StatsFilters({
+export function StatsFilterRow({
   courts,
   filters,
 }: {
   courts: readonly { id: string; name: string }[];
-  filters: StatsFilterValues;
+  filters: StatsFilterState;
 }) {
   const [open, setOpen] = useState(false);
   const mobile = useIsMobile();
-  const count = (filters.court !== "all" ? 1 : 0) + (filters.result !== "all" ? 1 : 0);
+  const extra = (filters.court !== "all" ? 1 : 0) + (filters.result !== "all" ? 1 : 0);
+  const value = extra
+    ? `${filters.periodLabel} · +${extra} ${extra === 1 ? "filtro" : "filtros"}`
+    : filters.periodLabel;
 
   return (
-    <section aria-label="Filtros de estadísticas" className="flex items-center gap-2">
-      <Tabs value={filters.period} onValueChange={(value) => filters.set("period", String(value))}>
-        <TabsList aria-label="Período">
-          {PERIODS.map((period) => (
-            <TabsTrigger key={period.value} value={period.value} className="h-9 px-3">
-              {period.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-      <Button
-        aria-label={count ? `Más filtros (${count} activos)` : "Más filtros"}
-        onClick={() => setOpen(true)}
-        size="icon"
-        variant="outline"
-        className="relative"
-      >
-        <SlidersHorizontalIcon aria-hidden="true" />
-        {count ? (
-          <Badge className="absolute -right-1.5 -top-1.5 tabular-nums" variant="secondary">
-            {count}
-          </Badge>
-        ) : null}
-      </Button>
+    <>
+      <DrillRow label="Período" onClick={() => setOpen(true)} value={value} />
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side={mobile ? "bottom" : "right"} className="max-h-[85dvh] sm:max-w-md">
           <SheetHeader>
@@ -85,8 +109,14 @@ export function StatsFilters({
           </SheetHeader>
           <SheetBody className="flex flex-col gap-6">
             <ChoiceList
+              label="Período"
+              onChange={(next) => filters.set("period", next)}
+              options={PERIODS}
+              value={filters.period}
+            />
+            <ChoiceList
               label="Cancha"
-              onChange={(value) => filters.set("court", value)}
+              onChange={(next) => filters.set("court", next)}
               options={[
                 { value: "all", label: "Todas las canchas" },
                 ...courts.map((court) => ({ value: court.id, label: court.name })),
@@ -95,7 +125,7 @@ export function StatsFilters({
             />
             <ChoiceList
               label="Resultado"
-              onChange={(value) => filters.set("result", value)}
+              onChange={(next) => filters.set("result", next)}
               options={RESULTS}
               value={filters.result}
             />
@@ -112,7 +142,7 @@ export function StatsFilters({
           </SheetBody>
         </SheetContent>
       </Sheet>
-    </section>
+    </>
   );
 }
 
@@ -151,4 +181,34 @@ function ChoiceList({
       </div>
     </fieldset>
   );
+}
+
+/** Only the filter params travel between stats pages (drops legacy `tab`). */
+function filterQuery(searchParams: URLSearchParams | { get(key: string): string | null }) {
+  const params = new URLSearchParams();
+  for (const key of ["period", "court", "result"] as const) {
+    const value = searchParams.get(key);
+    if (value && value !== "all") params.set(key, value);
+  }
+  return params.toString();
+}
+
+function periodDates(period: string): Pick<StatsFilters, "from" | "to"> {
+  const today = new Date();
+  if (period === "30d") {
+    const from = new Date(today);
+    from.setDate(from.getDate() - 29);
+    return { from: isoLocalDate(from), to: isoLocalDate(today) };
+  }
+  if (period === "year") {
+    return { from: `${today.getFullYear()}-01-01`, to: isoLocalDate(today) };
+  }
+  return {};
+}
+
+function isoLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }

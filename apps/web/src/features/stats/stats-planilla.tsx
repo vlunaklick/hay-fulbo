@@ -13,6 +13,8 @@ import { useState } from "react";
 
 import { initials } from "@/lib/initials";
 
+import { formatPercent, formatRate, shortName, signed, stripQuotes } from "./stats-format";
+
 type Column = {
   key: string;
   label: string;
@@ -277,7 +279,7 @@ export function Chemistry({
   const activeKey = active ? pairKey(...active.playerIds) : null;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
+    <div className="flex flex-col gap-8">
       <section aria-labelledby="quimica-title" className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-col gap-0.5">
           <h2 id="quimica-title" className="text-base font-semibold">
@@ -476,27 +478,4 @@ function PairMetric({ label, value }: { label: string; value: number | string })
       <dd className="text-base font-semibold tabular-nums">{value}</dd>
     </div>
   );
-}
-
-function stripQuotes(name: string) {
-  return name.replace(/[“”"]/g, "");
-}
-
-/** "Juan Ignacio Fernández Etcheverry" → "Juan E.", so matrix rows stay narrow. */
-function shortName(name: string) {
-  const parts = stripQuotes(name).split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return name;
-  return `${parts[0]} ${parts.at(-1)![0]}.`;
-}
-
-function formatRate(value: number) {
-  return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(value);
-}
-
-function formatPercent(value: number) {
-  return `${Math.round(value)}%`;
-}
-
-function signed(value: number) {
-  return `${value > 0 ? "+" : ""}${value}`;
 }
