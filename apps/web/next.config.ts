@@ -27,6 +27,15 @@ const nextConfig: NextConfig = {
     ];
   },
   typedRoutes: true,
+  experimental: {
+    // Docker image builds keep .next/cache in a BuildKit cache mount; this lets
+    // Turbopack reuse it so a deploy only recompiles what changed.
+    turbopackFileSystemCacheForBuild: process.env.TURBOPACK_BUILD_CACHE === "1",
+  },
+  typescript: {
+    // Docker image builds set this: CI's next build type-checks before every deploy.
+    ignoreBuildErrors: process.env.SKIP_BUILD_TYPECHECK === "1",
+  },
   reactCompiler: true,
   output: "standalone",
 };
