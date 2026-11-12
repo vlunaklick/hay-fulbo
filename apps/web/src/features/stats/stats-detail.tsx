@@ -183,7 +183,7 @@ function PlayerStatsContent({
 }) {
   const searchParams = useSearchParams();
   const rankingParams = new URLSearchParams(searchParams.toString());
-  rankingParams.set("tab", "ranking");
+  rankingParams.delete("tab");
   const base = baseFor(mode, slug);
   const aggregate = data.aggregate;
   return (
@@ -301,7 +301,7 @@ function MatchStatsContent({
 }) {
   const searchParams = useSearchParams();
   const rankingParams = new URLSearchParams(searchParams.toString());
-  rankingParams.set("tab", "ranking");
+  rankingParams.delete("tab");
   const base = baseFor(mode, slug);
   const showPayments = mode !== "public";
   const grouped = data.teams.map((team) => ({
