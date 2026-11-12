@@ -8,6 +8,18 @@ async function expectWcagAA(page: Page) {
   expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
 }
 
+test("an anonymous visitor lands on an accessible home that leads to login", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "El partido, en orden." }),
+  ).toBeVisible();
+  await expectWcagAA(page);
+  await page.getByRole("link", { name: "Armar mi grupo" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
 test("an anonymous visitor reaches an accessible login instead of private pages", async ({
   page,
 }) => {
