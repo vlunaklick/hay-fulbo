@@ -30,3 +30,11 @@ Descartadas:
 ## Evidencia
 
 Capturas a 390 × 844 y 1440 × 900 en tema oscuro de las cuatro vistas, con datos de prueba; sin errores de consola.
+
+## Rediseño "Próximo paso" (nov 2026)
+
+El muro se reemplaza por el patrón de `docs/prototypes/proximo-paso.md`. El hero es el marcador del partido en juego o la hora del próximo. `NextStep` toma lo más urgente del grupo, en este orden: partido en juego ("Ir al partido"), partido de un día anterior sin cerrar (solo organizadores), próximo partido con menos de 5 por equipo o equipos desparejos ("Invitar"), deuda del próximo partido ("Cobrar $X" para organizadores, "Pagar $X" para quien debe) y, sin próxima fecha, "Crear partido". La regla vive en `apps/web/src/lib/next-step.ts`.
+
+Lo demás son filas: Próximo partido, Último resultado (abre los últimos 6 resultados con figura), Deudas (abre deudores y tu parte), Jugadores, Estadísticas y Todos los partidos. Goleadores y el resumen de temporada quedan en Estadísticas.
+
+La deuda es la del próximo partido: `stats.dashboard` no trae deuda acumulada del grupo. Si hace falta, hay que sumarla a la query.
