@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@hay-fulbo/ui/components/dialog";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@hay-fulbo/ui/components/field";
+import { Field, FieldError, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
 import { useMutation } from "@tanstack/react-query";
 import { CalendarPlusIcon } from "lucide-react";
@@ -61,9 +61,7 @@ export function NewMatchDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nuevo partido</DialogTitle>
-          <DialogDescription>
-            Solo la fecha. Cancha, costo y equipos se completan después.
-          </DialogDescription>
+          <DialogDescription>Cancha y equipos se completan después.</DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(event) => {
@@ -82,7 +80,6 @@ export function NewMatchDialog({
               value={scheduledAt}
               onChange={(event) => setScheduledAt(event.target.value)}
             />
-            <FieldDescription>Nace abierto, con dos equipos por armar.</FieldDescription>
           </Field>
           <FieldError>{error}</FieldError>
           <Button disabled={create.isPending} type="submit">

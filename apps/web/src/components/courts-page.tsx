@@ -121,7 +121,6 @@ export function CourtsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Canchas"
-        description="Tocá la flecha para ir. Las que más usan, arriba."
         actions={
           canManage ? (
             <Button variant="outline" onClick={openNew}>
