@@ -15,19 +15,9 @@ export function LogoMark({ label, ...props }: LogoMarkProps) {
       aria-hidden={label ? undefined : true}
       {...props}
     >
-      <circle cx="16" cy="16" r="14" fill="var(--primary)" />
-      <circle cx="16" cy="16" r="13.25" stroke="var(--primary-foreground)" strokeWidth="1.5" />
-      <path
-        d="m16 8.5 7.13 5.18-2.72 8.39h-8.82l-2.72-8.39L16 8.5Z"
-        fill="var(--primary-foreground)"
-      />
-      <path
-        d="M16 8.5V2.75M23.13 13.68l5.47-1.77M20.41 22.07l3.38 4.66M11.59 22.07l-3.38 4.66M8.87 13.68 3.4 11.91"
-        stroke="var(--primary-foreground)"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <rect x="2" y="2" width="28" height="28" rx="8" fill="var(--primary)" />
+      <path d="M16 2v28" stroke="var(--primary-foreground)" strokeWidth="2.4" />
+      <circle cx="16" cy="16" r="5.5" stroke="var(--primary-foreground)" strokeWidth="2.4" />
     </svg>
   );
 }
