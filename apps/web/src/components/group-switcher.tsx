@@ -126,7 +126,7 @@ export function GroupSwitcher({
               </DropdownMenuItem>
               {role === "owner" ? (
                 <>
-                  <DropdownMenuItem onClick={() => router.push("/dashboard/grupo#invitar")}>
+                  <DropdownMenuItem onClick={() => router.push("/dashboard/grupo?tema=invitar")}>
                     <UserPlusIcon aria-hidden="true" />
                     Invitar amigos
                   </DropdownMenuItem>
