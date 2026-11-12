@@ -120,7 +120,7 @@ export function PlayersPage() {
               {role === "owner" ? (
                 <Button
                   nativeButton={false}
-                  render={<Link href="/dashboard/grupo#invitar" />}
+                  render={<Link href="/dashboard/grupo?tema=invitar" />}
                   variant="ghost"
                 >
                   <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
