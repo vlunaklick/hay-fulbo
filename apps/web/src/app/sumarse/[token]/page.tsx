@@ -1,13 +1,12 @@
 import { groupJoinAccess } from "@hay-fulbo/api/access-runtime";
 import { auth } from "@hay-fulbo/auth";
 import { Button } from "@hay-fulbo/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader } from "@hay-fulbo/ui/components/card";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { GroupJoinAcceptance } from "@/components/group-join-acceptance";
-import { LogoMark } from "@/components/logo-mark";
+import { PublicHeading, PublicShell } from "@/components/public-shell";
 
 export default async function JoinGroupPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -15,27 +14,15 @@ export default async function JoinGroupPage({ params }: { params: Promise<{ toke
 
   if (!preview) {
     return (
-      <main className="grid min-h-svh place-items-center px-4 py-10">
-        <div className="flex w-full max-w-md flex-col gap-6">
-          <div className="flex items-center gap-3">
-            <LogoMark className="size-10" />
-            <span className="font-bold tracking-tight">Hay Fulbo</span>
-          </div>
-          <Card>
-            <CardHeader>
-              <h1 className="text-xl font-bold">Este link ya no está disponible</h1>
-              <CardDescription>
-                El organizador pudo haberlo renovado o desactivado. Pedile el link nuevo.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button render={<Link href="/login" />} nativeButton={false}>
-                Ir al inicio
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+      <PublicShell>
+        <PublicHeading
+          title="Este link ya no está disponible"
+          description="El organizador pudo haberlo renovado o desactivado. Pedile el link nuevo."
+        />
+        <Button render={<Link href="/login" />} nativeButton={false}>
+          Ir al inicio
+        </Button>
+      </PublicShell>
     );
   }
 

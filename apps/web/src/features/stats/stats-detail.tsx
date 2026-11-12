@@ -4,14 +4,7 @@ import type { PlayerStats, StatsFilters, StatsMatchDetail } from "@hay-fulbo/db/
 import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { buttonVariants } from "@hay-fulbo/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
-import { Separator } from "@hay-fulbo/ui/components/separator";
+import { Card } from "@hay-fulbo/ui/components/card";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import {
   Table,
@@ -33,6 +26,7 @@ import {
 import Link from "next/link";
 import type { Route } from "next";
 import { useSearchParams } from "next/navigation";
+import type * as React from "react";
 import { Fragment, useMemo } from "react";
 
 import { trpc, trpcHttpClient } from "@/utils/trpc";
@@ -190,127 +184,108 @@ function PlayerStatsContent({
   const searchParams = useSearchParams();
   const rankingParams = new URLSearchParams(searchParams.toString());
   rankingParams.set("tab", "ranking");
-  const base =
-    mode === "shared"
-      ? "/compartido"
-      : mode === "public"
-        ? (`/g/${slug ?? ""}` as Route)
-        : "/dashboard/estadisticas";
+  const base = baseFor(mode, slug);
+  const aggregate = data.aggregate;
   return (
-    <div className="mx-auto w-full min-w-0 max-w-5xl">
-      <Link
-        className={cn(
-          buttonVariants({
-            variant: "ghost",
-            className: "mb-8 min-h-11",
-          }),
-        )}
-        href={`${base}?${rankingParams}` as Route}
-      >
-        <ArrowLeftIcon data-icon="inline-start" />
-        Volver al ranking
-      </Link>
+    <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6">
+      <BackLink href={`${base}?${rankingParams}` as Route}>Volver al ranking</BackLink>
+
       <header className="flex items-center gap-4">
-        <Avatar className="size-14">
+        <Avatar className="size-12">
           <AvatarFallback>{initials(data.player.displayName)}</AvatarFallback>
         </Avatar>
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-3xl font-bold tracking-tight">
+            <h1 className="truncate text-2xl font-bold tracking-tight">
               {data.player.displayName}
             </h1>
             {data.player.archived ? <Badge variant="outline">Inactivo</Badge> : null}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{data.group.name}</p>
+          <p className="text-sm text-muted-foreground">{data.group.name}</p>
         </div>
       </header>
 
-      {data.aggregate ? (
-        <>
-          <section
-            aria-label="Resumen del jugador"
-            className="mt-8 grid grid-cols-2 gap-2 sm:grid-cols-4"
-          >
-            <Metric label="Partidos" value={data.aggregate.played} />
-            <Metric label="Goles" value={data.aggregate.goals} />
-            <Metric label="Asistencias" value={data.aggregate.assists} />
-            <Metric label="G+A" value={data.aggregate.contributions} />
-            <Metric label="Ganados" value={data.aggregate.wins} />
-            <Metric label="Empatados" value={data.aggregate.draws} />
-            <Metric label="Perdidos" value={data.aggregate.losses} />
-            <Metric label="Puntos" value={data.aggregate.points} />
-            <Metric label="Ausencias" value={data.aggregate.absences} />
-          </section>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {formatRate(data.aggregate.winPercentage)}% victorias ·{" "}
-            {formatRate(data.aggregate.contributionsPerMatch)} G+A por partido ·{" "}
-            {signed(data.aggregate.goalDifference)} de gol
-            {data.aggregate.ratingAverage !== null
-              ? ` · nota ${formatRate(data.aggregate.ratingAverage)} en ${data.aggregate.ratingMatchCount} ${
-                  data.aggregate.ratingMatchCount === 1 ? "partido" : "partidos"
+      {aggregate ? (
+        <section aria-label="Resumen del jugador" className="flex flex-col gap-3">
+          <Card size="sm" className="py-0">
+            <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+              <Metric label="Partidos" value={aggregate.played} />
+              <Metric label="Goles" value={aggregate.goals} />
+              <Metric label="Asistencias" value={aggregate.assists} />
+              <Metric label="G+A" value={aggregate.contributions} />
+              <Metric label="Ganados" value={aggregate.wins} />
+              <Metric label="Empatados" value={aggregate.draws} />
+              <Metric label="Perdidos" value={aggregate.losses} />
+              <Metric label="Puntos" value={aggregate.points} />
+            </dl>
+          </Card>
+          <p className="text-sm text-muted-foreground">
+            {formatRate(aggregate.winPercentage)}% victorias ·{" "}
+            {formatRate(aggregate.contributionsPerMatch)} G+A por partido ·{" "}
+            {signed(aggregate.goalDifference)} de gol · {aggregate.absences}{" "}
+            {aggregate.absences === 1 ? "ausencia" : "ausencias"}
+            {aggregate.ratingAverage !== null
+              ? ` · nota ${formatRate(aggregate.ratingAverage)} en ${aggregate.ratingMatchCount} ${
+                  aggregate.ratingMatchCount === 1 ? "partido" : "partidos"
                 }`
               : ""}
           </p>
-        </>
+        </section>
       ) : (
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>Sin partidos cerrados</CardTitle>
-            <CardDescription>
+        <section className="flex items-start gap-3 rounded-lg border border-dashed p-4 sm:p-5">
+          <TrophyIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">Sin partidos cerrados</h2>
+            <p className="text-sm text-muted-foreground">
               Este jugador existe en el grupo, pero todavía no tiene una actuación que cuente para
               estadísticas.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+            </p>
+          </div>
+        </section>
       )}
 
-      <Separator className="my-10" />
-      <section aria-labelledby="player-history-title">
-        <div className="flex items-center gap-3">
-          <TrophyIcon className="size-5 text-muted-foreground" />
-          <h2 className="text-xl font-semibold" id="player-history-title">
-            Partidos
-          </h2>
-        </div>
-        <Card className="mt-4 gap-0 py-0">
+      <section aria-labelledby="player-history-title" className="flex flex-col gap-3">
+        <h2 className="text-base font-semibold" id="player-history-title">
+          Partidos
+        </h2>
+        <Card size="sm" className="py-1">
           {data.matches.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground">
+            <p className="px-4 py-3 text-sm text-muted-foreground">
               No hay partidos cerrados para mostrar.
             </p>
           ) : (
-            data.matches.map((match, index) => (
-              <div key={match.matchId}>
-                {index > 0 ? <Separator /> : null}
-                <Link
-                  className={cn(
-                    buttonVariants({
-                      variant: "ghost",
-                      className:
-                        "grid h-auto min-h-16 w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] whitespace-normal rounded-none px-4 py-3 text-left",
-                    }),
-                  )}
-                  href={`${base}/partidos/${match.matchId}?${rankingParams}` as Route}
-                >
-                  <span className="min-w-0 whitespace-normal">
-                    <span className="block text-sm font-medium">
-                      {match.teams[0]?.displayName} {match.teams[0]?.goals} –{" "}
-                      {match.teams[1]?.goals} {match.teams[1]?.displayName}
+            <ul className="flex flex-col divide-y">
+              {data.matches.map((match) => (
+                <li key={match.matchId}>
+                  <Link
+                    className="flex min-h-14 items-center justify-between gap-4 px-4 py-2.5 transition-colors duration-100 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    href={`${base}/partidos/${match.matchId}?${rankingParams}` as Route}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm">
+                        {match.teams[0]?.displayName}
+                        <strong className="mx-2 font-semibold tabular-nums">
+                          {match.teams[0]?.goals}–{match.teams[1]?.goals}
+                        </strong>
+                        {match.teams[1]?.displayName}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {formatDate(match.scheduledAt, data.group.timeZone)}
+                      </span>
                     </span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      {formatDate(match.scheduledAt, data.group.timeZone)}
+                    <span className="flex shrink-0 items-center gap-3">
+                      <Badge variant={match.outcome === "win" ? "success" : "outline"}>
+                        {outcomeLabel(match.outcome)}
+                      </Badge>
+                      <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">
+                        <span className="font-semibold text-foreground">{match.contributions}</span>{" "}
+                        G+A
+                      </span>
                     </span>
-                  </span>
-                  <span className="flex flex-col items-end gap-2 sm:flex-row">
-                    <Badge variant={match.outcome === "win" ? "success" : "outline"}>
-                      {outcomeLabel(match.outcome)}
-                    </Badge>
-                    <span className="text-sm font-semibold tabular-nums">
-                      {match.contributions} G+A
-                    </span>
-                  </span>
-                </Link>
-              </div>
-            ))
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </Card>
       </section>
@@ -330,27 +305,19 @@ function MatchStatsContent({
   const searchParams = useSearchParams();
   const rankingParams = new URLSearchParams(searchParams.toString());
   rankingParams.set("tab", "ranking");
-  const base =
-    mode === "shared"
-      ? "/compartido"
-      : mode === "public"
-        ? (`/g/${slug ?? ""}` as Route)
-        : "/dashboard/estadisticas";
+  const base = baseFor(mode, slug);
+  const showPayments = mode !== "public";
+  const grouped = data.teams.map((team) => ({
+    team,
+    appearances: data.appearances.filter((appearance) => appearance.teamId === team.id),
+  }));
+  const teamless = data.appearances.filter(
+    (appearance) => !data.teams.some((team) => team.id === appearance.teamId),
+  );
   return (
-    <div className="mx-auto w-full min-w-0 max-w-5xl">
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <Link
-          className={cn(
-            buttonVariants({
-              variant: "ghost",
-              className: "min-h-11",
-            }),
-          )}
-          href={`${base}?${rankingParams}` as Route}
-        >
-          <ArrowLeftIcon data-icon="inline-start" />
-          Volver
-        </Link>
+    <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6">
+      <div className="flex items-center justify-between gap-4">
+        <BackLink href={`${base}?${rankingParams}` as Route}>Volver</BackLink>
         {mode !== "member" ? (
           <Badge variant="outline">
             <LockKeyholeIcon data-icon="inline-start" />
@@ -359,100 +326,106 @@ function MatchStatsContent({
         ) : null}
       </div>
 
-      <header>
-        <Badge variant="secondary">{statusLabel(data.status)}</Badge>
-        {data.figure ? (
-          <Badge variant="outline" className="mt-3 flex">
-            <TrophyIcon data-icon="inline-start" aria-hidden="true" />
-            Figura: {data.figure.displayName} · {data.figure.average}
-          </Badge>
-        ) : null}
-        <h1 className={cn("text-3xl font-semibold tracking-tight", data.figure && "mt-3")}>
-          {data.teams[0]?.displayName} {data.teams[0]?.goals} – {data.teams[1]?.goals}{" "}
+      <header className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{statusLabel(data.status)}</Badge>
+          {data.figure ? (
+            <Badge variant="outline">
+              <TrophyIcon data-icon="inline-start" aria-hidden="true" />
+              Figura: {data.figure.displayName} · {data.figure.average}
+            </Badge>
+          ) : null}
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-balance">
+          {data.teams[0]?.displayName}
+          <span className="mx-2 tabular-nums">
+            {data.teams[0]?.goals} – {data.teams[1]?.goals}
+          </span>
           {data.teams[1]?.displayName}
         </h1>
-        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-          <span className="flex items-center gap-2">
-            <CalendarDaysIcon className="size-4" />
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <CalendarDaysIcon aria-hidden="true" className="size-4" />
             {formatDate(data.scheduledAt, data.group.timeZone)}
           </span>
           {data.court ? (
-            <span className="flex items-center gap-2">
-              <MapPinIcon className="size-4" />
+            <span className="flex items-center gap-1.5">
+              <MapPinIcon aria-hidden="true" className="size-4" />
               {data.court.name}
             </span>
           ) : null}
           {data.courtCostMinor ? (
-            <span className="flex items-center gap-2">
-              <BanknoteIcon className="size-4" />
+            <span className="flex items-center gap-1.5 tabular-nums">
+              <BanknoteIcon aria-hidden="true" className="size-4" />
               {formatMoney(data.courtCostMinor, data.group.currency)}
             </span>
           ) : null}
         </div>
       </header>
 
-      <section aria-label="Equipos" className="mt-8">
-        <Card className="gap-0 py-0">
-          {data.teams.map((team, index) => (
-            <Fragment key={team.id}>
-              {index > 0 ? <Separator /> : null}
-              <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{team.displayName}</p>
-                </div>
-                <span className="text-2xl font-bold tabular-nums">{team.goals}</span>
-              </div>
-            </Fragment>
-          ))}
-        </Card>
-      </section>
-
-      <Separator className="my-10" />
-      <section aria-labelledby="appearances-title">
-        <h2 className="text-xl font-semibold" id="appearances-title">
+      <section aria-labelledby="appearances-title" className="flex flex-col gap-3">
+        <h2 className="text-base font-semibold" id="appearances-title">
           Actuaciones
         </h2>
-        <Card className="mt-4 gap-0 py-0">
-          <Table className="w-full table-fixed">
+        <Card className="py-0">
+          <Table className="w-full table-fixed text-sm">
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[44%]">Jugador</TableHead>
-                <TableHead className="text-right">G</TableHead>
-                <TableHead className="text-right">A</TableHead>
-                <TableHead className="text-right">AG</TableHead>
-                {mode !== "public" ? (
-                  <TableHead className="w-[26%] text-right">Pago</TableHead>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="pl-4 text-xs font-medium text-muted-foreground">
+                  Jugador
+                </TableHead>
+                <StatHead title="Goles">G</StatHead>
+                <StatHead title="Asistencias">A</StatHead>
+                <StatHead className={showPayments ? undefined : "pr-4"} title="Goles en contra">
+                  AG
+                </StatHead>
+                {showPayments ? (
+                  <TableHead className="w-24 pr-4 text-right text-xs font-medium text-muted-foreground">
+                    Pago
+                  </TableHead>
                 ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.appearances.map((appearance) => (
-                <TableRow key={appearance.playerId}>
-                  <TableCell className="whitespace-normal">
-                    <Link
-                      className={cn(
-                        buttonVariants({
-                          variant: "link",
-                          className:
-                            "h-auto min-h-11 min-w-0 w-full whitespace-normal justify-start px-0 text-left",
-                        }),
-                      )}
-                      href={`${base}/jugadores/${appearance.playerId}?${rankingParams}` as Route}
-                    >
-                      {appearance.playerDisplayName}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{appearance.goals}</TableCell>
-                  <TableCell className="text-right tabular-nums">{appearance.assists}</TableCell>
-                  <TableCell className="text-right tabular-nums">{appearance.ownGoals}</TableCell>
-                  {mode !== "public" ? (
-                    <TableCell className="text-right">
-                      <Badge variant={appearance.debtMinor === "0" ? "secondary" : "outline"}>
-                        {appearance.debtMinor === "0" ? "Al día" : "Pendiente"}
-                      </Badge>
+              {grouped.map(({ team, appearances }) => (
+                <Fragment key={team.id}>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableCell className="pl-4" colSpan={showPayments ? 5 : 4}>
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="flex min-w-0 items-center gap-2 font-semibold">
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              "size-2 shrink-0 rounded-full",
+                              team.slot === 1 ? "bg-team-blue" : "bg-team-amber",
+                            )}
+                          />
+                          <span className="truncate">{team.displayName}</span>
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                          <span className="font-semibold text-foreground">{team.goals}</span>{" "}
+                          {team.goals === 1 ? "gol" : "goles"}
+                        </span>
+                      </span>
                     </TableCell>
-                  ) : null}
-                </TableRow>
+                  </TableRow>
+                  {appearances.map((appearance) => (
+                    <AppearanceRow
+                      appearance={appearance}
+                      href={`${base}/jugadores/${appearance.playerId}?${rankingParams}` as Route}
+                      key={appearance.playerId}
+                      showPayments={showPayments}
+                    />
+                  ))}
+                </Fragment>
+              ))}
+              {teamless.map((appearance) => (
+                <AppearanceRow
+                  appearance={appearance}
+                  href={`${base}/jugadores/${appearance.playerId}?${rankingParams}` as Route}
+                  key={appearance.playerId}
+                  showPayments={showPayments}
+                />
               ))}
             </TableBody>
           </Table>
@@ -462,15 +435,102 @@ function MatchStatsContent({
   );
 }
 
+function AppearanceRow({
+  appearance,
+  href,
+  showPayments,
+}: {
+  appearance: SerializedMatchDetail["appearances"][number];
+  href: Route;
+  showPayments: boolean;
+}) {
+  return (
+    <TableRow className="h-11">
+      <TableCell className="pl-4">
+        <Link
+          className="block truncate font-medium underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+          href={href}
+        >
+          {appearance.playerDisplayName}
+        </Link>
+      </TableCell>
+      <StatCell value={appearance.goals} />
+      <StatCell value={appearance.assists} />
+      <StatCell className={showPayments ? undefined : "pr-4"} value={appearance.ownGoals} />
+      {showPayments ? (
+        <TableCell className="pr-4 text-right">
+          {appearance.debtMinor === "0" ? (
+            <span className="text-xs text-muted-foreground">Al día</span>
+          ) : (
+            <Badge variant="outline">Pendiente</Badge>
+          )}
+        </TableCell>
+      ) : null}
+    </TableRow>
+  );
+}
+
+function StatHead({
+  children,
+  className,
+  title,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  title: string;
+}) {
+  return (
+    <TableHead
+      className={cn("w-14 text-right text-xs font-medium text-muted-foreground", className)}
+    >
+      <abbr className="no-underline" title={title}>
+        {children}
+      </abbr>
+    </TableHead>
+  );
+}
+
+function StatCell({ className, value }: { className?: string; value: number }) {
+  return (
+    <TableCell
+      className={cn(
+        "text-right tabular-nums",
+        value === 0 ? "text-muted-foreground" : "font-semibold",
+        className,
+      )}
+    >
+      {value}
+    </TableCell>
+  );
+}
+
+function BackLink({ children, href }: { children: React.ReactNode; href: Route }) {
+  return (
+    <Link
+      className={cn(buttonVariants({ variant: "ghost", size: "sm", className: "-ml-3 w-fit" }))}
+      href={href}
+    >
+      <ArrowLeftIcon data-icon="inline-start" />
+      {children}
+    </Link>
+  );
+}
+
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <Card size="sm">
-      <CardContent>
-        <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-1 bg-card px-4 py-3">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="text-lg font-semibold tabular-nums">{value}</dd>
+    </div>
   );
+}
+
+function baseFor(mode: Mode, slug?: string) {
+  return mode === "shared"
+    ? "/compartido"
+    : mode === "public"
+      ? (`/g/${slug ?? ""}` as Route)
+      : "/dashboard/estadisticas";
 }
 
 function formatDate(value: Date | string, timeZone: string) {

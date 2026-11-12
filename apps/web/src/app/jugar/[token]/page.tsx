@@ -1,10 +1,9 @@
 import { matchInviteAccess } from "@hay-fulbo/api/access-runtime";
 import { env } from "@hay-fulbo/env/server";
 import { Button } from "@hay-fulbo/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader } from "@hay-fulbo/ui/components/card";
 import Link from "next/link";
 
-import { LogoMark } from "@/components/logo-mark";
+import { PublicHeading, PublicShell } from "@/components/public-shell";
 import { MatchInvitation } from "@/components/match-invitation";
 
 export default async function PlayInvitationPage({
@@ -17,27 +16,15 @@ export default async function PlayInvitationPage({
 
   if (!invitation) {
     return (
-      <main className="grid min-h-svh place-items-center px-4 py-10">
-        <div className="flex w-full max-w-md flex-col gap-6">
-          <div className="flex items-center gap-3">
-            <LogoMark className="size-10" />
-            <span className="font-bold tracking-tight">Hay Fulbo</span>
-          </div>
-          <Card>
-            <CardHeader>
-              <h1 className="text-xl font-bold">Este partido no está disponible</h1>
-              <CardDescription>
-                El link puede ser incorrecto o el grupo ya no está activo.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button render={<Link href="/login" />} nativeButton={false}>
-                Ir al inicio
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+      <PublicShell>
+        <PublicHeading
+          title="Este partido no está disponible"
+          description="El link puede ser incorrecto o el grupo ya no está activo."
+        />
+        <Button render={<Link href="/login" />} nativeButton={false}>
+          Ir al inicio
+        </Button>
+      </PublicShell>
     );
   }
 

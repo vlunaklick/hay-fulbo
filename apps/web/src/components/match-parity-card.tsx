@@ -1,10 +1,9 @@
 "use client";
 
 import { Alert, AlertDescription } from "@hay-fulbo/ui/components/alert";
-import { Button } from "@hay-fulbo/ui/components/button";
 import { Badge } from "@hay-fulbo/ui/components/badge";
+import { Button } from "@hay-fulbo/ui/components/button";
 import { Progress } from "@hay-fulbo/ui/components/progress";
-import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 
@@ -13,7 +12,7 @@ import { trpc } from "@/utils/trpc";
 export function MatchParityCard({ matchId }: { matchId: string }) {
   const parity = useQuery(trpc.stats.parity.queryOptions({ matchId }));
 
-  if (parity.isPending) return <Skeleton className="h-56 w-full" />;
+  if (parity.isPending) return <Skeleton className="h-28 w-full" />;
   if (parity.isError)
     return (
       <Alert className="gap-3 p-4">
@@ -40,36 +39,29 @@ export function MatchParityCard({ matchId }: { matchId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-bold tracking-tight">Cómo llega cada equipo</h2>
-        <p className="text-sm text-muted-foreground">
-          Una referencia recreativa basada únicamente en partidos cerrados.
-        </p>
-      </div>
-      <div className="flex flex-col gap-4">
+      <div className="grid gap-4 sm:grid-cols-3 sm:gap-6">
         {options.map((option) => (
-          <div key={option.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
-            <div className="min-w-0">
-              <span className="block truncate text-sm font-semibold">{option.label}</span>
-              <Progress
-                aria-label={option.label}
-                className="mt-2"
-                value={Math.round(option.probability * 100)}
-              />
+          <div key={option.id} className="flex min-w-0 flex-col gap-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="truncate text-xs font-medium text-muted-foreground">
+                {option.label}
+              </span>
+              <strong className="text-lg font-semibold tabular-nums">
+                {Math.round(option.probability * 100)}%
+              </strong>
             </div>
-            <strong className="text-xl tabular-nums">
-              {Math.round(option.probability * 100)}%
-            </strong>
+            <Progress aria-label={option.label} value={Math.round(option.probability * 100)} />
           </div>
         ))}
       </div>
-      <Separator />
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        Una referencia recreativa basada únicamente en partidos cerrados.
+        <span aria-hidden="true">·</span>
         <span>Confianza</span>
         <Badge variant="outline">{confidenceLabel(parity.data.confidence)}</Badge>
         <span aria-hidden="true">·</span>
         <span>{parity.data.sample.closedMatches} partidos de historial</span>
-      </div>
+      </p>
     </div>
   );
 }

@@ -2,13 +2,6 @@
 
 import { Button } from "@hay-fulbo/ui/components/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
-import {
   Field,
   FieldDescription,
   FieldError,
@@ -20,11 +13,12 @@ import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
-import { ArrowRightIcon, ShieldCheckIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { PublicHeading, PublicShell } from "@/components/public-shell";
 import { authClient } from "@/lib/auth-client";
 
 import { GoogleSignIn } from "./google-sign-in";
@@ -83,114 +77,101 @@ export default function LoginScreen({
   }
 
   return (
-    <main className="relative grid min-h-svh place-items-center overflow-hidden px-4 py-10">
-      <div className="flex w-full max-w-md flex-col gap-8">
-        <header className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 text-primary-text">
-            <ShieldCheckIcon aria-hidden="true" />
-            <span className="text-sm font-semibold uppercase tracking-[0.18em]">Hay Fulbo</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">El partido, bajo control.</h1>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Armá equipos, cerrá el resultado y dejá las cuentas claras desde cualquier pantalla.
-          </p>
-        </header>
+    <PublicShell>
+      <PublicHeading
+        title="El partido, bajo control."
+        description="Armá equipos, cerrá el resultado y dejá las cuentas claras desde cualquier pantalla."
+      />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{mode === "signin" ? "Entrar al grupo" : "Crear tu cuenta"}</CardTitle>
-            <CardDescription>
-              {mode === "signin"
-                ? "Usá los datos con los que te registraste."
-                : "Después vas a poder crear o elegir tu grupo."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-5">
-            {clerkPublishableKey ? (
-              <>
-                <GoogleSignIn publishableKey={clerkPublishableKey} onError={setMessage} />
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <Separator className="flex-1" />
-                  <span>o con tu email</span>
-                  <Separator className="flex-1" />
-                </div>
-              </>
-            ) : null}
-            <Tabs
-              value={mode}
-              onValueChange={(value) => {
-                setMode(value as typeof mode);
-                setMessage(null);
-              }}
-            >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Ingresar</TabsTrigger>
-                <TabsTrigger value="signup">Registrarme</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            {isPending ? (
-              <div className="flex flex-col gap-4" aria-label="Cargando sesión">
-                <Skeleton className="h-11 w-full" />
-                <Skeleton className="h-11 w-full" />
-                <Skeleton className="h-11 w-full" />
-              </div>
-            ) : (
-              <form onSubmit={submit}>
-                <FieldGroup>
-                  {mode === "signup" ? (
-                    <Field>
-                      <FieldLabel htmlFor="name">Nombre</FieldLabel>
-                      <Input
-                        id="name"
-                        aria-invalid={Boolean(message) && name.trim().length < 2}
-                        aria-describedby={message ? "login-error" : undefined}
-                        autoComplete="name"
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        placeholder="Tu nombre"
-                      />
-                    </Field>
-                  ) : null}
-                  <Field>
-                    <FieldLabel htmlFor="email">Email</FieldLabel>
-                    <Input
-                      id="email"
-                      aria-invalid={Boolean(message) && !email.includes("@")}
-                      aria-describedby={message ? "login-error" : undefined}
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      placeholder="vos@ejemplo.com"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="password">Contraseña</FieldLabel>
-                    <Input
-                      id="password"
-                      aria-invalid={Boolean(message) && password.length < 8}
-                      aria-describedby={message ? "login-error" : "password-help"}
-                      type="password"
-                      autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                    />
-                    <FieldDescription id="password-help">Mínimo 8 caracteres.</FieldDescription>
-                  </Field>
-                  <FieldError id="login-error" role="alert">
-                    {message}
-                  </FieldError>
-                  <Button type="submit" disabled={submitting}>
-                    {submitting ? <Spinner data-icon="inline-start" /> : null}
-                    {submitting ? "Entrando…" : mode === "signin" ? "Entrar" : "Crear cuenta"}
-                    <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
-                  </Button>
-                </FieldGroup>
-              </form>
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex flex-col gap-6">
+        {clerkPublishableKey ? (
+          <>
+            <GoogleSignIn publishableKey={clerkPublishableKey} onError={setMessage} />
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <Separator className="flex-1" />
+              <span>o con tu email</span>
+              <Separator className="flex-1" />
+            </div>
+          </>
+        ) : null}
+        <Tabs
+          value={mode}
+          onValueChange={(value) => {
+            setMode(value as typeof mode);
+            setMessage(null);
+          }}
+        >
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="signin">Ingresar</TabsTrigger>
+            <TabsTrigger value="signup">Registrarme</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        {isPending ? (
+          <div className="flex flex-col gap-4" aria-label="Cargando sesión">
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+          </div>
+        ) : (
+          <form onSubmit={submit}>
+            <FieldGroup>
+              {mode === "signup" ? (
+                <Field>
+                  <FieldLabel htmlFor="name">Nombre</FieldLabel>
+                  <Input
+                    id="name"
+                    aria-invalid={Boolean(message) && name.trim().length < 2}
+                    aria-describedby={message ? "login-error" : undefined}
+                    autoComplete="name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Tu nombre"
+                  />
+                </Field>
+              ) : null}
+              <Field>
+                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <Input
+                  id="email"
+                  aria-invalid={Boolean(message) && !email.includes("@")}
+                  aria-describedby={message ? "login-error" : undefined}
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="vos@ejemplo.com"
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="password">Contraseña</FieldLabel>
+                <Input
+                  id="password"
+                  aria-invalid={Boolean(message) && password.length < 8}
+                  aria-describedby={message ? "login-error" : "password-help"}
+                  type="password"
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+                <FieldDescription id="password-help">Mínimo 8 caracteres.</FieldDescription>
+              </Field>
+              <FieldError id="login-error" role="alert">
+                {message}
+              </FieldError>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? <Spinner data-icon="inline-start" /> : null}
+                {submitting ? "Entrando…" : mode === "signin" ? "Entrar" : "Crear cuenta"}
+                <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
+              </Button>
+            </FieldGroup>
+          </form>
+        )}
+        <p className="text-sm text-muted-foreground">
+          {mode === "signin"
+            ? "Usá los datos con los que te registraste."
+            : "Después vas a poder crear o elegir tu grupo."}
+        </p>
       </div>
-    </main>
+    </PublicShell>
   );
 }

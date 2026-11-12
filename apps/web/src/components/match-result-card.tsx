@@ -1,8 +1,14 @@
 "use client";
 
 import { Button } from "@hay-fulbo/ui/components/button";
-import { Card } from "@hay-fulbo/ui/components/card";
-import { Separator } from "@hay-fulbo/ui/components/separator";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@hay-fulbo/ui/components/card";
+import { cn } from "@hay-fulbo/ui/lib/utils";
 import { DownloadIcon, Share2Icon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,47 +57,65 @@ export function MatchResultCard({
   }
 
   return (
-    <section
-      aria-labelledby="share-result-title"
-      className="grid gap-3 py-3 md:grid-cols-[minmax(0,1fr)_11rem] md:items-center"
-    >
-      <Separator className="md:col-span-2" />
-      <header className="flex items-center justify-between gap-3 md:col-span-2">
-        <h2 id="share-result-title" className="text-sm font-medium">
-          Resultado para compartir
-        </h2>
-        <span className="eyebrow text-muted-foreground">Final</span>
-      </header>
-      <Card className="relative gap-0 px-4 py-5">
-        <p className="relative truncate text-center eyebrow text-muted-foreground">
-          Hay Fulbo · {dateLabel}
-        </p>
-        <div className="relative mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
-          <div className="min-w-0">
-            <p className="truncate text-xs font-bold uppercase sm:text-sm">{left.name}</p>
-            <strong className="text-5xl font-black tabular-nums sm:text-6xl">{left.goals}</strong>
+    <section aria-labelledby="share-result-title">
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 id="share-result-title">Resultado final</h2>
+          </CardTitle>
+          <CardAction className="flex gap-1">
+            <Button onClick={share} size="sm" variant="secondary">
+              <Share2Icon data-icon="inline-start" aria-hidden="true" />
+              Compartir
+            </Button>
+            <Button aria-label="Descargar SVG" onClick={download} size="icon" variant="ghost">
+              <DownloadIcon aria-hidden="true" />
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-3 py-2 sm:gap-8">
+            <ResultSide team={left} slot={1} />
+            <span
+              className="pb-3 text-3xl leading-none font-semibold text-muted-foreground sm:pb-4"
+              aria-hidden="true"
+            >
+              –
+            </span>
+            <ResultSide team={right} slot={2} />
           </div>
-          <span className="text-2xl font-black text-muted-foreground">—</span>
-          <div className="min-w-0">
-            <p className="truncate text-xs font-bold uppercase sm:text-sm">{right.name}</p>
-            <strong className="text-5xl font-black tabular-nums sm:text-6xl">{right.goals}</strong>
-          </div>
-        </div>
-        <p className="relative mt-2 truncate text-center text-xs text-muted-foreground">
-          {groupName}
-        </p>
+        </CardContent>
       </Card>
-      <div className="grid grid-cols-2 gap-2 md:flex md:flex-col">
-        <Button onClick={share}>
-          <Share2Icon data-icon="inline-start" aria-hidden="true" />
-          Compartir
-        </Button>
-        <Button onClick={download} variant="outline">
-          <DownloadIcon data-icon="inline-start" aria-hidden="true" />
-          Descargar SVG
-        </Button>
-      </div>
-      <Separator className="md:col-span-2" />
     </section>
+  );
+}
+
+function ResultSide({ slot, team }: { slot: 1 | 2; team: ResultTeam }) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-2",
+        slot === 1 ? "items-end text-right" : "items-start text-left",
+      )}
+    >
+      <p
+        className={cn(
+          "flex max-w-full items-center gap-2 text-sm font-semibold",
+          slot === 1 && "flex-row-reverse",
+        )}
+      >
+        <span
+          className={cn(
+            "size-2 shrink-0 rounded-full",
+            slot === 1 ? "bg-team-blue" : "bg-team-amber",
+          )}
+          aria-hidden="true"
+        />
+        <span className="truncate">{team.name}</span>
+      </p>
+      <strong className="text-5xl font-black leading-none tabular-nums sm:text-6xl">
+        {team.goals}
+      </strong>
+    </div>
   );
 }

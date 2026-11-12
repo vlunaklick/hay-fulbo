@@ -5,7 +5,14 @@ export function formatDate(value: string | Date) {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    hourCycle: "h23",
   }).format(new Date(value));
+}
+
+export function formatShortDate(value: string | Date) {
+  return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short" }).format(
+    new Date(value),
+  );
 }
 
 export function formatMoney(value: string | number | bigint | null) {

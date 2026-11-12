@@ -1,16 +1,14 @@
 "use client";
 
 import { Alert, AlertDescription } from "@hay-fulbo/ui/components/alert";
-import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
 import { Button } from "@hay-fulbo/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader } from "@hay-fulbo/ui/components/card";
 import { Spinner } from "@hay-fulbo/ui/components/spinner";
-import { ArrowRightIcon, MailCheckIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { LogoMark } from "@/components/logo-mark";
+import { PublicHeading, PublicShell } from "@/components/public-shell";
 import { authClient } from "@/lib/auth-client";
 import { queryClient } from "@/utils/trpc";
 
@@ -43,42 +41,27 @@ export function InvitationAcceptance({
   }
 
   return (
-    <main className="grid min-h-svh place-items-center px-4 py-10">
-      <div className="flex w-full max-w-md flex-col gap-6">
-        <div className="flex items-center gap-3">
-          <LogoMark className="size-10" />
-          <span className="font-bold tracking-tight">Hay Fulbo</span>
-        </div>
-        <Card>
-          <CardHeader>
-            <Avatar className="mb-2 size-10">
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                <MailCheckIcon aria-hidden="true" />
-              </AvatarFallback>
-            </Avatar>
-            <h1 className="text-xl font-bold">Te invitaron a {groupName}</h1>
-            <CardDescription>
-              Al aceptar, tu cuenta {email} va a quedar vinculada con tu jugador en este grupo.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {error ? (
-              <Alert id="invitation-error" variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : null}
-            <Button
-              aria-describedby={error ? "invitation-error" : undefined}
-              onClick={accept}
-              disabled={pending}
-            >
-              {pending ? <Spinner data-icon="inline-start" /> : null}
-              {pending ? "Aceptando…" : "Aceptar invitación"}
-              <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
-            </Button>
-          </CardContent>
-        </Card>
+    <PublicShell>
+      <PublicHeading
+        title={`Te invitaron a ${groupName}`}
+        description={`Al aceptar, tu cuenta ${email} va a quedar vinculada con tu jugador en este grupo.`}
+      />
+      <div className="flex flex-col gap-3">
+        {error ? (
+          <Alert id="invitation-error" variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        <Button
+          aria-describedby={error ? "invitation-error" : undefined}
+          onClick={accept}
+          disabled={pending}
+        >
+          {pending ? <Spinner data-icon="inline-start" /> : null}
+          {pending ? "Aceptando…" : "Aceptar invitación"}
+          <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
+        </Button>
       </div>
-    </main>
+    </PublicShell>
   );
 }

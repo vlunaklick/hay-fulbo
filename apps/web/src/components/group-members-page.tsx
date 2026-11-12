@@ -33,7 +33,6 @@ import {
   ItemGroup,
   ItemMedia,
 } from "@hay-fulbo/ui/components/item";
-import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -51,6 +50,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/page-header";
 import { useAppContext } from "@/components/app-shell";
 import { initials } from "@/lib/initials";
 import { queryClient, trpc } from "@/utils/trpc";
@@ -182,14 +182,11 @@ export function GroupMembersPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <p className="text-sm font-semibold text-primary-text">Tu grupo</p>
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Personas y permisos</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Designá líderes para que puedan editar partidos, jugadores y canchas.
-        </p>
-      </header>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title="Personas y permisos"
+        description="Designá líderes para que puedan editar partidos, jugadores y canchas."
+      />
 
       <section
         id="invitar"
@@ -197,10 +194,7 @@ export function GroupMembersPage() {
         aria-labelledby="join-link-title"
       >
         <div className="flex flex-col gap-1">
-          <h2
-            id="join-link-title"
-            className="flex items-center gap-2 text-lg font-bold tracking-tight"
-          >
+          <h2 id="join-link-title" className="flex items-center gap-2 text-base font-semibold">
             Link para sumarse
             {joinLink.data?.active ? <Badge variant="secondary">Activo</Badge> : null}
           </h2>
@@ -282,14 +276,9 @@ export function GroupMembersPage() {
         </div>
       </section>
 
-      <Separator />
-
       <section className="flex flex-col gap-3" aria-labelledby="public-group-title">
         <div className="flex flex-col gap-1">
-          <h2
-            id="public-group-title"
-            className="flex items-center gap-2 text-lg font-bold tracking-tight"
-          >
+          <h2 id="public-group-title" className="flex items-center gap-2 text-base font-semibold">
             Grupo público
             {settings.data?.publicVisibility ? <Badge variant="secondary">Público</Badge> : null}
           </h2>
@@ -369,14 +358,9 @@ export function GroupMembersPage() {
         </div>
       </section>
 
-      <Separator />
-
       <section className="flex flex-col gap-3" aria-labelledby="rating-quorum-title">
         <div className="flex flex-col gap-1">
-          <h2
-            id="rating-quorum-title"
-            className="flex items-center gap-2 text-lg font-bold tracking-tight"
-          >
+          <h2 id="rating-quorum-title" className="flex items-center gap-2 text-base font-semibold">
             Notas entre jugadores
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -395,6 +379,7 @@ export function GroupMembersPage() {
           </Alert>
         ) : (
           <Select
+            items={ratingQuorumItems}
             disabled={updateRatingQuorum.isPending}
             value={settings.data?.ratingQuorum ?? "all_voted"}
             onValueChange={(next) => {
@@ -418,84 +403,88 @@ export function GroupMembersPage() {
         )}
       </section>
 
-      <Separator />
-
-      {directory.isPending ? (
-        <div className="flex flex-col">
-          {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton
-              key={index}
-              className="h-16 w-full rounded-none first:rounded-t-md last:rounded-b-md"
-            />
-          ))}
-        </div>
-      ) : directory.isError ? (
-        <Alert variant="destructive">
-          <CircleAlertIcon aria-hidden="true" />
-          <AlertTitle>No pudimos cargar el grupo</AlertTitle>
-          <AlertDescription>{directory.error.message}</AlertDescription>
-        </Alert>
-      ) : (
-        <ItemGroup className="gap-0 divide-y overflow-hidden rounded-lg border">
-          {(directory.data.members as GroupMember[]).map((member) => (
-            <Item key={member.membershipId} role="listitem" className="gap-3 px-4 py-3 sm:px-5">
-              <ItemMedia>
-                <Avatar className="size-10">
-                  <AvatarFallback>{initials(member.name)}</AvatarFallback>
-                </Avatar>
-              </ItemMedia>
-              <ItemContent className="min-w-0 basis-40 gap-0">
-                <p className="truncate text-sm font-medium">{member.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{member.email}</p>
-              </ItemContent>
-              {member.role === "owner" ? (
-                <ItemActions className="min-h-10 text-sm text-muted-foreground">
-                  <ShieldCheckIcon
-                    className="size-4 shrink-0 text-primary-text"
-                    aria-hidden="true"
-                  />
-                  Responsable del grupo
-                </ItemActions>
-              ) : (
-                <ItemActions className="gap-3">
-                  <Select
-                    disabled={updateRole.isPending || removeMember.isPending}
-                    value={member.role}
-                    onValueChange={(nextRole) => {
-                      if (nextRole !== "leader" && nextRole !== "member") return;
-                      updateRole.mutate({
-                        groupId: activeGroupId,
-                        membershipId: member.membershipId,
-                        role: nextRole,
-                      });
-                    }}
-                  >
-                    <SelectTrigger
-                      aria-label={`Permisos de ${member.name}`}
-                      className="w-44 min-w-0"
+      <section className="flex flex-col gap-3" aria-labelledby="members-title">
+        <h2 id="members-title" className="text-base font-semibold">
+          Integrantes
+        </h2>
+        {directory.isPending ? (
+          <div className="flex flex-col">
+            {Array.from({ length: 4 }, (_, index) => (
+              <Skeleton
+                key={index}
+                className="h-16 w-full rounded-none first:rounded-t-md last:rounded-b-md"
+              />
+            ))}
+          </div>
+        ) : directory.isError ? (
+          <Alert variant="destructive">
+            <CircleAlertIcon aria-hidden="true" />
+            <AlertTitle>No pudimos cargar el grupo</AlertTitle>
+            <AlertDescription>{directory.error.message}</AlertDescription>
+          </Alert>
+        ) : (
+          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-lg border bg-card">
+            {(directory.data.members as GroupMember[]).map((member) => (
+              <Item key={member.membershipId} role="listitem" className="gap-3 px-4 py-3">
+                <ItemMedia>
+                  <Avatar>
+                    <AvatarFallback>{initials(member.name)}</AvatarFallback>
+                  </Avatar>
+                </ItemMedia>
+                <ItemContent className="min-w-0 basis-40 gap-0">
+                  <p className="truncate text-sm font-medium">{member.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                </ItemContent>
+                {member.role === "owner" ? (
+                  <ItemActions className="min-h-10 text-sm text-muted-foreground">
+                    <ShieldCheckIcon
+                      className="size-4 shrink-0 text-primary-text"
+                      aria-hidden="true"
+                    />
+                    Responsable del grupo
+                  </ItemActions>
+                ) : (
+                  <ItemActions className="gap-3">
+                    <Select
+                      items={roleItems}
+                      disabled={updateRole.isPending || removeMember.isPending}
+                      value={member.role}
+                      onValueChange={(nextRole) => {
+                        if (nextRole !== "leader" && nextRole !== "member") return;
+                        updateRole.mutate({
+                          groupId: activeGroupId,
+                          membershipId: member.membershipId,
+                          role: nextRole,
+                        });
+                      }}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="member">Miembro · solo consulta</SelectItem>
-                      <SelectItem value="leader">Líder · puede editar</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    aria-label={`Sacar a ${member.name} del grupo`}
-                    disabled={updateRole.isPending || removeMember.isPending}
-                    onClick={() => setRemoveTarget(member)}
-                    size="icon"
-                    variant="ghost"
-                  >
-                    <Trash2Icon aria-hidden="true" />
-                  </Button>
-                </ItemActions>
-              )}
-            </Item>
-          ))}
-        </ItemGroup>
-      )}
+                      <SelectTrigger
+                        aria-label={`Permisos de ${member.name}`}
+                        className="w-44 min-w-0"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="member">Miembro · solo consulta</SelectItem>
+                        <SelectItem value="leader">Líder · puede editar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      aria-label={`Sacar a ${member.name} del grupo`}
+                      disabled={updateRole.isPending || removeMember.isPending}
+                      onClick={() => setRemoveTarget(member)}
+                      size="icon"
+                      variant="ghost"
+                    >
+                      <Trash2Icon aria-hidden="true" />
+                    </Button>
+                  </ItemActions>
+                )}
+              </Item>
+            ))}
+          </ItemGroup>
+        )}
+      </section>
 
       <Dialog open={Boolean(removeTarget)} onOpenChange={(open) => !open && setRemoveTarget(null)}>
         <DialogContent>
@@ -530,3 +519,14 @@ export function GroupMembersPage() {
     </div>
   );
 }
+
+const ratingQuorumItems = [
+  { value: "all_voted", label: "Revelar cuando voten todos" },
+  { value: "half_plus_one", label: "Revelar con mitad más uno" },
+  { value: "first_vote", label: "Revelar con el primer voto completo" },
+];
+
+const roleItems = [
+  { value: "member", label: "Miembro · solo consulta" },
+  { value: "leader", label: "Líder · puede editar" },
+];

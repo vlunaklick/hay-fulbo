@@ -2,7 +2,7 @@
 
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
-import { Card, CardContent } from "@hay-fulbo/ui/components/card";
+import { Card } from "@hay-fulbo/ui/components/card";
 import {
   Select,
   SelectContent,
@@ -11,13 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
-import { Separator } from "@hay-fulbo/ui/components/separator";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import { EyeIcon, LockIcon, TrophyIcon } from "lucide-react";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import type { AppRouter } from "@hay-fulbo/api/routers/index";
@@ -99,7 +98,7 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
       </div>
 
       {!data.revealed ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="max-w-prose text-sm text-muted-foreground">
           Las notas son anónimas: nadie ve quién puso qué. Los promedios se revelan cuando llega el
           quórum que eligió el responsable del grupo.
         </p>
@@ -107,30 +106,36 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
 
       {data.viewerCanRate ? (
         <>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {teams.map((team) => (
-              <Card key={team.id} className="gap-0 py-0">
-                <div
-                  className={cn("h-1", team.slot === 1 ? "bg-team-blue" : "bg-team-amber")}
-                  aria-hidden="true"
-                />
-                <CardContent className="flex flex-col py-3">
-                  {team.appearances.map((appearance, index) => {
-                    const summary = data.players.find(
-                      (player) => player.playerId === appearance.playerId,
-                    );
-                    const isSelf = appearance.playerId === data.viewerPlayerId;
-                    const current = valueFor(appearance.playerId);
-                    return (
-                      <Fragment key={appearance.playerId}>
-                        {index > 0 ? <Separator /> : null}
-                        <div className="flex min-h-11 items-center justify-between gap-3 py-1.5">
-                          <span className="truncate text-sm font-medium">
-                            {appearance.playerDisplayName}
-                          </span>
-                          <div className="flex shrink-0 items-center gap-2">
+          <Card className="py-0">
+            <div className="grid divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+              {teams.map((team) => (
+                <div key={team.id} className="flex min-w-0 flex-col px-4 py-3">
+                  <h3 className="flex min-h-9 items-center gap-2 text-sm font-semibold">
+                    <span
+                      className={cn(
+                        "size-2 shrink-0 rounded-full",
+                        team.slot === 1 ? "bg-team-blue" : "bg-team-amber",
+                      )}
+                      aria-hidden="true"
+                    />
+                    {team.displayName}
+                  </h3>
+                  <ul className="flex flex-col divide-y">
+                    {team.appearances.map((appearance) => {
+                      const summary = data.players.find(
+                        (player) => player.playerId === appearance.playerId,
+                      );
+                      const isSelf = appearance.playerId === data.viewerPlayerId;
+                      const current = valueFor(appearance.playerId);
+                      return (
+                        <li
+                          key={appearance.playerId}
+                          className="flex min-h-13 items-center justify-between gap-3 py-1"
+                        >
+                          <span className="truncate text-sm">{appearance.playerDisplayName}</span>
+                          <div className="flex shrink-0 items-center gap-3">
                             {data.revealed && summary?.average !== null && summary ? (
-                              <span className="text-sm font-bold tabular-nums text-muted-foreground">
+                              <span className="text-sm font-semibold tabular-nums text-muted-foreground">
                                 {summary.average}
                                 {summary.votes !== null && summary.votes > 1
                                   ? ` · ${summary.votes} votos`
@@ -138,7 +143,9 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
                               </span>
                             ) : null}
                             {isSelf ? (
-                              <span className="text-xs text-muted-foreground">vos</span>
+                              <span className="w-24 text-center text-xs text-muted-foreground">
+                                vos
+                              </span>
                             ) : (
                               <Select
                                 disabled={save.isPending}
@@ -155,7 +162,7 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
                               >
                                 <SelectTrigger
                                   aria-label={`Nota para ${appearance.playerDisplayName}`}
-                                  className="h-8 w-[4.5rem]"
+                                  className="w-24"
                                   size="sm"
                                 >
                                   <SelectValue placeholder="Nota" />
@@ -172,18 +179,25 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
                               </Select>
                             )}
                           </div>
-                        </div>
-                      </Fragment>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <div className="flex flex-wrap items-center gap-3">
             <Button disabled={save.isPending || pendingPlayerIds.length === 0} onClick={saveAll}>
               Guardar notas
             </Button>
+            {pendingPlayerIds.length > 0 ? (
+              <span className="text-xs text-muted-foreground">
+                {pendingPlayerIds.length === 1
+                  ? "1 nota sin guardar"
+                  : `${pendingPlayerIds.length} notas sin guardar`}
+              </span>
+            ) : null}
           </div>
         </>
       ) : (
