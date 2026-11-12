@@ -1,14 +1,4 @@
-import { Suspense } from "react";
-
-import { SharedStatsDashboard } from "@/features/stats/stats-dashboard";
-import { StatsLoading } from "@/features/stats/stats-loading";
-
-export default function SharedDashboardPage() {
-  return (
-    <div className="min-h-svh bg-background text-foreground">
-      <Suspense fallback={<StatsLoading />}>
-        <SharedStatsDashboard />
-      </Suspense>
-    </div>
-  );
+// Rendered by the layout's shared view, which reads this route from the URL.
+export default function Page() {
+  return null;
 }

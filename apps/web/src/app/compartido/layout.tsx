@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Suspense } from "react";
+
+import { SharedLinkView } from "@/features/shared-view/shared-group-view";
 
 export const metadata: Metadata = {
   robots: {
@@ -9,8 +12,13 @@ export const metadata: Metadata = {
   },
 };
 
+// The view lives here, not in the pages, so match and player routes open as a
+// sheet over the same screen and keep the tab underneath.
 export default function SharedLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">{children}</main>
+    <Suspense>
+      <SharedLinkView />
+      {children}
+    </Suspense>
   );
 }

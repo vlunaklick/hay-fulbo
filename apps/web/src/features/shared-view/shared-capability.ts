@@ -12,8 +12,10 @@ function currentFragment() {
   return window.location.hash.slice(1);
 }
 
+// Unknown until hydration: reading "" here would fire shared queries before
+// the `#token` is exchanged and flash an "inactive link" error.
 function serverFragment() {
-  return "";
+  return null;
 }
 
 export function useSharedCapability() {
@@ -21,7 +23,7 @@ export function useSharedCapability() {
   const token = useSyncExternalStore(subscribeToFragment, currentFragment, serverFragment);
   const exchange = useQuery({
     queryKey: ["shared-capability-exchange", token],
-    enabled: token.length > 0,
+    enabled: Boolean(token),
     retry: false,
     queryFn: async () => {
       const response = await fetch("/api/shared/exchange", {
@@ -46,7 +48,7 @@ export function useSharedCapability() {
   return {
     error: exchange.error,
     retry: () => void exchange.refetch(),
-    ready: token.length === 0 || exchange.isSuccess,
-    exchanging: token.length > 0 && exchange.isPending,
+    ready: token === "" || exchange.isSuccess,
+    exchanging: token === null || (token.length > 0 && exchange.isPending),
   };
 }
