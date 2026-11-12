@@ -214,7 +214,7 @@ function GroupHub({ topic, onOpen }: { topic: Topic; onOpen: (topic: Topic) => v
 
   return (
     <>
-      <PageHeader title={groupName} description="Sos responsable del grupo." />
+      <PageHeader title={groupName} />
 
       <RowGroup label="Personas">
         <HubRow
@@ -366,9 +366,6 @@ function MembersTopic() {
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">
-        Los líderes editan partidos, jugadores y canchas. Los miembros consultan.
-      </p>
       {directory.isPending ? (
         <div className="flex flex-col">
           {Array.from({ length: 4 }, (_, index) => (
@@ -549,9 +546,7 @@ function InviteTopic() {
   if (!joinLink.data.active) {
     return (
       <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-4">
-        <p className="text-sm text-muted-foreground">
-          No hay link activo. Creá uno y se copia solo para que lo pegues en el grupo de WhatsApp.
-        </p>
+        <p className="text-sm text-muted-foreground">No hay link activo.</p>
         <Button disabled={renew.isPending} onClick={() => renew.mutate({ groupId: activeGroupId })}>
           {renew.isPending ? (
             <Spinner data-icon="inline-start" />
@@ -644,8 +639,8 @@ function PublicTopic() {
   return (
     <>
       <p className="max-w-prose text-sm text-muted-foreground">
-        Cualquiera con la dirección ve partidos, resultados y estadísticas. Sin cuentas y sin
-        deudas: los pagos nunca se muestran.
+        Cualquiera con la dirección ve partidos, resultados y estadísticas. Los pagos nunca se
+        muestran.
       </p>
       <ToggleGroup
         aria-label="Visibilidad del grupo"
@@ -680,11 +675,7 @@ function PublicTopic() {
             </InputGroupButton>
           </InputGroupAddon>
         </InputGroup>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          Podés abrirlo cuando quieras; al cerrarlo, la dirección deja de funcionar al instante.
-        </p>
-      )}
+      ) : null}
     </>
   );
 }
@@ -714,8 +705,8 @@ function QuorumTopic() {
   return (
     <>
       <p className="max-w-prose text-sm text-muted-foreground">
-        Después de cada partido cerrado, los que jugaron se ponen nota del 1 al 10. Los votos son
-        anónimos; elegí cuándo se revela el promedio.
+        Los que jugaron se ponen notas del 1 al 10. Son anónimas y los promedios se ven al llegar al
+        quórum.
       </p>
       <ToggleGroup
         aria-label="Cuándo revelar las notas"

@@ -21,7 +21,7 @@ Gana **Vestuario**.
 - En escritorio el hub queda fijo a la izquierda y el tema a la derecha; sin tema abierto se muestra Integrantes.
 - Los permisos se cambian desde un menú `⋯` por persona (radio Miembro/Líder + "Sacar del grupo" separado), así la fila entra en una línea a 390 px.
 - "Compartir" usa la hoja nativa del teléfono (WhatsApp a un toque) y copia en escritorio.
-- Visibilidad pública y quórum de notas pasan de botón/select a opciones visibles (`ToggleGroup`) con una línea de ayuda cada una.
+- Visibilidad pública y quórum de notas pasan de botón/select a opciones visibles (`ToggleGroup`); cada opción de quórum explica cuándo se revela.
 - Los otros grupos del usuario aparecen en la página con "Crear grupo". El selector de la barra se mantiene porque lo usan todas las demás pantallas.
 
 Rechazadas:

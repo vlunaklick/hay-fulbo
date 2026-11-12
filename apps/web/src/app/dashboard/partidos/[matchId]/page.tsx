@@ -214,10 +214,7 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
       {detail.status === "cancelled" ? (
         <div className="flex items-start gap-3 rounded-lg border border-dashed p-4">
           <CircleAlertIcon className="mt-0.5 size-4 text-muted-foreground" aria-hidden="true" />
-          <div className="flex flex-col gap-0.5">
-            <p className="text-sm font-semibold">Partido cancelado</p>
-            <p className="text-sm text-muted-foreground">No aporta resultados ni deuda.</p>
-          </div>
+          <p className="text-sm font-semibold">Partido cancelado · no suma resultados ni deuda</p>
         </div>
       ) : null}
 

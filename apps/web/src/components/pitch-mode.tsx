@@ -99,10 +99,7 @@ function PitchShell({
           <ArrowLeftIcon data-icon="inline-start" aria-hidden="true" />
           Salir
         </Button>
-        <div className="min-w-0 text-center">
-          <h1 className="text-sm font-semibold">Modo cancha</h1>
-          <p className="truncate text-xs text-muted-foreground">Tocá Gol y elegí quién la hizo</p>
-        </div>
+        <h1 className="min-w-0 text-center text-sm font-semibold">Modo cancha</h1>
         <Button
           aria-label="Alternar pantalla completa"
           className="justify-self-end"
