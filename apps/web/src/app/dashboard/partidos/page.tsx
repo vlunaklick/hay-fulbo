@@ -103,20 +103,15 @@ function MatchSection({ matches, title }: { matches: MatchItem[]; title: string 
                   {home} <span className="font-normal text-muted-foreground">vs.</span> {away}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {formatDate(match.scheduledAt)}
-                  {match.status === "open" ? "" : ` · ${statusLabel[match.status]}`}
+                  {formatDate(match.scheduledAt)} · {statusLabel[match.status]}
                 </p>
               </div>
-              {match.status === "open" ? (
-                <span className="shrink-0 text-xs text-muted-foreground">{statusLabel.open}</span>
-              ) : (
-                <span
-                  className="shrink-0 text-base font-semibold tabular-nums"
-                  aria-label={`Resultado ${match.teams[0]?.goals ?? 0} a ${match.teams[1]?.goals ?? 0}`}
-                >
-                  {match.teams[0]?.goals ?? 0} – {match.teams[1]?.goals ?? 0}
-                </span>
-              )}
+              <span
+                className="shrink-0 text-base font-semibold tabular-nums"
+                aria-label={`Resultado ${match.teams[0]?.goals ?? 0} a ${match.teams[1]?.goals ?? 0}`}
+              >
+                {match.teams[0]?.goals ?? 0} – {match.teams[1]?.goals ?? 0}
+              </span>
             </Link>
           );
         })}

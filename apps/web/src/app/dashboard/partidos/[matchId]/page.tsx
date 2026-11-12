@@ -1042,7 +1042,7 @@ function NewPlayerInput({
 
 /** Shared column template so every row of the closing sheet lines up on desktop. */
 const planillaGrid =
-  "grid grid-cols-6 items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem_18rem] lg:gap-x-4";
+  "grid grid-cols-6 items-center gap-x-2 gap-y-1 xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem_18rem] xl:gap-x-4";
 
 function Planilla({
   detail,
@@ -1076,11 +1076,11 @@ function Planilla({
           "border-b py-2 text-xs font-medium text-muted-foreground sm:px-4",
         )}
       >
-        <span className="hidden lg:block">Jugador</span>
-        <span className="col-span-2 text-center lg:col-span-1">Goles</span>
-        <span className="col-span-2 text-center lg:col-span-1">Asistencias</span>
-        <span className="col-span-2 text-center lg:col-span-1">En contra</span>
-        <span className="hidden text-right lg:block">{costKnown ? "Aporte" : null}</span>
+        <span className="hidden xl:block">Jugador</span>
+        <span className="col-span-2 text-center xl:col-span-1">Goles</span>
+        <span className="col-span-2 text-center xl:col-span-1">Asistencias</span>
+        <span className="col-span-2 text-center xl:col-span-1">En contra</span>
+        <span className="hidden text-right xl:block">{costKnown ? "Aporte" : null}</span>
       </div>
       {detail.teams.map((team) => (
         <section key={team.id} aria-label={`Cierre de ${team.displayName}`}>
@@ -1103,10 +1103,10 @@ function Planilla({
             ))}
             {statsEditable || team.unattributedGoals > 0 ? (
               <li className={cn(planillaGrid, "min-h-12 py-1 sm:px-4")}>
-                <span className="col-span-6 flex min-h-8 items-center text-sm text-muted-foreground lg:col-span-1">
+                <span className="col-span-6 flex min-h-8 items-center text-sm text-muted-foreground xl:col-span-1">
                   Sin autor
                 </span>
-                <span className="col-span-2 lg:col-span-1">
+                <span className="col-span-2 xl:col-span-1">
                   <Stepper
                     disabled={pending}
                     readOnly={!statsEditable}
@@ -1164,22 +1164,22 @@ function PlanillaRow({
     { field: "ownGoals", label: "En contra", value: appearance.ownGoals },
   ] as const;
   return (
-    <li className={cn(planillaGrid, "py-2 sm:px-4 lg:min-h-14 lg:py-1")}>
+    <li className={cn(planillaGrid, "py-2 sm:px-4 xl:min-h-14 xl:py-1")}>
       <div
         className={cn(
-          "flex min-h-11 min-w-0 flex-col justify-center lg:col-span-1",
+          "flex min-h-11 min-w-0 flex-col justify-center xl:col-span-1",
           costKnown ? "col-span-3" : "col-span-6",
         )}
       >
         <span className="truncate text-sm font-medium">{appearance.playerDisplayName}</span>
         {costKnown ? (
-          <span className="text-xs text-muted-foreground tabular-nums lg:hidden">
+          <span className="text-xs text-muted-foreground tabular-nums xl:hidden">
             {formatMoney(appearance.paidMinor)} de {formatMoney(appearance.expectedMinor)}
           </span>
         ) : null}
       </div>
       {costKnown ? (
-        <div className="col-span-3 flex justify-end has-[form]:col-span-6 lg:order-last lg:col-span-1 lg:has-[form]:col-span-1">
+        <div className="col-span-3 flex justify-end has-[form]:col-span-6 xl:order-last xl:col-span-1 xl:has-[form]:col-span-1">
           <PaymentCell
             appearance={appearance}
             compact
@@ -1191,7 +1191,7 @@ function PlanillaRow({
         </div>
       ) : null}
       {stats.map((stat) => (
-        <span key={stat.field} className="col-span-2 lg:col-span-1">
+        <span key={stat.field} className="col-span-2 xl:col-span-1">
           <Stepper
             disabled={pending}
             readOnly={!editableStats}
@@ -1292,7 +1292,7 @@ function Stepper({
   }
   return (
     <span
-      className="mx-auto flex w-28 items-center justify-between rounded-md bg-muted/50"
+      className="mx-auto flex w-full max-w-28 min-w-0 items-center justify-between rounded-md bg-muted/50"
       role="group"
       aria-label={label}
     >
@@ -1307,7 +1307,7 @@ function Stepper({
       </Button>
       <span
         className={cn(
-          "min-w-5 text-center text-sm font-semibold tabular-nums",
+          "min-w-4 text-center text-sm font-semibold tabular-nums",
           value === 0 && "font-normal text-muted-foreground",
         )}
       >
@@ -1505,7 +1505,7 @@ function PaymentCell({
   return (
     <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
       <span
-        className={cn("text-sm tabular-nums text-muted-foreground", compact && "hidden lg:inline")}
+        className={cn("text-sm tabular-nums text-muted-foreground", compact && "hidden xl:inline")}
       >
         <span className={cn("font-semibold", statusStyles[appearance.contributionStatus])}>
           {formatMoney(appearance.paidMinor)}
