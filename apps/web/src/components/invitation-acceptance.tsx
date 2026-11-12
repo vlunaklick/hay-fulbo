@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { PublicHeading, PublicShell } from "@/components/public-shell";
+import { GroupPassBenefits } from "@/components/group-pass-benefits";
+import { AccountSwitch, GroupPass, PublicSplit } from "@/components/public-shell";
 import { authClient } from "@/lib/auth-client";
 import { queryClient } from "@/utils/trpc";
 
@@ -41,27 +42,38 @@ export function InvitationAcceptance({
   }
 
   return (
-    <PublicShell>
-      <PublicHeading
-        title={`Te invitaron a ${groupName}`}
-        description={`Al aceptar, tu cuenta ${email} va a quedar vinculada con tu jugador en este grupo.`}
-      />
-      <div className="flex flex-col gap-3">
-        {error ? (
+    <PublicSplit
+      context={
+        <GroupPass groupName={groupName} kicker="Te invitaron a">
+          <GroupPassBenefits
+            items={[
+              "Tu cuenta queda vinculada con tu jugador en este grupo.",
+              "Ves los partidos, las cuentas y las estadísticas del grupo.",
+            ]}
+          />
+        </GroupPass>
+      }
+      action={
+        error ? (
           <Alert id="invitation-error" variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-        ) : null}
-        <Button
-          aria-describedby={error ? "invitation-error" : undefined}
-          onClick={accept}
-          disabled={pending}
-        >
-          {pending ? <Spinner data-icon="inline-start" /> : null}
-          {pending ? "Aceptando…" : "Aceptar invitación"}
-          <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
-        </Button>
-      </div>
-    </PublicShell>
+        ) : null
+      }
+      bar={
+        <>
+          <Button
+            aria-describedby={error ? "invitation-error" : undefined}
+            onClick={accept}
+            disabled={pending}
+          >
+            {pending ? <Spinner data-icon="inline-start" /> : null}
+            {pending ? "Aceptando…" : "Aceptar invitación"}
+            {pending ? null : <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />}
+          </Button>
+          <AccountSwitch email={email} returnTo={`/invitaciones/${invitationId}`} />
+        </>
+      }
+    />
   );
 }
