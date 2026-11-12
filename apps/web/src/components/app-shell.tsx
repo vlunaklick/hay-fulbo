@@ -492,7 +492,6 @@ function CreateGroupGate() {
             <UsersRoundIcon aria-hidden="true" />
           </EmptyMedia>
           <EmptyTitle>Creá el grupo de la fecha</EmptyTitle>
-          <EmptyDescription>Ahí se guardan jugadores, canchas, partidos y pagos.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button onClick={() => setOpen(true)}>
