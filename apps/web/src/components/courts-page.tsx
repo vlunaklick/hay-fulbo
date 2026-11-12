@@ -2,15 +2,8 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
 import { Button } from "@hay-fulbo/ui/components/button";
-import { Card } from "@hay-fulbo/ui/components/card";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@hay-fulbo/ui/components/collapsible";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
-import { Separator } from "@hay-fulbo/ui/components/separator";
 import {
   Sheet,
   SheetBody,
@@ -26,22 +19,19 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
-  CalendarClockIcon,
   CheckIcon,
-  ChevronDownIcon,
   CircleAlertIcon,
   CopyIcon,
-  MapPinIcon,
   NavigationIcon,
   PencilIcon,
   PlusIcon,
 } from "lucide-react";
-import { Fragment, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppContext } from "@/components/app-shell";
-import { PageHeader } from "@/components/page-header";
-import { formatDate, formatMoney, formatRelativeDays, formatShortDate } from "@/lib/format";
+import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
+import { formatDate, formatMoney, formatShortDate } from "@/lib/format";
 import { queryClient, trpc } from "@/utils/trpc";
 
 type Court = {
@@ -73,6 +63,8 @@ export function CourtsPage() {
   const directory = useQuery(trpc.matches.directory.queryOptions());
   const [sheet, setSheet] = useState<SheetState>(null);
   const [error, setError] = useState<string | null>(null);
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const execute = useMutation(
     trpc.matches.execute.mutationOptions({
@@ -117,27 +109,26 @@ export function CourtsPage() {
     setSheet({ mode: "new" });
   }
 
+  const mostUsed = active[0];
+  const featured = next ?? (mostUsed?.played ? mostUsed : undefined);
+
+  function openCourt(courtId: string) {
+    setError(null);
+    setArchivedOpen(false);
+    setSheet({ mode: "view", courtId });
+  }
+
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+      <StatusHeader
         title="Canchas"
-        actions={
-          canManage ? (
-            <Button variant="outline" onClick={openNew}>
-              <PlusIcon data-icon="inline-start" aria-hidden="true" />
-              Nueva cancha
-            </Button>
-          ) : null
-        }
+        meta={active.length > 1 ? "Ordenadas por uso" : "Dónde juegan"}
       />
 
       {directory.isPending ? (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-2">
           {Array.from({ length: 5 }, (_, index) => (
-            <Skeleton
-              key={index}
-              className="h-16 w-full rounded-none first:rounded-t-md last:rounded-b-md"
-            />
+            <Skeleton key={index} className="h-12 w-full" />
           ))}
         </div>
       ) : directory.isError ? (
@@ -146,90 +137,113 @@ export function CourtsPage() {
           <AlertTitle>No pudimos cargar las canchas</AlertTitle>
           <AlertDescription>{directory.error.message}</AlertDescription>
         </Alert>
-      ) : courts.length === 0 ? (
-        <EmptyRow canManage={canManage} onCreate={openNew} />
       ) : (
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-          {next?.nextMatchAt ? (
-            <section
-              aria-labelledby="courts-next"
-              className="lg:sticky lg:top-8 lg:col-start-2 lg:row-start-1"
-            >
-              <Card className="gap-4 p-4">
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                  <CalendarClockIcon className="size-4" aria-hidden="true" />
-                  <h2 id="courts-next">
-                    Próximo partido ·{" "}
-                    <span className="tabular-nums">{formatDate(next.nextMatchAt)}</span>
-                  </h2>
-                </div>
-                <div className="flex min-w-0 flex-col gap-1">
-                  <p className="text-lg font-bold text-balance">{next.name}</p>
-                  <p className="text-sm text-muted-foreground">{next.address}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    className="flex-1"
-                    nativeButton={false}
-                    render={<a href={next.mapsUrl} target="_blank" rel="noreferrer" />}
-                  >
-                    <NavigationIcon data-icon="inline-start" aria-hidden="true" />
-                    Cómo llegar
-                  </Button>
-                  <CopyAddressButton address={next.address} name={next.name} variant="outline" />
-                </div>
-              </Card>
-            </section>
+        <>
+          {active.length ? (
+            <HeroNumber caption={active.length === 1 ? "cancha activa" : "canchas activas"}>
+              {active.length}
+            </HeroNumber>
           ) : null}
 
-          <div className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-1">
-            {active.length ? (
-              <section aria-labelledby="courts-active" className="flex flex-col gap-3">
-                <h2 id="courts-active" className="text-base font-semibold">
-                  Activas{" "}
-                  <span className="text-muted-foreground tabular-nums">{active.length}</span>
-                </h2>
-                <CourtList
-                  courts={active}
-                  onOpen={(courtId) => {
-                    setError(null);
-                    setSheet({ mode: "view", courtId });
-                  }}
-                />
-              </section>
-            ) : null}
-
-            {archived.length ? (
-              <Collapsible className="flex flex-col gap-3">
-                <CollapsibleTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      className="group/archived -mx-3 w-fit text-muted-foreground"
-                    />
-                  }
+          {featured ? (
+            <NextStep
+              kicker={
+                next?.nextMatchAt ? (
+                  <>
+                    Próximo partido ·{" "}
+                    <span className="tabular-nums">{formatDate(next.nextMatchAt)}</span>
+                  </>
+                ) : (
+                  "La que más usan"
+                )
+              }
+              title={featured.name}
+              action={
+                <Button
+                  nativeButton={false}
+                  render={<a href={featured.mapsUrl} target="_blank" rel="noreferrer" />}
                 >
-                  Archivadas <span className="tabular-nums">{archived.length}</span>
-                  <ChevronDownIcon
-                    data-icon="inline-end"
-                    aria-hidden="true"
-                    className="transition-transform duration-150 ease-out group-aria-expanded/archived:rotate-180 motion-reduce:transition-none"
-                  />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CourtList
-                    courts={archived}
-                    onOpen={(courtId) => {
-                      setError(null);
-                      setSheet({ mode: "view", courtId });
-                    }}
-                  />
-                </CollapsibleContent>
-              </Collapsible>
-            ) : null}
-          </div>
-        </div>
+                  <NavigationIcon data-icon="inline-start" aria-hidden="true" />
+                  Cómo llegar
+                </Button>
+              }
+            >
+              {featured.address}
+            </NextStep>
+          ) : canManage ? (
+            <NextStep
+              kicker={courts.length ? "Sin canchas activas" : "Todavía no hay canchas"}
+              title="Agregá dónde juegan"
+              action={
+                <Button onClick={openNew}>
+                  <PlusIcon data-icon="inline-start" aria-hidden="true" />
+                  Agregar cancha
+                </Button>
+              }
+            >
+              Guardá la cancha para que todos lleguen con un toque.
+            </NextStep>
+          ) : (
+            <NextStep
+              kicker={courts.length ? "Sin canchas activas" : "Todavía no hay canchas"}
+              title="Todavía no hay a dónde ir"
+            >
+              Cuando el organizador cargue una, vas a ver cómo llegar desde acá.
+            </NextStep>
+          )}
+
+          {active.length || archived.length || canManage ? (
+            <DrillList>
+              {active.map((court) => (
+                <DrillRow
+                  key={court.id}
+                  label={court.name}
+                  value={usage(court)}
+                  onClick={() => openCourt(court.id)}
+                />
+              ))}
+              {canManage && featured ? (
+                <DrillRow
+                  label="Agregar cancha"
+                  leading={<PlusIcon aria-hidden="true" className="size-4" />}
+                  onClick={openNew}
+                />
+              ) : null}
+              {archived.length ? (
+                <DrillRow
+                  label="Archivadas"
+                  value={archived.length}
+                  onClick={() => setArchivedOpen(true)}
+                />
+              ) : null}
+            </DrillList>
+          ) : null}
+        </>
       )}
+
+      <Sheet open={archivedOpen} onOpenChange={setArchivedOpen}>
+        <SheetContent
+          side={isMobile ? "bottom" : "right"}
+          className="max-h-[92dvh] md:max-h-none md:max-w-md"
+        >
+          <SheetHeader>
+            <SheetTitle>Canchas archivadas</SheetTitle>
+            <SheetDescription>No aparecen al crear partidos.</SheetDescription>
+          </SheetHeader>
+          <SheetBody>
+            <DrillList>
+              {archived.map((court) => (
+                <DrillRow
+                  key={court.id}
+                  label={court.name}
+                  value={usage(court)}
+                  onClick={() => openCourt(court.id)}
+                />
+              ))}
+            </DrillList>
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
 
       <CourtSheet
         key={sheet ? `${sheet.mode}-${"courtId" in sheet ? sheet.courtId : "new"}` : "closed"}
@@ -265,50 +279,6 @@ export function CourtsPage() {
         }}
       />
     </div>
-  );
-}
-
-function CourtList({ courts, onOpen }: { courts: Court[]; onOpen: (courtId: string) => void }) {
-  return (
-    <Card className="gap-0 py-0">
-      {courts.map((court, index) => (
-        <Fragment key={court.id}>
-          {index > 0 ? <Separator /> : null}
-          <div className="flex items-center gap-1 pr-2">
-            <Button
-              aria-label={`Ver ${court.name}`}
-              className="h-auto min-h-16 min-w-0 flex-1 justify-start rounded-none py-3 pl-4 text-left font-normal whitespace-normal"
-              onClick={() => onOpen(court.id)}
-              variant="ghost"
-            >
-              <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="truncate text-sm font-semibold">{court.name}</span>
-                <span className="truncate text-xs text-muted-foreground">{court.address}</span>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {court.nextMatchAt ? (
-                    <span className="font-medium text-foreground">
-                      Próximo {formatShortDate(court.nextMatchAt)} ·{" "}
-                    </span>
-                  ) : null}
-                  {usage(court)}
-                </span>
-              </span>
-            </Button>
-            <CopyAddressButton address={court.address} name={court.name} />
-            <Button
-              aria-label={`Cómo llegar a ${court.name}`}
-              className="text-primary-text"
-              nativeButton={false}
-              render={<a href={court.mapsUrl} target="_blank" rel="noreferrer" />}
-              size="icon"
-              variant="ghost"
-            >
-              <NavigationIcon aria-hidden="true" />
-            </Button>
-          </div>
-        </Fragment>
-      ))}
-    </Card>
   );
 }
 
@@ -574,32 +544,9 @@ function Fact({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function EmptyRow({ canManage, onCreate }: { canManage: boolean; onCreate: () => void }) {
-  return (
-    <div className="flex flex-col items-start gap-4 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center">
-      <MapPinIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="text-sm font-medium">Todavía no hay canchas</p>
-        <p className="text-sm text-muted-foreground">
-          {canManage
-            ? "Guardá dónde juegan para que todos lleguen con un toque."
-            : "Cuando el organizador cargue una, vas a ver cómo llegar desde acá."}
-        </p>
-      </div>
-      {canManage ? (
-        <Button onClick={onCreate}>
-          <PlusIcon data-icon="inline-start" aria-hidden="true" />
-          Nueva cancha
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
 function usage(court: Court) {
-  if (!court.played) return "Todavía sin partidos";
-  const count = `${court.played} ${court.played === 1 ? "partido" : "partidos"}`;
-  return court.lastPlayedAt ? `${count} · último ${formatRelativeDays(court.lastPlayedAt)}` : count;
+  if (!court.played) return "Sin uso";
+  return `${court.played} ${court.played === 1 ? "partido" : "partidos"}`;
 }
 
 function byUse(a: Court, b: Court) {
