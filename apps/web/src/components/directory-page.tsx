@@ -186,7 +186,7 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
               {isPlayers && role === "owner" ? (
                 <Button
                   nativeButton={false}
-                  render={<Link href="/dashboard/grupo#invitar" />}
+                  render={<Link href="/dashboard/grupo?tema=invitar" />}
                   variant="ghost"
                 >
                   <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
