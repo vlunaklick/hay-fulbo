@@ -5,11 +5,12 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRef } from "react";
 
+import { NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { StatsError } from "@/features/stats/stats-error";
 
 import { ViewContext, type ViewDetail, type ViewSection } from "./context";
-import { useViewDashboard, type ViewSource } from "./data";
-import { DetailSheet } from "./detail-sheet";
+import { useViewDashboard, type ViewDashboard, type ViewSource } from "./data";
+import { DetailPanel } from "./detail-panel";
 import { GroupHome } from "./group-home";
 import { useSharedCapability } from "./shared-capability";
 
@@ -38,7 +39,8 @@ export function SharedLinkView() {
 /**
  * The read-only group screen. It lives in the route layout so `/partidos/[id]` and
  * `/jugadores/[id]` open as a sheet over the same screen instead of a new page.
- * Sections (`?seccion=resultados|tabla|caja`) open in the same sheet.
+ * Sections (`?seccion=resultados|tabla|caja`) open in the same sheet. On desktop the
+ * screen is the left column and what a row opens fills the right one, never empty.
  */
 function GroupView({ ready, source }: { ready: boolean; source: ViewSource }) {
   const router = useRouter();
@@ -46,6 +48,7 @@ function GroupView({ ready, source }: { ready: boolean; source: ViewSource }) {
   const searchParams = useSearchParams();
   const pushed = useRef(0);
   const query = useViewDashboard(source, ready);
+  const desktop = useIsDesktop();
 
   const base = source.kind === "shared" ? "/compartido" : `/g/${source.slug}`;
   const detail = parseDetail(pathname.slice(base.length));
@@ -53,6 +56,12 @@ function GroupView({ ready, source }: { ready: boolean; source: ViewSource }) {
   const requested = searchParams.get("seccion") ?? searchParams.get("tab");
   const section = sections.find((item) => item === requested) ?? null;
   const showMoney = source.kind === "shared";
+  const requestedSection = section === "caja" && !showMoney ? null : section;
+  // Desktop never leaves the right column empty: open the most relevant row.
+  const fallback =
+    desktop && !detail && !requestedSection && query.data
+      ? defaultOpen(query.data, showMoney)
+      : null;
 
   function withParams(path: string, mutate?: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
@@ -64,8 +73,8 @@ function GroupView({ ready, source }: { ready: boolean; source: ViewSource }) {
   const context = {
     source,
     showMoney,
-    detail,
-    section: section === "caja" && !showMoney ? null : section,
+    detail: detail ?? (fallback && "kind" in fallback ? fallback : null),
+    section: requestedSection ?? (fallback && "section" in fallback ? fallback.section : null),
     param: (key: string) => searchParams.get(key),
     setParam(key: string, value: string | null) {
       router.replace(
@@ -125,12 +134,30 @@ function GroupView({ ready, source }: { ready: boolean; source: ViewSource }) {
 
   return (
     <ViewContext value={context}>
-      <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-6 bg-background px-4 pt-6 pb-12 text-foreground sm:pt-10">
-        {query.data ? <GroupHome dashboard={query.data} /> : <ViewLoading />}
+      <main className="mx-auto min-h-dvh w-full max-w-6xl bg-background px-4 pt-6 pb-12 text-foreground sm:pt-10 lg:px-8">
+        <NextStepLayout className="lg:[&>div:first-child]:top-10">
+          {query.data ? (
+            <>
+              <GroupHome dashboard={query.data} />
+              <DetailPanel dashboard={query.data} />
+            </>
+          ) : (
+            <ViewLoading />
+          )}
+        </NextStepLayout>
       </main>
-      {query.data ? <DetailSheet dashboard={query.data} /> : null}
     </ViewContext>
   );
+}
+
+function defaultOpen(
+  dashboard: ViewDashboard,
+  showMoney: boolean,
+): NonNullable<ViewDetail> | { section: ViewSection } {
+  if (showMoney && dashboard.finances?.debtors.length) return { section: "caja" };
+  if (dashboard.upcoming) return { kind: "partido", id: dashboard.upcoming.matchId };
+  if (dashboard.history.length > 0) return { section: "resultados" };
+  return { section: "tabla" };
 }
 
 function parseDetail(rest: string): ViewDetail {
