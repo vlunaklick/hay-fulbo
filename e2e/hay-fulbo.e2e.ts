@@ -63,10 +63,7 @@ test("an organizer can create a group and its first match", async ({ page }, tes
   await expect(page).toHaveURL(/\/dashboard\/partidos$/);
   await expect(page.getByRole("heading", { name: "Partidos" })).toBeVisible();
   await expect(page.getByText("Todavía no hay partidos")).toBeVisible();
-  await activate(page.getByRole("button", { name: /Nuevo/ }), page);
-
-  await expect(page.getByRole("heading", { name: "Nuevo partido" })).toBeVisible();
-  await page.getByRole("button", { name: "Crear partido" }).click();
+  await activate(page.getByRole("button", { name: /^Crear / }), page);
 
   await expect(page).toHaveURL(/\/dashboard\/partidos\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Equipo 1", { exact: true }).first()).toBeVisible();
