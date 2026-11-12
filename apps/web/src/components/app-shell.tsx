@@ -32,11 +32,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarSeparator,
   SidebarTrigger,
   useSidebar,
 } from "@hay-fulbo/ui/components/sidebar";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
+import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   HouseIcon,
@@ -220,7 +220,7 @@ export function AppShell({
               </div>
             </div>
           </header>
-          <div className="mx-auto w-full max-w-7xl px-4 py-4 pb-28 md:px-6 md:py-5 md:pb-8 xl:px-8">
+          <div className="mx-auto w-full max-w-6xl px-4 py-5 pb-28 md:px-8 md:py-8 md:pb-10">
             {children}
           </div>
         </SidebarInset>
@@ -229,23 +229,30 @@ export function AppShell({
           className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t bg-sidebar px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden"
           aria-label="Principal"
         >
-          {navigation.map((item) => (
-            <Button
-              key={item.href}
-              variant={isActivePath(pathname, item.href) ? "secondary" : "ghost"}
-              render={
-                <Link
-                  href={item.href}
-                  aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
-                />
-              }
-              nativeButton={false}
-              className="h-14 flex-col gap-1"
-            >
-              <item.icon aria-hidden="true" />
-              <span className="text-xs">{item.label}</span>
-            </Button>
-          ))}
+          {navigation.map((item) => {
+            const active = isActivePath(pathname, item.href);
+            return (
+              <Button
+                key={item.href}
+                variant="ghost"
+                render={<Link href={item.href} aria-current={active ? "page" : undefined} />}
+                nativeButton={false}
+                className={cn(
+                  "relative h-14 flex-col gap-1 hover:bg-transparent",
+                  active ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {active ? (
+                  <span
+                    className="absolute top-0 h-0.5 w-6 rounded-full bg-primary"
+                    aria-hidden="true"
+                  />
+                ) : null}
+                <item.icon aria-hidden="true" />
+                <span className="text-xs font-medium">{item.label}</span>
+              </Button>
+            );
+          })}
         </nav>
       </SidebarProvider>
     </AppContext>
@@ -281,12 +288,9 @@ function ShellSidebar({
         <Brand collapsed={collapsed} />
         <SidebarTrigger aria-label={toggleLabel} title={toggleLabel} />
       </SidebarHeader>
-      <SidebarSeparator />
-      <SidebarGroup className="group-data-[collapsible=icon]:items-center">
-        <SidebarGroupLabel>Grupo</SidebarGroupLabel>
+      <SidebarGroup className="pb-0 group-data-[collapsible=icon]:items-center">
         <GroupSwitcher activeGroup={group} compact={collapsed} groups={groups} role={role} />
       </SidebarGroup>
-      <SidebarSeparator />
       <SidebarContent>
         <nav aria-label="Principal" className="flex flex-col">
           <SidebarGroup>
@@ -302,7 +306,6 @@ function ShellSidebar({
           </SidebarGroup>
         </nav>
       </SidebarContent>
-      <SidebarSeparator />
       <SidebarFooter className="flex-row items-center group-data-[collapsible=icon]:flex-col">
         <ModeToggle />
         <div className="min-w-0 flex-1 group-data-[collapsible=icon]:flex-none">
@@ -355,7 +358,7 @@ function Brand({ collapsed }: { collapsed: boolean }) {
       className="flex min-w-0 items-center gap-2"
       aria-label={collapsed ? "Hay Fulbo, inicio" : undefined}
     >
-      <LogoMark className="size-9 shrink-0" />
+      <LogoMark className="size-8 shrink-0" />
       {collapsed ? null : <span className="truncate font-bold tracking-tight">Hay Fulbo</span>}
     </Link>
   );

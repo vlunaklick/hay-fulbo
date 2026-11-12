@@ -80,19 +80,23 @@ export function GroupSwitcher({
                 className={
                   compact
                     ? undefined
-                    : "h-auto w-full min-w-0 justify-between gap-1 overflow-hidden text-left"
+                    : "w-full min-w-0 justify-start gap-2.5 overflow-hidden px-2 text-left"
                 }
               />
             }
           >
-            {compact ? (
-              <span className="text-xs font-bold" aria-hidden="true">
-                {activeGroup.name.slice(0, 2).toLocaleUpperCase("es")}
-              </span>
-            ) : (
+            <span
+              className="grid size-7 shrink-0 place-items-center rounded-md bg-secondary text-xs font-bold text-secondary-foreground"
+              aria-hidden="true"
+            >
+              {activeGroup.name.slice(0, 2).toLocaleUpperCase("es")}
+            </span>
+            {compact ? null : (
               <>
-                <span className="min-w-0 truncate text-sm font-semibold">{activeGroup.name}</span>
-                <ChevronsUpDownIcon className="shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {activeGroup.name}
+                </span>
+                <ChevronsUpDownIcon className="shrink-0 text-muted-foreground" aria-hidden="true" />
               </>
             )}
           </DropdownMenuTrigger>

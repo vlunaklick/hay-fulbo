@@ -145,16 +145,17 @@ Todos los colores son tokens semánticos en OKLCH con valor claro y oscuro. El c
 
 **Fuente:** Manrope Variable (`font-sans`), una sola familia. Los números de marcadores, importes y rankings usan `tabular-nums` para no saltar.
 
-| Rol           | Clases                                          | Uso                                                          |
-| ------------- | ----------------------------------------------- | ------------------------------------------------------------ |
-| Display       | `text-5xl`…`text-7xl font-black tabular-nums`   | Marcador en vivo, resultado hero.                            |
-| Page title    | `text-2xl font-bold tracking-tight md:text-3xl` | `h1` de cada pantalla del dashboard.                         |
-| Section title | `text-lg font-bold` o `CardTitle`               | Secciones y jugadores destacados.                            |
-| Body          | `text-sm` (`text-base` en inputs móviles)       | Contenido y formularios; textos largos a 70ch.               |
-| Eyebrow       | `eyebrow` (+ color)                             | Kicker sobre un título, label de un dato, caption de equipo. |
-| Caption       | `text-xs text-muted-foreground`                 | Metadata secundaria.                                         |
+| Rol           | Clases                                             | Uso                                                     |
+| ------------- | -------------------------------------------------- | ------------------------------------------------------- |
+| Display       | `text-5xl`…`text-7xl font-black tabular-nums`      | Marcador en vivo, resultado hero.                       |
+| Page title    | `PageHeader` (`text-2xl font-bold tracking-tight`) | `h1` de cada pantalla del dashboard.                    |
+| Section title | `text-lg font-bold` o `CardTitle`                  | Secciones y jugadores destacados.                       |
+| Body          | `text-sm` (`text-base` en inputs móviles)          | Contenido y formularios; textos largos a 70ch.          |
+| Label         | `text-xs font-medium text-muted-foreground`        | Label de un dato, encabezado de columna, kicker.        |
+| Eyebrow       | `eyebrow` (+ color)                                | Solo en superficies de marca (login, páginas públicas). |
+| Caption       | `text-xs text-muted-foreground`                    | Metadata secundaria.                                    |
 
-`eyebrow` es una utilidad del sistema (`text-xs`, 600, `0.12em`, mayúsculas). No construir eyebrows a mano con `tracking-[…]` ni tamaños arbitrarios: nada por debajo de `text-xs` (12 px). Los inputs usan `text-base` en móvil para que iOS no haga zoom.
+Los labels van en minúscula inicial, no en mayúsculas espaciadas: varias mayúsculas con tracking en una misma vista hacen ruido. `eyebrow` es una utilidad del sistema (`text-xs`, 600, `0.12em`, mayúsculas). No construir eyebrows a mano con `tracking-[…]` ni tamaños arbitrarios: nada por debajo de `text-xs` (12 px). Los inputs usan `text-base` en móvil para que iOS no haga zoom.
 
 ## Shape
 
@@ -221,6 +222,17 @@ Barra superior compacta y navegación inferior móvil cuando existan tres o más
 ### Match stepper
 
 La carga del Partido se organiza en tabs directas con un checklist compacto de completitud. Cada paso muestra solo los controles necesarios y conserva un único CTA fijo para avanzar o cerrar.
+
+## Layout & composition
+
+- **Page header.** Toda pantalla del dashboard abre con `PageHeader` (`apps/web/src/components/page-header.tsx`): `h1`, una línea opcional en `muted-foreground` y, a la derecha en escritorio, sus acciones. Nada de eyebrows de color encima del título.
+- **Space before boxes.** Las secciones se separan con espacio (`gap-8` entre secciones, `gap-4` dentro) y un `h2` `text-base font-semibold`, no envolviendo todo en cards. Una card agrupa datos que se leen juntos; no se anidan ni se apilan cards de una línea.
+- **Metrics strip.** Varios datos sueltos van en una sola card dividida (`divide-x`), no en una card por dato. Label `text-xs font-medium text-muted-foreground`, valor `text-lg font-semibold tabular-nums`.
+- **Nothing yet is quiet.** Un dato sin valor muestra `—` en `muted-foreground` y una pista corta en `text-xs`, nunca una frase con el peso de un dato real.
+- **Empty states are compact.** Dentro de una card: una línea `text-sm text-muted-foreground`. A nivel página: una fila con icono, título, una frase y la acción, con `border-dashed`; nunca un bloque de varios cientos de píxeles vacío. `Empty` grande solo cuando la pantalla entera no tiene nada que mostrar.
+- **Card headers.** `CardHeader` + `CardTitle` + `CardAction`: la acción se centra en la línea del título (el componente ya lo resuelve; no agregar márgenes a mano).
+- **Lists over grids.** Filas de 44 px separadas por `border-t` dentro de una card, con la info principal a la izquierda y la secundaria (`text-xs text-muted-foreground`) a la derecha.
+- **Dates and money.** Fechas con `formatDate`/`formatShortDate` (24 h); importes con `formatMoney` y `tabular-nums`.
 
 ## Do's and Don'ts
 
