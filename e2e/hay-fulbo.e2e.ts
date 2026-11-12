@@ -53,6 +53,9 @@ test("an organizer can create a group and its first match", async ({ page }, tes
   await page.getByRole("button", { name: "Crear y entrar" }).click();
 
   await expect(page.getByRole("heading", { name: "Resumen del grupo" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Próximo paso" })).toContainText(
+    "Armá el próximo partido",
+  );
   await expectWcagAA(page);
   await expectNoHorizontalOverflow(page);
   if (desktop) await expectNoDocumentScroll(page);

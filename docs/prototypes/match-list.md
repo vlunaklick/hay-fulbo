@@ -38,3 +38,7 @@ La pregunta más frecuente al abrir la vista es "¿cuándo jugamos y dónde?", y
 - Prototipo en `/prototype/match-list`, con picker en vivo sobre la vista anterior. Se borró al integrar la variante elegida.
 - Revisado con datos sembrados por la API (14 partidos: abiertos, cerrados, uno sin cerrar y uno cancelado) a 390 × 844 y 1280 × 1100.
 - En el prototipo se probó el alta de punta a punta desde Agenda; el sheet de Planilla se abrió con cancha y costo precargados. El alta de La próxima se verificó ya integrada en producción.
+
+## Rediseño "Próximo paso" (nov 2026)
+
+Se mantiene la decisión de La próxima con el patrón de `docs/prototypes/proximo-paso.md`. `NextStep` muestra, en orden: el partido en juego, el primer partido sin cerrar (organizadores), la próxima fecha o, sin fecha, el alta rápida con fechas sugeridas. Los próximos y "Armar otra fecha" (abre una sheet con el alta) van en filas. Los jugados se agrupan por mes en filas fecha · resultado. El alta rápida es `QuickCreateForm` en `new-match-dialog.tsx`, y el inicio la abre en una sheet.
