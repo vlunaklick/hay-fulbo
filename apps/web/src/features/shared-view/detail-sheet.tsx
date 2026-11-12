@@ -16,7 +16,7 @@ import { useSyncExternalStore } from "react";
 import { formatMoney } from "@/lib/format";
 
 import { useView } from "./context";
-import { useViewMatch, useViewPlayer } from "./data";
+import { useViewMatch, useViewPlayer, type ViewDashboard } from "./data";
 import {
   contributionLine,
   FormGuide,
@@ -30,6 +30,7 @@ import {
   when,
   winnerSlot,
 } from "./parts";
+import { CashSection, ResultsSection, TableSection } from "./sections";
 
 const WIDE = "(min-width: 768px)";
 
@@ -39,19 +40,30 @@ function subscribeWide(callback: () => void) {
   return () => media.removeEventListener("change", callback);
 }
 
-/** Match or player detail over the current tab: bottom sheet on phones, side panel on desktop. */
-export function DetailSheet() {
-  const { detail, close } = useView();
+/**
+ * A section, or a match or player detail, over the screen: bottom sheet on phones,
+ * side panel on desktop. A detail wins over the section it was opened from.
+ */
+export function DetailSheet({ dashboard }: { dashboard: ViewDashboard }) {
+  const { detail, section, close } = useView();
   const wide = useSyncExternalStore(
     subscribeWide,
     () => window.matchMedia(WIDE).matches,
     () => false,
   );
   return (
-    <Sheet onOpenChange={(open) => (open ? undefined : close())} open={detail !== null}>
+    <Sheet
+      onOpenChange={(open) => (open ? undefined : close())}
+      open={detail !== null || section !== null}
+    >
       <SheetContent className={cn(!wide && "max-h-[88dvh]")} side={wide ? "right" : "bottom"}>
         {detail?.kind === "partido" ? <MatchDetail key={detail.id} matchId={detail.id} /> : null}
         {detail?.kind === "jugador" ? <PlayerDetail key={detail.id} playerId={detail.id} /> : null}
+        {detail === null && section === "resultados" ? (
+          <ResultsSection dashboard={dashboard} />
+        ) : null}
+        {detail === null && section === "tabla" ? <TableSection dashboard={dashboard} /> : null}
+        {detail === null && section === "caja" ? <CashSection dashboard={dashboard} /> : null}
       </SheetContent>
     </Sheet>
   );

@@ -5,7 +5,7 @@ import { cn } from "@hay-fulbo/ui/lib/utils";
 
 import { initials } from "@/lib/initials";
 
-import type { Outcome, ViewHistoryItem, ViewMatch } from "./data";
+import type { Outcome, ViewHistoryItem, ViewMatch, ViewRankingRow } from "./data";
 
 // ── Dates in the group's time zone ───────────────────────────────────────────
 
@@ -76,6 +76,17 @@ export function contributionLine(stats: { goals: number; assists: number }) {
   return [stats.goals ? `${stats.goals} G` : null, stats.assists ? `${stats.assists} A` : null]
     .filter(Boolean)
     .join(" · ");
+}
+
+export type RankingMetric = "contributions" | "goals" | "assists";
+
+export function sortRanking(ranking: readonly ViewRankingRow[], metric: RankingMetric) {
+  return [...ranking].sort(
+    (a, b) =>
+      b[metric] - a[metric] ||
+      b.contributions - a.contributions ||
+      a.displayName.localeCompare(b.displayName, "es"),
+  );
 }
 
 export function groupByMonth<T extends { scheduledAt: Date | string }>(items: T[], tz: string) {
