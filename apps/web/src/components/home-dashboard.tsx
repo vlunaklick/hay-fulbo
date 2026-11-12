@@ -372,9 +372,9 @@ function NextMatchHero({
 function PersonalMetric({ children, label }: { children: React.ReactNode; label: string }) {
   return (
     // dt/dd sit directly in the grouping div: a <dl> group may only be one <div> deep.
-    <div className="flex min-h-20 flex-col justify-center gap-1 px-4 py-3">
-      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="min-w-0">{children}</dd>
+    <div className="flex min-h-12 min-w-0 items-center justify-between gap-4 px-4 py-2.5 sm:min-h-20 sm:flex-col sm:items-start sm:justify-center sm:gap-1 sm:py-3">
+      <dt className="shrink-0 text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 text-right sm:text-left">{children}</dd>
     </div>
   );
 }
@@ -388,7 +388,7 @@ function MetricValue({ children, className }: { children: React.ReactNode; class
 /** A metric with nothing to show yet: a quiet dash plus why, so it never reads like an error. */
 function MetricPlaceholder({ hint }: { hint: string }) {
   return (
-    <span className="flex items-baseline gap-2">
+    <span className="flex min-w-0 items-baseline gap-2 max-sm:flex-row-reverse">
       <span className="text-lg font-semibold text-muted-foreground" aria-hidden="true">
         —
       </span>
