@@ -187,7 +187,7 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">
-          <p className="text-sm font-semibold text-primary">Directorio</p>
+          <p className="text-sm font-semibold text-primary-text">Directorio</p>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
             {isPlayers ? "Jugadores" : "Canchas"}
           </h1>

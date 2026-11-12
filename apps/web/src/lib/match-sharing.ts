@@ -1,3 +1,5 @@
+import { tokenHex } from "@hay-fulbo/ui/tokens";
+
 export type MatchShareDetails = {
   court: { address: string; mapsUrl: string; name: string } | null;
   currency: string;
@@ -82,6 +84,18 @@ export function downloadCalendar(filename: string, contents: string) {
   URL.revokeObjectURL(url);
 }
 
+// The share card is a standalone image, so it carries the dark theme as literal hex.
+const palette = {
+  background: tokenHex("background", "dark"),
+  card: tokenHex("card", "dark"),
+  foreground: tokenHex("foreground", "dark"),
+  mutedForeground: tokenHex("muted-foreground", "dark"),
+  primary: tokenHex("primary", "dark"),
+  secondaryForeground: tokenHex("secondary-foreground", "dark"),
+};
+
+const fontFamily = "Manrope, Arial, sans-serif";
+
 export function buildResultCardSvg(input: {
   dateLabel: string;
   groupName: string;
@@ -96,19 +110,19 @@ export function buildResultCardSvg(input: {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080" role="img" aria-labelledby="title description">
   <title id="title">${leftName} ${input.left.goals} a ${input.right.goals} ${rightName}</title>
   <desc id="description">Resultado de ${groupName}, ${dateLabel}</desc>
-  <rect width="1080" height="1080" fill="#09090b"/>
-  <rect x="48" y="48" width="984" height="984" rx="38" fill="#10281f" stroke="#34d399" stroke-opacity=".42" stroke-width="4"/>
-  <path d="M540 224v540M104 494h872" stroke="#f4f4f5" stroke-opacity=".08" stroke-width="3"/>
-  <circle cx="540" cy="494" r="126" fill="none" stroke="#f4f4f5" stroke-opacity=".08" stroke-width="3"/>
-  <text x="540" y="132" fill="#34d399" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="7" text-anchor="middle">HAY FULBO</text>
-  <text x="540" y="184" fill="#a1a1aa" font-family="Arial, sans-serif" font-size="27" text-anchor="middle">${groupName} · ${dateLabel}</text>
-  <text x="300" y="360" fill="#fafafa" font-family="Arial, sans-serif" font-size="42" font-weight="800" text-anchor="middle">${leftName}</text>
-  <text x="780" y="360" fill="#fafafa" font-family="Arial, sans-serif" font-size="42" font-weight="800" text-anchor="middle">${rightName}</text>
-  <text x="300" y="668" fill="#fafafa" font-family="Arial, sans-serif" font-size="300" font-weight="900" text-anchor="middle">${input.left.goals}</text>
-  <text x="540" y="630" fill="#34d399" font-family="Arial, sans-serif" font-size="88" font-weight="900" text-anchor="middle">—</text>
-  <text x="780" y="668" fill="#fafafa" font-family="Arial, sans-serif" font-size="300" font-weight="900" text-anchor="middle">${input.right.goals}</text>
-  <text x="540" y="870" fill="#d4d4d8" font-family="Arial, sans-serif" font-size="34" font-weight="700" letter-spacing="5" text-anchor="middle">RESULTADO FINAL</text>
-  <text x="540" y="950" fill="#71717a" font-family="Arial, sans-serif" font-size="25" text-anchor="middle">Organizá. Jugá. Que quede la historia.</text>
+  <rect width="1080" height="1080" fill="${palette.background}"/>
+  <rect x="48" y="48" width="984" height="984" rx="38" fill="${palette.card}" stroke="${palette.primary}" stroke-opacity=".42" stroke-width="4"/>
+  <path d="M540 224v540M104 494h872" stroke="${palette.foreground}" stroke-opacity=".08" stroke-width="3"/>
+  <circle cx="540" cy="494" r="126" fill="none" stroke="${palette.foreground}" stroke-opacity=".08" stroke-width="3"/>
+  <text x="540" y="132" fill="${palette.primary}" font-family="${fontFamily}" font-size="28" font-weight="700" letter-spacing="7" text-anchor="middle">HAY FULBO</text>
+  <text x="540" y="184" fill="${palette.mutedForeground}" font-family="${fontFamily}" font-size="27" text-anchor="middle">${groupName} · ${dateLabel}</text>
+  <text x="300" y="360" fill="${palette.foreground}" font-family="${fontFamily}" font-size="42" font-weight="800" text-anchor="middle">${leftName}</text>
+  <text x="780" y="360" fill="${palette.foreground}" font-family="${fontFamily}" font-size="42" font-weight="800" text-anchor="middle">${rightName}</text>
+  <text x="300" y="668" fill="${palette.foreground}" font-family="${fontFamily}" font-size="300" font-weight="900" text-anchor="middle">${input.left.goals}</text>
+  <text x="540" y="630" fill="${palette.primary}" font-family="${fontFamily}" font-size="88" font-weight="900" text-anchor="middle">—</text>
+  <text x="780" y="668" fill="${palette.foreground}" font-family="${fontFamily}" font-size="300" font-weight="900" text-anchor="middle">${input.right.goals}</text>
+  <text x="540" y="870" fill="${palette.secondaryForeground}" font-family="${fontFamily}" font-size="34" font-weight="700" letter-spacing="5" text-anchor="middle">RESULTADO FINAL</text>
+  <text x="540" y="950" fill="${palette.mutedForeground}" font-family="${fontFamily}" font-size="25" text-anchor="middle">Organizá. Jugá. Que quede la historia.</text>
 </svg>`;
 }
 

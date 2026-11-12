@@ -81,7 +81,7 @@ export default function Home() {
             </View>
             {isLoading && <Icon as={HourglassIcon} className="size-5 text-muted-foreground" />}
             {!isLoading && isConnected && (
-              <Icon as={CircleCheckIcon} className="size-5 text-primary" />
+              <Icon as={CircleCheckIcon} className="size-5 text-primary-text" />
             )}
             {!isLoading && !isConnected && (
               <Icon as={CircleXIcon} className="size-5 text-destructive" />

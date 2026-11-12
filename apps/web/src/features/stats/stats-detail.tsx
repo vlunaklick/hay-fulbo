@@ -216,7 +216,7 @@ function PlayerStatsContent({
         </Avatar>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-3xl font-semibold tracking-tight">
+            <h1 className="truncate text-3xl font-bold tracking-tight">
               {data.player.displayName}
             </h1>
             {data.player.archived ? <Badge variant="outline">Inactivo</Badge> : null}
@@ -301,7 +301,7 @@ function PlayerStatsContent({
                     </span>
                   </span>
                   <span className="flex flex-col items-end gap-2 sm:flex-row">
-                    <Badge variant={match.outcome === "win" ? "secondary" : "outline"}>
+                    <Badge variant={match.outcome === "win" ? "success" : "outline"}>
                       {outcomeLabel(match.outcome)}
                     </Badge>
                     <span className="text-sm font-semibold tabular-nums">

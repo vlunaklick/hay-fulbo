@@ -99,9 +99,7 @@ function PitchShell({
           Salir
         </Button>
         <div className="text-center">
-          <p className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-primary">
-            Modo cancha
-          </p>
+          <p className="eyebrow text-primary-text">Modo cancha</p>
           <p className="text-xs text-muted-foreground">Tocá Gol y elegí quién la hizo</p>
         </div>
         <Button

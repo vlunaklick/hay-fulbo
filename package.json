@@ -57,6 +57,7 @@
     "coolify:apply": "node ops/coolify/reconcile.mjs --apply",
     "coolify:deploy": "node ops/coolify/deploy.mjs",
     "coolify:smoke": "node ops/coolify/smoke.mjs",
+    "tokens:sync": "bun run --filter @hay-fulbo/ui tokens:sync",
     "check": "bun run lint && bun run format:check && bun run check-types"
   },
   "dependencies": {

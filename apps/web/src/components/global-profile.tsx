@@ -50,7 +50,7 @@ export function GlobalProfile() {
           </AvatarFallback>
         </Avatar>
         <div>
-          <p className="text-sm font-semibold text-primary">Mi perfil</p>
+          <p className="text-sm font-semibold text-primary-text">Mi perfil</p>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{user.name}</h1>
           <p className="text-sm text-muted-foreground">
             Tus números sumados entre todos los grupos.

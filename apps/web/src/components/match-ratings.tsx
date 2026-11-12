@@ -130,7 +130,7 @@ export function MatchRatings({ matchId, teams }: { matchId: string; teams: Detai
                           </span>
                           <div className="flex shrink-0 items-center gap-2">
                             {data.revealed && summary?.average !== null && summary ? (
-                              <span className="font-mono text-sm font-bold tabular-nums text-muted-foreground">
+                              <span className="text-sm font-bold tabular-nums text-muted-foreground">
                                 {summary.average}
                                 {summary.votes !== null && summary.votes > 1
                                   ? ` · ${summary.votes} votos`
