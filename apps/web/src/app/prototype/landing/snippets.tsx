@@ -147,3 +147,66 @@ export function MoneySnippet() {
     </Card>
   );
 }
+
+export function initials(name: string) {
+  return name
+    .replace(/[“”"]/g, "")
+    .split(/\s+/)
+    .filter((w) => /^[A-ZÁÉÍÓÚÑ]/.test(w))
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("");
+}
+
+/** The score block on its own, so variants can drive it with different states. */
+export function MatchCard({
+  status,
+  statusVariant = "outline",
+  blue,
+  amber,
+  footer,
+  className,
+}: {
+  status: string;
+  statusVariant?: "outline" | "secondary" | "success";
+  blue: number | null;
+  amber: number | null;
+  footer: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <Card className={cn("gap-0 py-0", className)}>
+      <div className="flex items-center justify-between gap-3 px-4 pt-4 text-xs text-muted-foreground">
+        <span>{match.date}</span>
+        <Badge variant={statusVariant}>{status}</Badge>
+      </div>
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-6">
+        <div className="flex flex-col items-center gap-2">
+          <TeamChip team="blue" />
+          <span className="text-7xl font-black tabular-nums">{blue ?? "–"}</span>
+        </div>
+        <span className="text-2xl font-bold text-muted-foreground" aria-hidden="true">
+          –
+        </span>
+        <div className="flex flex-col items-center gap-2">
+          <TeamChip team="amber" />
+          <span className="text-7xl font-black tabular-nums">{amber ?? "–"}</span>
+        </div>
+      </div>
+      <div className="flex min-h-12 items-center justify-between gap-3 border-t px-4 py-3 text-sm">
+        {footer}
+      </div>
+    </Card>
+  );
+}
+
+export function Footer() {
+  return (
+    <footer className="border-t">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-6 pb-24 text-sm text-muted-foreground sm:px-6">
+        <span>Hay Fulbo</span>
+        <span>Hecho para el fulbo de todas las semanas</span>
+      </div>
+    </footer>
+  );
+}

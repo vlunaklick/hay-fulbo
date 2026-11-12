@@ -5,17 +5,19 @@ import { useRef, useState } from "react";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 import "./picker.css";
+import { CanchaVariant } from "./variant-cancha";
+import { FichaVariant } from "./variant-ficha";
 import { MarcadorVariant } from "./variant-marcador";
-import { MinimaVariant } from "./variant-minima";
-import { PasosVariant } from "./variant-pasos";
+import { NocheVariant } from "./variant-noche";
 
 // Throwaway harness for /prototype/landing. One variant at a time, full size,
-// switched with the picker, 1–3 or ←/→. Selection persists in ?v=.
+// switched with the picker, 1–4 or ←/→. Selection persists in ?v=.
 
 const variants = [
-  { name: "Mínima", Component: MinimaVariant },
   { name: "Marcador", Component: MarcadorVariant },
-  { name: "Pasos", Component: PasosVariant },
+  { name: "Cancha", Component: CanchaVariant },
+  { name: "Ficha", Component: FichaVariant },
+  { name: "La noche", Component: NocheVariant },
 ];
 
 export default function LandingPrototype({ initial }: { initial: number }) {
