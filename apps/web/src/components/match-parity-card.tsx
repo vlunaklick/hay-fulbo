@@ -55,8 +55,6 @@ export function MatchParityCard({ matchId }: { matchId: string }) {
         ))}
       </div>
       <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        Una referencia recreativa basada únicamente en partidos cerrados.
-        <span aria-hidden="true">·</span>
         <span>Confianza</span>
         <Badge variant="outline">{confidenceLabel(parity.data.confidence)}</Badge>
         <span aria-hidden="true">·</span>

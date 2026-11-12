@@ -180,11 +180,6 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
     <div className="flex flex-col gap-6">
       <PageHeader
         title={isPlayers ? "Jugadores" : "Canchas"}
-        description={
-          isPlayers
-            ? "Entrá a un jugador para ver estadísticas y editar."
-            : "Entrá a una cancha para consultar o actualizar sus datos."
-        }
         actions={
           canManage ? (
             <>
@@ -293,20 +288,15 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
             </p>
             <p className="text-sm text-muted-foreground">
               {canManage
-                ? "Usá el botón Agregar para cargar el primero."
-                : "El organizador todavía no cargó información."}
+                ? "Cargá el primero con Agregar."
+                : "El organizador todavía no cargó ninguno."}
             </p>
           </div>
         </div>
       ) : isPlayers && visiblePlayers.length === 0 ? (
         <div className="flex flex-col items-start gap-4 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center">
           <SearchXIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <p className="text-sm font-medium">No encontramos jugadores</p>
-            <p className="text-sm text-muted-foreground">
-              Probá con otro nombre, cambiá el filtro o limpiá la búsqueda.
-            </p>
-          </div>
+          <p className="min-w-0 flex-1 text-sm font-medium">No encontramos jugadores</p>
           <Button variant="outline" onClick={() => setSearch("")}>
             Limpiar búsqueda
           </Button>
@@ -744,10 +734,7 @@ function CourtDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-lg">{court.name}</DialogTitle>
-          <DialogDescription>
-            {court.archivedAt ? "Cancha archivada" : "Cancha activa"} · Los partidos históricos
-            conservan esta referencia.
-          </DialogDescription>
+          <DialogDescription>{court.archivedAt ? "Archivada" : "Activa"}</DialogDescription>
         </DialogHeader>
 
         {role !== "member" ? (
@@ -844,11 +831,6 @@ function CreateDirectoryDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isPlayers ? "Nuevo jugador" : "Nueva cancha"}</DialogTitle>
-          <DialogDescription>
-            {isPlayers
-              ? "Quedará disponible para próximos partidos."
-              : "La vas a poder elegir al crear un partido."}
-          </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit}>
           <FieldGroup>

@@ -7,7 +7,6 @@ import {
   Card,
   CardAction,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@hay-fulbo/ui/components/card";
@@ -213,7 +212,7 @@ function StatsDashboardContent({
         <PageEmpty
           icon={<TrophyIcon />}
           title="El salón todavía está vacío"
-          description="Cerrá el primer partido para descubrir al goleador y empezar el ranking."
+          description="Aparecen cuando se cierre el primer partido."
         />
       ) : (
         <>
@@ -256,11 +255,7 @@ function StatsDashboardContent({
                   title="Ranking"
                 />
                 {dashboard.ranking.length === 0 ? (
-                  <PageEmpty
-                    icon={<TrophyIcon />}
-                    title="Todavía no hay tabla"
-                    description="Cerrá el primer partido para que aparezcan PJ, goles, asistencias y resultados."
-                  />
+                  <PageEmpty icon={<TrophyIcon />} title="Todavía no hay tabla" />
                 ) : (
                   <Ranking dashboard={dashboard} detailBase={detailBase} query={filters.query} />
                 )}
@@ -336,7 +331,6 @@ function Overview({
               <CardTitle>
                 <h2 id="spotlight-title">Carrera G+A</h2>
               </CardTitle>
-              <CardDescription>Goles y asistencias, cabeza a cabeza</CardDescription>
               <CardAction>
                 <Button onClick={() => onTab("ranking")} size="sm" variant="ghost">
                   Ver ranking
@@ -357,7 +351,6 @@ function Overview({
               <CardTitle>
                 <h2>Dueños de la tabla</h2>
               </CardTitle>
-              <CardDescription>Los líderes del período elegido</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="-mx-2 flex flex-col">
@@ -421,9 +414,7 @@ function Overview({
               timeZone={dashboard.group.timeZone}
             />
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No hay resultados para estos filtros. Probá otro período o cancha.
-            </p>
+            <p className="text-sm text-muted-foreground">No hay resultados para estos filtros.</p>
           )}
         </CardContent>
       </Card>
@@ -828,7 +819,7 @@ function NoResults() {
     <PageEmpty
       icon={<CalendarDaysIcon />}
       title="No hay resultados para estos filtros"
-      description="Probá otro período o cancha. Los partidos abiertos todavía no suman."
+      description="Los partidos abiertos todavía no suman."
     />
   );
 }
@@ -838,7 +829,7 @@ function PageEmpty({
   icon,
   title,
 }: {
-  description: string;
+  description?: string;
   icon: React.ReactNode;
   title: string;
 }) {
@@ -849,7 +840,7 @@ function PageEmpty({
       </span>
       <div className="min-w-0">
         <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </div>
     </section>
   );

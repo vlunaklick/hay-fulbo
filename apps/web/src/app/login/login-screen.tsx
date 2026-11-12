@@ -207,11 +207,6 @@ export default function LoginScreen({
                 </FieldGroup>
               </form>
             )}
-            <p className="text-sm text-muted-foreground">
-              {mode === "signin"
-                ? "Usá los datos con los que te registraste."
-                : "Después vas a poder crear o elegir tu grupo."}
-            </p>
           </CardContent>
         </Card>
       }
