@@ -3,8 +3,16 @@
 import type { AppRouter } from "@hay-fulbo/api/routers/index";
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
 import { Card } from "@hay-fulbo/ui/components/card";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@hay-fulbo/ui/components/sheet";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
+import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -12,30 +20,31 @@ import { CalendarClockIcon, CircleAlertIcon, Link2OffIcon } from "lucide-react";
 import { useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
-import { PageHeader } from "@/components/page-header";
+import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
 import { trpc } from "@/utils/trpc";
 
 type GlobalStats = inferRouterOutputs<AppRouter>["stats"]["global"];
 type GroupBreakdown = GlobalStats["groups"][number];
 type Aggregate = NonNullable<GroupBreakdown["aggregate"]>;
 type GroupState = "stats" | "no-matches" | "unlinked";
-
-const ALL = "todos";
+/** Which sheet is open: the "Todos" summary, a group by index, or none. */
+type OpenSheet = "all" | number | null;
 
 /**
- * The signed-in user's numbers across every group. The group is the lens:
- * "Todos" sums every linked player, each group tab shows that player's detail.
+ * The signed-in user's numbers across every group. Hero is the total of matches played;
+ * the summary and each group open a sheet with their detail.
  */
 export function GlobalProfile() {
   const { user } = useAppContext();
   const stats = useQuery(trpc.stats.global.queryOptions());
-  const [tab, setTab] = useState(ALL);
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState<OpenSheet>(null);
 
   if (stats.isPending) {
     return (
-      <div className="flex flex-col gap-6" aria-label="Cargando perfil">
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-6" aria-label="Cargando perfil">
         <Skeleton className="h-9 w-2/3 max-w-sm" />
-        <Skeleton className="h-11 w-full" />
+        <Skeleton className="h-16 w-full" />
         <Skeleton className="h-44 w-full" />
       </div>
     );
@@ -50,45 +59,97 @@ export function GlobalProfile() {
     );
   }
 
-  const { groups } = stats.data;
+  const { groups, totals } = stats.data;
+  const withStats = groups.filter((group) => group.aggregate).length;
+  const unlinked = groups.filter((group) => groupState(group) === "unlinked");
+  const openGroup = typeof open === "number" ? groups[open] : undefined;
+  const sheetOpen = open === "all" || Boolean(openGroup);
+  const sheetTitle = open === "all" ? "Todos los grupos" : (openGroup?.groupName ?? "");
+
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title={user.name} />
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+      <StatusHeader
+        title={user.name}
+        meta={
+          groups.length > 0
+            ? `En ${groups.length} ${plural(groups.length, "grupo", "grupos")}`
+            : "Sin grupos"
+        }
+      />
 
-      <Tabs
-        value={tab}
-        onValueChange={(value) => setTab(String(value))}
-        className="gap-6 md:grid md:grid-cols-[16rem_minmax(0,1fr)] md:items-start md:gap-8"
+      <HeroNumber
+        caption={
+          totals.played > 0
+            ? `${plural(totals.played, "partido", "partidos")} en todos tus grupos · ${totals.contributions} G+A`
+            : "Todavía no jugaste partidos cerrados"
+        }
       >
-        <TabsList
-          aria-label="Grupos"
-          className="-mx-4 w-[calc(100%+2rem)] justify-start overflow-x-auto rounded-none bg-transparent px-4 [scrollbar-width:none] md:mx-0 md:w-full md:flex-col md:items-stretch md:gap-1 md:overflow-visible md:px-0"
-        >
-          <GroupTab value={ALL} title="Todos" meta={`${stats.data.totals.played} PJ`} />
-          {groups.map((group, index) => (
-            <GroupTab
-              key={`${index}-${group.groupName}`}
-              value={String(index)}
-              title={group.groupName}
-              meta={groupMeta(group)}
-              muted={!group.aggregate}
-            />
-          ))}
-        </TabsList>
+        {totals.played}
+      </HeroNumber>
 
-        <TabsContent value={ALL} className="text-sm">
-          <AllPanel stats={stats.data} onPick={setTab} />
-        </TabsContent>
-        {groups.map((group, index) => (
-          <TabsContent
-            key={`${index}-${group.groupName}`}
-            value={String(index)}
-            className="text-sm"
-          >
-            <GroupPanel group={group} />
-          </TabsContent>
-        ))}
-      </Tabs>
+      {unlinked.length > 0 ? (
+        <NextStep
+          kicker="Sin vincular"
+          title={
+            unlinked.length === 1
+              ? `Tu cuenta no está vinculada en ${unlinked[0]?.groupName}`
+              : `Tu cuenta no está vinculada en ${unlinked.length} grupos`
+          }
+        >
+          Pedile al responsable del grupo que vincule tu cuenta con tu jugador. Tus partidos
+          anteriores se suman solos.
+        </NextStep>
+      ) : null}
+
+      {groups.length > 0 ? (
+        <>
+          <DrillList title="Resumen">
+            <DrillRow
+              label="Todos los grupos"
+              value={withStats > 0 ? `${totals.contributions} G+A` : "Sin partidos"}
+              onClick={() => setOpen("all")}
+            />
+          </DrillList>
+          <DrillList title="Tus grupos">
+            {groups.map((group, index) => (
+              <DrillRow
+                key={`${index}-${group.groupName}`}
+                label={group.groupName}
+                value={groupMeta(group)}
+                onClick={() => setOpen(index)}
+              />
+            ))}
+          </DrillList>
+        </>
+      ) : (
+        <p className="text-center text-sm text-muted-foreground">
+          Todavía no estás en ningún grupo. Cuando te sumes a uno, tus números aparecen acá.
+        </p>
+      )}
+
+      <Sheet open={sheetOpen} onOpenChange={(next) => (next ? null : setOpen(null))}>
+        <SheetContent
+          side={isMobile ? "bottom" : "right"}
+          className="max-h-[92dvh] md:max-h-none md:max-w-md"
+        >
+          <SheetHeader>
+            <SheetTitle className="text-balance">{sheetTitle}</SheetTitle>
+            <SheetDescription>
+              {open === "all"
+                ? withStats > 0
+                  ? `Sumado entre ${withStats} ${plural(withStats, "grupo", "grupos")} donde jugaste.`
+                  : "Todavía no jugaste partidos cerrados en ningún grupo."
+                : openGroup?.playerName
+                  ? `Jugás como ${openGroup.playerName}`
+                  : "Sin jugador vinculado"}
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody className="flex flex-col gap-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {open === "all" ? <AllPanel stats={stats.data} /> : null}
+            {openGroup ? <GroupPanel group={openGroup} /> : null}
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -99,55 +160,20 @@ function groupState(group: GroupBreakdown): GroupState {
 }
 
 function groupMeta(group: GroupBreakdown) {
-  if (group.aggregate) return `${group.aggregate.played} PJ`;
+  if (group.aggregate) {
+    return `${group.aggregate.played} PJ · ${group.aggregate.wins} G`;
+  }
   return groupState(group) === "unlinked" ? "Sin vincular" : "Sin partidos";
 }
 
-function GroupTab({
-  value,
-  title,
-  meta,
-  muted,
-}: {
-  value: string;
-  title: string;
-  meta: string;
-  muted?: boolean;
-}) {
-  return (
-    <TabsTrigger
-      value={value}
-      className={cn(
-        "max-w-48 flex-none rounded-full border border-border px-4 data-active:border-foreground data-active:bg-foreground data-active:text-background dark:data-active:border-foreground dark:data-active:bg-foreground dark:data-active:text-background",
-        "md:max-w-none md:flex-col md:items-start md:gap-0 md:rounded-md md:border-transparent md:px-3 md:py-2 md:text-left md:data-active:border-transparent md:data-active:bg-secondary md:data-active:text-foreground md:dark:data-active:border-transparent md:dark:data-active:bg-secondary md:dark:data-active:text-foreground",
-        muted && "text-muted-foreground",
-      )}
-    >
-      <span className="w-full truncate">{title}</span>
-      <span className="hidden text-xs font-normal text-muted-foreground tabular-nums md:block">
-        {meta}
-      </span>
-    </TabsTrigger>
-  );
-}
-
-function AllPanel({ stats, onPick }: { stats: GlobalStats; onPick: (tab: string) => void }) {
+function AllPanel({ stats }: { stats: GlobalStats }) {
   const { groups, totals } = stats;
   const withStats = groups.flatMap((group, index) =>
     group.aggregate ? [{ name: group.groupName, played: group.aggregate.played, index }] : [],
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-bold">Todos los grupos</h2>
-        <p className="text-sm text-muted-foreground">
-          {withStats.length > 0
-            ? `Sumado entre ${withStats.length} ${plural(withStats.length, "grupo", "grupos")} donde jugaste.`
-            : "Todavía no jugaste partidos cerrados en ningún grupo."}
-        </p>
-      </div>
-
+    <>
       <MetricGrid
         items={[
           { label: "Partidos", value: totals.played },
@@ -169,11 +195,9 @@ function AllPanel({ stats, onPick }: { stats: GlobalStats; onPick: (tab: string)
           </h3>
           <Card className="gap-0 divide-y py-0">
             {withStats.map((item) => (
-              <button
+              <div
                 key={`${item.index}-${item.name}`}
-                type="button"
-                onClick={() => onPick(String(item.index))}
-                className="flex min-h-14 flex-col gap-2 px-4 py-3 text-left transition-colors duration-150 ease-out outline-none hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset"
+                className="flex min-h-14 flex-col gap-2 px-4 py-3"
               >
                 <span className="flex w-full items-baseline justify-between gap-3">
                   <span className="truncate text-sm font-medium">{item.name}</span>
@@ -190,27 +214,20 @@ function AllPanel({ stats, onPick }: { stats: GlobalStats; onPick: (tab: string)
                     style={{ width: `${(item.played / totals.played) * 100}%` }}
                   />
                 </span>
-              </button>
+              </div>
             ))}
           </Card>
         </section>
       ) : null}
-    </div>
+    </>
   );
 }
 
 function GroupPanel({ group }: { group: GroupBreakdown }) {
-  const state = groupState(group);
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-bold text-balance">{group.groupName}</h2>
-        {group.playerName ? (
-          <p className="text-sm text-muted-foreground">Jugás como {group.playerName}</p>
-        ) : null}
-      </div>
-      {group.aggregate ? <GroupStats aggregate={group.aggregate} /> : <GroupEmpty state={state} />}
-    </div>
+  return group.aggregate ? (
+    <GroupStats aggregate={group.aggregate} />
+  ) : (
+    <GroupEmpty state={groupState(group)} />
   );
 }
 

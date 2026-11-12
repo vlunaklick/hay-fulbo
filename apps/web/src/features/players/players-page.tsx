@@ -2,39 +2,43 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
 import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
-import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
-import { Card } from "@hay-fulbo/ui/components/card";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
 } from "@hay-fulbo/ui/components/input-group";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@hay-fulbo/ui/components/sheet";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
+import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
-  ChevronDownIcon,
   CircleAlertIcon,
   MailPlusIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
-  SearchXIcon,
-  UserRoundIcon,
   XIcon,
 } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
-import { PageHeader } from "@/components/page-header";
+import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
 import { formatShortDate } from "@/lib/format";
 import { initials } from "@/lib/initials";
 import { accountPresentationLabel, type PlayerAccountMember } from "@/lib/player-account-link";
@@ -62,91 +66,77 @@ type Player = {
   stats: PlayerStats;
 };
 
-type StatusFilter = "active" | "all" | "archived";
 type Outcome = "win" | "draw" | "loss";
 
 const EMPTY_STATS: PlayerStats = { played: 0, goals: 0, assists: 0, winPercentage: 0 };
-const DESKTOP_QUERY = "(min-width: 64rem)";
+/** Above this many active players a compact search shows up over the list. */
+const SEARCH_THRESHOLD = 12;
 
 /**
- * Players directory. The list never navigates away: on a phone a row opens in
- * place with the player's summary; on desktop the same summary sits beside the
- * list. The selected player lives in `?p=` so it survives reloads and can be shared.
+ * Players directory, "Próximo paso" shape: header → active count → one next step
+ * (invite the unlinked or add a player) → one row per player, most played first.
+ * Each row opens the player's sheet; the open player lives in `?p=` so it survives
+ * reloads and can be shared. Archived players sit behind a single trailing row.
  */
 export function PlayersPage() {
   const { role } = useAppContext();
   const canManage = role !== "member";
-  const isDesktop = useIsDesktop();
+  const isOwner = role === "owner";
+  const isMobile = useIsMobile();
   const directory = useQuery(trpc.matches.directory.queryOptions());
   const stats = useQuery(trpc.stats.dashboard.queryOptions({}));
   const [selectedId, select] = useSelectedPlayer();
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("active");
   const [createOpen, setCreateOpen] = useState(false);
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [inviteFor, setInviteFor] = useState<string | null>(null);
 
   const ranking = new Map((stats.data?.ranking ?? []).map((row) => [row.playerId, row]));
-  const players: Player[] = (directory.data?.players ?? []).map((player) => ({
-    id: player.id,
-    displayName: player.displayName,
-    archived: Boolean(player.archivedAt),
-    linkedUserId: player.linkedUserId,
-    stats: ranking.get(player.id) ?? EMPTY_STATS,
-  }));
-  const members: PlayerAccountMember[] = directory.data?.members ?? [];
-  const needle = normalizeSearch(search);
-  const visible = players
-    .filter((player) => {
-      if (status === "active" && player.archived) return false;
-      if (status === "archived" && !player.archived) return false;
-      return needle ? normalizeSearch(player.displayName).includes(needle) : true;
-    })
+  const players: Player[] = (directory.data?.players ?? [])
+    .map((player) => ({
+      id: player.id,
+      displayName: player.displayName,
+      archived: Boolean(player.archivedAt),
+      linkedUserId: player.linkedUserId,
+      stats: ranking.get(player.id) ?? EMPTY_STATS,
+    }))
     .toSorted(
       (a, b) =>
         b.stats.played - a.stats.played || a.displayName.localeCompare(b.displayName, "es-AR"),
     );
-  const paneId = selectedId ?? visible[0]?.id ?? null;
-  const panePlayer = players.find((player) => player.id === paneId) ?? null;
+  const members: PlayerAccountMember[] = directory.data?.members ?? [];
+  const active = players.filter((player) => !player.archived);
+  const archived = players.filter((player) => player.archived);
+  const unlinked = active.filter((player) => !player.linkedUserId);
+  const needle = normalizeSearch(search);
+  const visible = needle
+    ? active.filter((player) => normalizeSearch(player.displayName).includes(needle))
+    : active;
+  const selected = players.find((player) => player.id === selectedId) ?? null;
   const isPending = directory.isPending || stats.isPending;
   const error = directory.error ?? stats.error;
+  const inviteNext = isOwner && unlinked.length > 0 ? unlinked[0] : null;
+  const sheetSide = isMobile ? "bottom" : "right";
+
+  function openPlayer(id: string | null, invite = false) {
+    setInviteFor(invite ? id : null);
+    select(id);
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Jugadores"
-        description="Los que más juegan, arriba."
-        actions={
-          canManage ? (
-            <>
-              {role === "owner" ? (
-                <Button
-                  nativeButton={false}
-                  render={<Link href="/dashboard/grupo?tema=invitar" />}
-                  variant="ghost"
-                >
-                  <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
-                  <span className="hidden sm:inline">Invitar amigos</span>
-                  <span className="sm:hidden">Invitar</span>
-                </Button>
-              ) : null}
-              <Button onClick={() => setCreateOpen(true)}>
-                <PlusIcon data-icon="inline-start" aria-hidden="true" />
-                <span className="hidden sm:inline">Nuevo jugador</span>
-                <span className="sm:hidden">Agregar</span>
-              </Button>
-            </>
-          ) : null
-        }
-      />
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+      <StatusHeader title="Jugadores" meta="Los que más juegan, arriba" />
       {canManage ? <CreatePlayerDialog open={createOpen} onOpenChange={setCreateOpen} /> : null}
 
       {isPending ? (
-        <div className="flex flex-col">
-          {Array.from({ length: 6 }, (_, index) => (
-            <Skeleton
-              key={index}
-              className="h-14 w-full rounded-none first:rounded-t-md last:rounded-b-md"
-            />
-          ))}
+        <div className="flex flex-col gap-4" aria-busy="true">
+          <Skeleton className="mx-auto h-16 w-40 rounded-md" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <div className="flex flex-col gap-1">
+            {Array.from({ length: 6 }, (_, index) => (
+              <Skeleton key={index} className="h-12 w-full rounded-md" />
+            ))}
+          </div>
         </div>
       ) : error ? (
         <Alert variant="destructive">
@@ -154,352 +144,406 @@ export function PlayersPage() {
           <AlertTitle>No pudimos cargar los jugadores</AlertTitle>
           <AlertDescription>{error.message}</AlertDescription>
         </Alert>
-      ) : players.length === 0 ? (
-        <div className="flex items-center gap-4 rounded-lg border border-dashed p-4">
-          <UserRoundIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <p className="text-sm font-medium">No hay jugadores</p>
-            <p className="text-sm text-muted-foreground">
-              {canManage
-                ? "Cargá el primero con Agregar."
-                : "El organizador todavía no cargó ninguno."}
-            </p>
-          </div>
-        </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
-          <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-6">
-            <SearchField value={search} onChange={setSearch} />
-            <Tabs value={status} onValueChange={(value) => setStatus(value as StatusFilter)}>
-              <TabsList className="w-full">
-                <TabsTrigger value="active">Activos</TabsTrigger>
-                <TabsTrigger value="all">Todos</TabsTrigger>
-                <TabsTrigger value="archived">Archivados</TabsTrigger>
-              </TabsList>
-            </Tabs>
+        <>
+          {active.length > 0 ? (
+            <HeroNumber
+              caption={
+                archived.length > 0
+                  ? `${archived.length} ${archived.length === 1 ? "archivado" : "archivados"}`
+                  : undefined
+              }
+            >
+              {active.length}{" "}
+              <span className="text-2xl font-bold">
+                {active.length === 1 ? "jugador" : "jugadores"}
+              </span>
+            </HeroNumber>
+          ) : null}
 
-            {visible.length === 0 ? (
-              <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-4">
-                <div className="flex items-center gap-3">
-                  <SearchXIcon
-                    className="size-5 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
+          {!canManage ? (
+            active.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                El organizador todavía no cargó ningún jugador.
+              </p>
+            ) : null
+          ) : active.length === 0 ? (
+            <NextStep
+              kicker={archived.length > 0 ? "No hay jugadores activos" : "Todavía no hay nadie"}
+              title="Cargá el primer jugador"
+              action={
+                <Button onClick={() => setCreateOpen(true)}>
+                  <PlusIcon data-icon="inline-start" aria-hidden="true" />
+                  Sumar jugador
+                </Button>
+              }
+            >
+              Con el plantel cargado ya podés armar partidos.
+            </NextStep>
+          ) : inviteNext ? (
+            <NextStep
+              kicker={`${unlinked.length} sin vincular`}
+              title="Invitalos a la app"
+              action={
+                <Button onClick={() => openPlayer(inviteNext.id, true)}>
+                  <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
+                  Invitar a {inviteNext.displayName}
+                </Button>
+              }
+            >
+              Con cuenta se anotan solos y ven sus números.
+            </NextStep>
+          ) : (
+            <NextStep
+              title="¿Viene alguien nuevo?"
+              action={
+                <Button onClick={() => setCreateOpen(true)}>
+                  <PlusIcon data-icon="inline-start" aria-hidden="true" />
+                  Sumar jugador
+                </Button>
+              }
+            />
+          )}
+
+          {active.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {active.length > SEARCH_THRESHOLD ? (
+                <SearchField value={search} onChange={setSearch} />
+              ) : null}
+              {visible.length === 0 ? (
+                <div className="flex flex-col items-start gap-2">
                   <p className="text-sm text-muted-foreground">
-                    {search
-                      ? "Nadie con ese nombre. Probá con un apodo."
-                      : "No hay jugadores con este filtro."}
+                    Nadie con ese nombre. Probá con un apodo.
                   </p>
-                </div>
-                {search ? (
                   <Button variant="outline" onClick={() => setSearch("")}>
                     Limpiar búsqueda
                   </Button>
-                ) : null}
-              </div>
-            ) : (
-              <Card className="gap-0 py-0 lg:max-h-[calc(100dvh-14rem)] lg:overflow-y-auto">
-                <ul>
-                  {visible.map((player, index) => {
-                    const expanded = !isDesktop && player.id === selectedId;
-                    const current = isDesktop && player.id === paneId;
-                    const detailId = `player-detail-${player.id}`;
-                    return (
-                      <li key={player.id} className={cn(index > 0 && "border-t")}>
-                        <button
-                          type="button"
-                          aria-current={current ? "true" : undefined}
-                          aria-controls={isDesktop ? undefined : detailId}
-                          aria-expanded={isDesktop ? undefined : expanded}
-                          onClick={() => select(expanded ? null : player.id)}
-                          className={cn(
-                            "relative flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left transition-colors duration-150 ease-out hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset active:bg-muted",
-                            (expanded || current) && "bg-muted/60",
-                          )}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className={cn(
-                              "absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary opacity-0",
-                              (expanded || current) && "opacity-100",
-                            )}
-                          />
-                          <Avatar className="size-8">
-                            <AvatarFallback>{initials(player.displayName)}</AvatarFallback>
-                          </Avatar>
-                          <span className="flex min-w-0 flex-1 items-center gap-2">
-                            <span className="truncate text-sm font-medium">
-                              {player.displayName}
-                            </span>
-                            {player.archived ? <Badge variant="secondary">Archivado</Badge> : null}
-                          </span>
-                          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                            {player.stats.played === 0 ? (
-                              <span aria-label="Sin partidos">—</span>
-                            ) : (
-                              <>
-                                <span className="font-semibold text-foreground">
-                                  {player.stats.goals}
-                                </span>{" "}
-                                G ·{" "}
-                                <span className="font-semibold text-foreground">
-                                  {player.stats.assists}
-                                </span>{" "}
-                                A
-                              </>
-                            )}
-                          </span>
-                          {isDesktop ? null : (
-                            <ChevronDownIcon
-                              aria-hidden="true"
-                              className={cn(
-                                "size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-out",
-                                expanded && "rotate-180",
-                              )}
-                            />
-                          )}
-                        </button>
-                        {expanded ? (
-                          <div
-                            id={detailId}
-                            className="animate-in border-t bg-muted/30 px-4 py-4 duration-200 fade-in-0"
-                          >
-                            <PlayerDetail
-                              canManage={canManage}
-                              layout="inline"
-                              members={members}
-                              player={player}
-                            />
-                          </div>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Card>
-            )}
-          </div>
-
-          {isDesktop && panePlayer ? (
-            <Card className="min-w-0 gap-0 px-6 py-6">
-              <PlayerDetail
-                key={panePlayer.id}
-                canManage={canManage}
-                layout="pane"
-                members={members}
-                player={panePlayer}
-              />
-            </Card>
+                </div>
+              ) : (
+                <DrillList title="Plantel">
+                  {visible.map((player) => (
+                    <DrillRow
+                      key={player.id}
+                      label={player.displayName}
+                      leading={<PlayerAvatar name={player.displayName} />}
+                      value={<PlayerTotals stats={player.stats} />}
+                      onClick={() => openPlayer(player.id)}
+                    />
+                  ))}
+                </DrillList>
+              )}
+            </div>
           ) : null}
-        </div>
+
+          {(canManage && inviteNext) || isOwner || archived.length > 0 ? (
+            <DrillList title="Más">
+              {canManage && inviteNext ? (
+                <DrillRow label="Sumar jugador" onClick={() => setCreateOpen(true)} />
+              ) : null}
+              {isOwner ? (
+                <DrillRow
+                  label="Invitar amigos al grupo"
+                  render={({ className, children }) => (
+                    <Link href="/dashboard/grupo?tema=invitar" className={className}>
+                      {children}
+                    </Link>
+                  )}
+                />
+              ) : null}
+              {archived.length > 0 ? (
+                <DrillRow
+                  label="Archivados"
+                  value={archived.length}
+                  onClick={() => setArchivedOpen(true)}
+                />
+              ) : null}
+            </DrillList>
+          ) : null}
+        </>
       )}
+
+      <Sheet open={archivedOpen} onOpenChange={setArchivedOpen}>
+        <SheetContent side={sheetSide} className="max-h-[92dvh] md:max-h-none md:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Archivados</SheetTitle>
+            <SheetDescription>No aparecen al armar partidos. Sus números quedan.</SheetDescription>
+          </SheetHeader>
+          <SheetBody className="pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {archived.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No hay jugadores archivados.</p>
+            ) : (
+              <ul className="flex flex-col divide-y">
+                {archived.map((player) => (
+                  <ArchivedRow
+                    key={player.id}
+                    canManage={canManage}
+                    player={player}
+                    onOpen={() => {
+                      setArchivedOpen(false);
+                      openPlayer(player.id);
+                    }}
+                  />
+                ))}
+              </ul>
+            )}
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={selected !== null} onOpenChange={(next) => (next ? null : openPlayer(null))}>
+        <SheetContent side={sheetSide} className="max-h-[92dvh] md:max-h-none md:max-w-md">
+          {selected ? (
+            <PlayerDetail
+              key={selected.id}
+              canManage={canManage}
+              initialInviting={inviteFor === selected.id}
+              members={members}
+              player={selected}
+            />
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
+  );
+}
+
+function PlayerAvatar({ name }: { name: string }) {
+  return (
+    <Avatar aria-hidden="true" className="size-8">
+      <AvatarFallback>{initials(name)}</AvatarFallback>
+    </Avatar>
+  );
+}
+
+function PlayerTotals({ stats }: { stats: PlayerStats }) {
+  if (stats.played === 0) return <span aria-label="Sin partidos">—</span>;
+  return (
+    <>
+      <span className="font-semibold text-foreground">{stats.goals}</span> G ·{" "}
+      <span className="font-semibold text-foreground">{stats.assists}</span> A
+    </>
+  );
+}
+
+function ArchivedRow({
+  canManage,
+  onOpen,
+  player,
+}: {
+  canManage: boolean;
+  onOpen: () => void;
+  player: Player;
+}) {
+  const restore = usePlayerMutation();
+  return (
+    <li className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-h-12 min-w-0 flex-1 items-center gap-3 text-left outline-none transition-colors duration-100 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <PlayerAvatar name={player.displayName} />
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{player.displayName}</span>
+        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+          <PlayerTotals stats={player.stats} />
+        </span>
+      </button>
+      {canManage ? (
+        <Button
+          variant="ghost"
+          aria-label={`Reactivar a ${player.displayName}`}
+          disabled={restore.isPending}
+          onClick={() =>
+            restore.mutate({ type: "archivePlayer", playerId: player.id, archived: false })
+          }
+        >
+          <ArchiveRestoreIcon data-icon="inline-start" aria-hidden="true" />
+          Reactivar
+        </Button>
+      ) : null}
+    </li>
   );
 }
 
 function PlayerDetail({
   canManage,
-  layout,
+  initialInviting,
   members,
   player,
 }: {
   canManage: boolean;
-  layout: "inline" | "pane";
+  initialInviting: boolean;
   members: readonly PlayerAccountMember[];
   player: Player;
 }) {
-  const pane = layout === "pane";
   const detail = useQuery(trpc.stats.player.queryOptions({ playerId: player.id, filters: {} }));
   const archive = usePlayerMutation();
   const [editOpen, setEditOpen] = useState(false);
-  const [inviting, setInviting] = useState(false);
-  const [showAll, setShowAll] = useState(pane);
-  const matches = detail.data?.matches ?? [];
-  const formSize = pane ? 10 : 5;
-  const shownMatches = showAll ? matches : matches.slice(0, 3);
   const canInvite = canManage && !player.linkedUserId;
-
-  function toggleArchive() {
-    archive.mutate({ type: "archivePlayer", playerId: player.id, archived: !player.archived });
-  }
-
-  const actions = canManage ? (
-    <div className={cn("flex flex-wrap gap-2", pane && "shrink-0 gap-1")}>
-      <Button variant="outline" onClick={() => setEditOpen(true)}>
-        <PencilIcon data-icon="inline-start" aria-hidden="true" />
-        Editar
-      </Button>
-      {canInvite ? (
-        <Button
-          variant="outline"
-          aria-expanded={inviting}
-          onClick={() => setInviting((value) => !value)}
-        >
-          <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
-          Invitar a la app
-        </Button>
-      ) : null}
-      {pane ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={player.archived ? "Reactivar jugador" : "Archivar jugador"}
-          disabled={archive.isPending}
-          onClick={toggleArchive}
-        >
-          {player.archived ? (
-            <ArchiveRestoreIcon aria-hidden="true" />
-          ) : (
-            <ArchiveIcon aria-hidden="true" />
-          )}
-        </Button>
-      ) : (
-        <Button variant="ghost" disabled={archive.isPending} onClick={toggleArchive}>
-          {player.archived ? (
-            <ArchiveRestoreIcon data-icon="inline-start" aria-hidden="true" />
-          ) : (
-            <ArchiveIcon data-icon="inline-start" aria-hidden="true" />
-          )}
-          {player.archived ? "Reactivar" : "Archivar"}
-        </Button>
-      )}
-    </div>
-  ) : null;
+  const [inviting, setInviting] = useState(initialInviting && canInvite);
+  const [showAll, setShowAll] = useState(false);
+  const matches = detail.data?.matches ?? [];
+  const formSize = 5;
+  const shownMatches = showAll ? matches : matches.slice(0, 3);
 
   return (
-    <div className={cn("flex flex-col", pane ? "gap-6" : "gap-4")}>
-      {pane ? (
-        <header className="flex items-start gap-4">
-          <Avatar className="size-12">
-            <AvatarFallback>{initials(player.displayName)}</AvatarFallback>
-          </Avatar>
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <h2 className="text-xl font-bold tracking-tight text-balance">{player.displayName}</h2>
-            <p className="truncate text-sm text-muted-foreground">
+    <>
+      <SheetHeader>
+        <div className="flex items-center gap-3">
+          <PlayerAvatar name={player.displayName} />
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <SheetTitle className="text-balance">{player.displayName}</SheetTitle>
+            <SheetDescription className="truncate">
               {player.archived ? "Archivado · " : ""}
               {player.linkedUserId
                 ? accountPresentationLabel(members, player.linkedUserId)
                 : "Sin cuenta en la app"}
-            </p>
+            </SheetDescription>
           </div>
-          {actions}
-        </header>
-      ) : null}
-
-      {canInvite && inviting ? (
-        <div className={cn(pane && "rounded-lg border p-4")}>
-          <InvitePlayerForm player={player} />
         </div>
-      ) : null}
+      </SheetHeader>
 
-      {player.stats.played === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Todavía no jugó un partido cerrado. Sus números aparecen después del primero.
-        </p>
-      ) : (
-        <>
-          <dl className={cn("grid grid-cols-4", pane ? "gap-4" : "gap-2")}>
-            <Metric label="Partidos" value={player.stats.played} pane={pane} />
-            <Metric label="Goles" value={player.stats.goals} pane={pane} />
-            <Metric label="Asist." value={player.stats.assists} pane={pane} />
-            <Metric
-              label="% victorias"
-              value={`${Math.round(player.stats.winPercentage)}%`}
-              pane={pane}
-            />
-          </dl>
-          {matches.length > 0 ? (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">
-                Últimos {Math.min(formSize, matches.length)}, del más reciente
-              </span>
-              <ol className="flex flex-wrap gap-1">
-                {matches.slice(0, formSize).map((match) => (
-                  <li key={match.matchId}>
-                    <FormChip outcome={match.outcome} />
+      <SheetBody className="flex flex-col gap-6">
+        {canInvite && inviting ? <InvitePlayerForm player={player} /> : null}
+
+        {player.stats.played === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Todavía no jugó un partido cerrado. Sus números aparecen después del primero.
+          </p>
+        ) : (
+          <>
+            <dl className="grid grid-cols-4 gap-2">
+              <Metric label="Partidos" value={player.stats.played} />
+              <Metric label="Goles" value={player.stats.goals} />
+              <Metric label="Asist." value={player.stats.assists} />
+              <Metric label="% victorias" value={`${Math.round(player.stats.winPercentage)}%`} />
+            </dl>
+            {matches.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Últimos {Math.min(formSize, matches.length)}, del más reciente
+                </span>
+                <ol className="flex flex-wrap gap-1">
+                  {matches.slice(0, formSize).map((match) => (
+                    <li key={match.matchId}>
+                      <FormChip outcome={match.outcome} />
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+          </>
+        )}
+
+        {detail.isPending ? (
+          <Skeleton className="h-24 w-full rounded-md" />
+        ) : detail.isError ? (
+          <p className="text-sm text-muted-foreground">No pudimos cargar sus partidos.</p>
+        ) : matches.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold">Partidos</h3>
+            <ul className="flex flex-col">
+              {shownMatches.map((match, index) => {
+                const own = match.teams.find((team) => team.id === match.teamId) ?? match.teams[0];
+                const rival = match.teams.find((team) => team.id !== own?.id) ?? match.teams[1];
+                return (
+                  <li key={match.matchId} className={cn(index > 0 && "border-t border-border/60")}>
+                    <Link
+                      href={`/dashboard/estadisticas/partidos/${match.matchId}` as Route}
+                      className="-mx-2 flex min-h-11 items-center gap-3 rounded-md px-2 text-sm transition-colors duration-150 ease-out hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    >
+                      <span className="w-14 shrink-0 text-xs text-muted-foreground">
+                        {formatShortDate(match.scheduledAt)}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "size-2 shrink-0 rounded-full",
+                          own?.slot === 1 ? "bg-team-blue" : "bg-team-amber",
+                        )}
+                      />
+                      <span className="font-semibold tabular-nums">
+                        {own?.goals}–{rival?.goals}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                        {outcomeVerb(match.outcome)}
+                        <span className="sr-only"> con {own?.displayName}</span>
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                        {contributionLabel(match.goals, match.assists)}
+                      </span>
+                    </Link>
                   </li>
-                ))}
-              </ol>
-            </div>
-          ) : null}
-        </>
-      )}
-
-      {detail.isPending ? (
-        <Skeleton className="h-24 w-full rounded-md" />
-      ) : detail.isError ? (
-        <p className="text-sm text-muted-foreground">No pudimos cargar sus partidos.</p>
-      ) : matches.length > 0 ? (
-        <div className="flex flex-col gap-1">
-          {pane ? <h3 className="text-sm font-semibold">Partidos</h3> : null}
-          <ul className="flex flex-col">
-            {shownMatches.map((match, index) => {
-              const own = match.teams.find((team) => team.id === match.teamId) ?? match.teams[0];
-              const rival = match.teams.find((team) => team.id !== own?.id) ?? match.teams[1];
-              return (
-                <li key={match.matchId} className={cn(index > 0 && "border-t border-border/60")}>
-                  <Link
-                    href={`/dashboard/estadisticas/partidos/${match.matchId}` as Route}
-                    className="-mx-2 flex min-h-11 items-center gap-3 rounded-md px-2 text-sm transition-colors duration-150 ease-out hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                  >
-                    <span className="w-14 shrink-0 text-xs text-muted-foreground">
-                      {formatShortDate(match.scheduledAt)}
-                    </span>
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "size-2 shrink-0 rounded-full",
-                        own?.slot === 1 ? "bg-team-blue" : "bg-team-amber",
-                      )}
-                    />
-                    <span className="font-semibold tabular-nums">
-                      {own?.goals}–{rival?.goals}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                      {outcomeVerb(match.outcome)}
-                      <span className="sr-only"> con {own?.displayName}</span>
-                    </span>
-                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                      {contributionLabel(match.goals, match.assists)}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          {!showAll && matches.length > 3 ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="-ml-3 w-fit"
-              onClick={() => setShowAll(true)}
-            >
-              Ver los {matches.length} partidos
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {pane ? null : actions}
+                );
+              })}
+            </ul>
+            {!showAll && matches.length > 3 ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="-ml-3 w-fit"
+                onClick={() => setShowAll(true)}
+              >
+                Ver los {matches.length} partidos
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </SheetBody>
 
       {canManage ? (
-        <EditPlayerDialog
-          key={`${player.id}-${editOpen}`}
-          members={members}
-          onOpenChange={setEditOpen}
-          open={editOpen}
-          player={player}
-        />
+        <SheetFooter className="flex-row flex-wrap pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <Button variant="outline" onClick={() => setEditOpen(true)}>
+            <PencilIcon data-icon="inline-start" aria-hidden="true" />
+            Editar
+          </Button>
+          {canInvite ? (
+            <Button
+              variant="outline"
+              aria-expanded={inviting}
+              onClick={() => setInviting((value) => !value)}
+            >
+              <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
+              Invitar a la app
+            </Button>
+          ) : null}
+          <Button
+            variant="ghost"
+            className="sm:ml-auto"
+            disabled={archive.isPending}
+            onClick={() =>
+              archive.mutate({
+                type: "archivePlayer",
+                playerId: player.id,
+                archived: !player.archived,
+              })
+            }
+          >
+            {player.archived ? (
+              <ArchiveRestoreIcon data-icon="inline-start" aria-hidden="true" />
+            ) : (
+              <ArchiveIcon data-icon="inline-start" aria-hidden="true" />
+            )}
+            {player.archived ? "Reactivar" : "Archivar"}
+          </Button>
+          <EditPlayerDialog
+            key={`${player.id}-${editOpen}`}
+            members={members}
+            onOpenChange={setEditOpen}
+            open={editOpen}
+            player={player}
+          />
+        </SheetFooter>
       ) : null}
-    </div>
+    </>
   );
 }
 
-function Metric({ label, value, pane }: { label: string; value: number | string; pane: boolean }) {
+function Metric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="truncate text-xs text-muted-foreground">{label}</dt>
-      <dd className={cn("font-semibold tabular-nums", pane ? "text-2xl" : "text-lg")}>{value}</dd>
+      <dd className="text-lg font-semibold tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -563,21 +607,6 @@ function useSelectedPlayer() {
     router.replace(`${pathname}${query ? `?${query}` : ""}` as Route, { scroll: false });
   }
   return [selected, select] as const;
-}
-
-function subscribeDesktop(onChange: () => void) {
-  const query = window.matchMedia(DESKTOP_QUERY);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-/** Mobile-first: the server renders the phone layout, desktop upgrades on the client. */
-function useIsDesktop() {
-  return useSyncExternalStore(
-    subscribeDesktop,
-    () => window.matchMedia(DESKTOP_QUERY).matches,
-    () => false,
-  );
 }
 
 function outcomeVerb(outcome: Outcome) {
