@@ -391,7 +391,7 @@ function Section({
     <section aria-label={title} className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-baseline gap-2 text-lg font-bold tracking-tight">
-          {step ? <span className="font-mono text-xs font-bold text-primary">{step}</span> : null}
+          {step ? <span className="text-xs font-bold text-primary-text">{step}</span> : null}
           {title}
         </h2>
         {action}
@@ -489,7 +489,7 @@ function Cover({
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-[1fr_auto] sm:items-end">
             <h1 id="match-overview-title" className="text-2xl font-bold tracking-tight">
               {detail.teams[0]?.displayName ?? "Equipo 1"}
-              <span className="mx-2 font-mono text-lg font-semibold tabular-nums text-muted-foreground">
+              <span className="mx-2 text-lg font-semibold tabular-nums text-muted-foreground">
                 {detail.status === "open" && detail.teams.length > 1
                   ? `${scoreFor(detail, detail.teams[0]?.id)} – ${scoreFor(detail, detail.teams[1]?.id)}`
                   : "vs."}
@@ -821,9 +821,7 @@ function TeamRoster({
             run={run}
             team={team}
           />
-          <span className="font-mono text-xs font-bold text-muted-foreground">
-            {team.appearances.length}
-          </span>
+          <span className="text-xs font-bold text-muted-foreground">{team.appearances.length}</span>
         </div>
 
         {team.appearances.length === 0 ? (
@@ -1077,10 +1075,10 @@ function Planilla({
       {costKnown && rows.length ? (
         <p className="text-sm text-muted-foreground">
           Caja:{" "}
-          <strong className="font-mono tabular-nums text-foreground">
+          <strong className="tabular-nums text-foreground">
             {formatMoney(rows.reduce((sum, row) => sum + BigInt(row.paidMinor), 0n))}
           </strong>{" "}
-          de <span className="font-mono tabular-nums">{formatMoney(detail.courtCostMinor)}</span>
+          de <span className="tabular-nums">{formatMoney(detail.courtCostMinor)}</span>
         </p>
       ) : null}
     </Section>
@@ -1129,9 +1127,7 @@ function PlanillaCard({
               <ItemContent>
                 <ItemDescription>Goles sin autor</ItemDescription>
               </ItemContent>
-              <ItemActions className="font-mono font-bold tabular-nums">
-                {team.unattributedGoals}
-              </ItemActions>
+              <ItemActions className="font-bold tabular-nums">{team.unattributedGoals}</ItemActions>
             </Item>
           ) : null}
         </ItemGroup>
@@ -1358,7 +1354,7 @@ function Stepper({
       </Button>
       <span
         className={cn(
-          "min-w-5 text-center font-mono font-bold tabular-nums",
+          "min-w-5 text-center font-bold tabular-nums",
           value === 0 && "text-muted-foreground/50",
         )}
       >
@@ -1438,7 +1434,7 @@ const statusBadge = {
   exempt: { label: "Exento", variant: "ghost" },
   pending: { label: "Pendiente", variant: "destructive" },
   partial: { label: "Parcial", variant: "outline" },
-  paid: { label: "Pagado", variant: "default" },
+  paid: { label: "Pagado", variant: "success" },
   overpaid: { label: "Excedido", variant: "secondary" },
 } as const;
 
@@ -1472,7 +1468,7 @@ function PaymentsSheet({
               <WalletIcon aria-hidden="true" />
               La caja
             </span>
-            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            <span className="text-xs tabular-nums text-muted-foreground">
               {settled}/{rows.length} · {formatMoney(collected)} de {formatMoney(expected)}
             </span>
           </Button>
@@ -1601,13 +1597,13 @@ function PaymentCell({
 
   return (
     <span className="flex flex-wrap items-center gap-3">
-      <span className="font-mono text-sm tabular-nums text-muted-foreground">
+      <span className="text-sm tabular-nums text-muted-foreground">
         <span className="block font-sans text-xs">Esperado</span>
         {formatMoney(appearance.expectedMinor)}
       </span>
       <strong
         className={cn(
-          "min-w-16 text-right font-mono text-sm tabular-nums",
+          "min-w-16 text-right text-sm tabular-nums",
           statusStyles[appearance.contributionStatus],
         )}
       >
@@ -1678,7 +1674,7 @@ function ReadOnlyStats({ detail }: { detail: Detail }) {
                   <ItemContent className="min-w-0">
                     <ItemTitle>{appearance.playerDisplayName}</ItemTitle>
                   </ItemContent>
-                  <ItemDescription className="shrink-0 font-mono tabular-nums">
+                  <ItemDescription className="shrink-0 tabular-nums">
                     {appearance.goals}G · {appearance.assists}A
                     {appearance.ownGoals > 0 ? ` · ${appearance.ownGoals}AG` : ""}
                   </ItemDescription>
@@ -1689,7 +1685,7 @@ function ReadOnlyStats({ detail }: { detail: Detail }) {
                   <ItemContent>
                     <ItemDescription>Sin autor</ItemDescription>
                   </ItemContent>
-                  <ItemDescription className="shrink-0 font-mono tabular-nums">
+                  <ItemDescription className="shrink-0 tabular-nums">
                     {team.unattributedGoals}G
                   </ItemDescription>
                 </Item>

@@ -1,3 +1,4 @@
+import { tokenHex } from "@hay-fulbo/ui/tokens";
 import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -7,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "La mesa de control de tus partidos.",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#101512",
-    theme_color: "#101512",
+    background_color: tokenHex("background", "dark"),
+    theme_color: tokenHex("background", "dark"),
     icons: [
       {
         src: "/icon.svg",

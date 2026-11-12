@@ -148,7 +148,7 @@ export function MatchScoreboard({
               </h3>
               <output
                 aria-label={`Marcador de ${team.displayName}`}
-                className="font-mono text-[clamp(4.5rem,16vw,10rem)] font-black leading-none tabular-nums"
+                className="text-[clamp(4.5rem,16vw,10rem)] font-black leading-none tabular-nums"
               >
                 {score}
               </output>

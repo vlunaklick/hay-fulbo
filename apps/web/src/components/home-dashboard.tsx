@@ -99,7 +99,7 @@ export function HomeDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">{groupName}</p>
+        <p className="eyebrow text-primary-text">{groupName}</p>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Resumen del grupo</h1>
       </header>
 
@@ -315,11 +315,9 @@ function NextMatchHero({
       <Card className="rounded-xl py-0 transition-colors group-hover:ring-primary/40">
         <CardContent className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-primary">
+            <div className="flex items-center gap-2 text-primary-text">
               <CalendarDaysIcon className="size-4" aria-hidden="true" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em]">
-                Próximo partido
-              </span>
+              <span className="eyebrow">Próximo partido</span>
             </div>
             <h2 className="mt-2 truncate text-3xl font-bold tracking-tight md:text-4xl">
               {teamOne} <span className="font-medium text-muted-foreground">vs.</span> {teamTwo}
@@ -362,9 +360,7 @@ function PersonalMetric({ children, label }: { children: React.ReactNode; label:
   return (
     // dt/dd sit directly in the Card: a <dl> group may only be one <div> deep.
     <Card size="sm" className="min-h-20 justify-center gap-1 px-(--card-spacing)">
-      <dt className="flex items-center gap-1.5 truncate text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </dt>
+      <dt className="flex items-center gap-1.5 truncate eyebrow text-muted-foreground">{label}</dt>
       <dd>{children}</dd>
     </Card>
   );

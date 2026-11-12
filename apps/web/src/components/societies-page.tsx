@@ -78,7 +78,7 @@ export function SocietiesPage() {
         </Button>
         <div className="mt-3 flex items-end justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-primary">{stats.data.group.name}</p>
+            <p className="text-sm font-semibold text-primary-text">{stats.data.group.name}</p>
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Sociedades</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Las parejas que mejor funcionan cuando comparten equipo.
@@ -91,9 +91,9 @@ export function SocietiesPage() {
       {leader ? (
         <Card className="overflow-hidden">
           <CardHeader className="border-b">
-            <div className="flex items-center gap-2 text-primary">
+            <div className="flex items-center gap-2 text-primary-text">
               <MedalIcon className="size-4" aria-hidden="true" />
-              <span className="text-xs font-bold uppercase tracking-[0.15em]">Sociedad líder</span>
+              <span className="eyebrow">Sociedad líder</span>
             </div>
             <CardTitle className="text-2xl">
               {leader.playerNames[0]} + {leader.playerNames[1]}
@@ -133,7 +133,7 @@ export function SocietiesPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <HandshakeIcon className="size-5 text-primary" aria-hidden="true" />
+              <HandshakeIcon className="size-5 text-primary-text" aria-hidden="true" />
               Tabla de duplas
             </CardTitle>
             <CardDescription>Ordenada por puntos, efectividad y diferencia de gol.</CardDescription>
@@ -182,7 +182,7 @@ function Metric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="flex-1 px-2 text-center">
       <strong className="block text-xl tabular-nums sm:text-2xl">{value}</strong>
-      <span className="text-[0.65rem] text-muted-foreground sm:text-xs">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }

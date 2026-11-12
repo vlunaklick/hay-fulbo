@@ -6,8 +6,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* tokens:start */
+/* Generated from packages/ui/src/tokens/tokens.ts by `bun run tokens:sync`. Do not edit by hand. */
 :root {
   color-scheme: light;
+  --radius: 0.75rem;
   --background: oklch(0.985 0.006 145);
   --foreground: oklch(0.2 0.018 145);
   --card: oklch(1 0 0);
@@ -16,13 +19,15 @@
   --popover-foreground: oklch(0.2 0.018 145);
   --primary: oklch(0.74 0.2 126);
   --primary-foreground: oklch(0.16 0.02 145);
+  --primary-text: oklch(0.5 0.13 130);
   --secondary: oklch(0.95 0.012 145);
   --secondary-foreground: oklch(0.24 0.018 145);
   --muted: oklch(0.95 0.01 145);
   --muted-foreground: oklch(0.48 0.018 145);
   --accent: oklch(0.92 0.04 132);
   --accent-foreground: oklch(0.22 0.025 145);
-  --destructive: oklch(0.58 0.22 25);
+  --destructive: oklch(0.54 0.2 25);
+  --success: oklch(0.5 0.12 155);
   --border: oklch(0.86 0.015 145);
   --input: oklch(0.82 0.018 145);
   --ring: oklch(0.68 0.19 126);
@@ -31,7 +36,6 @@
   --chart-3: oklch(0.64 0.16 72);
   --chart-4: oklch(0.58 0.17 310);
   --chart-5: oklch(0.6 0.19 25);
-  --radius: 0.75rem;
   --sidebar: oklch(0.97 0.008 145);
   --sidebar-foreground: oklch(0.2 0.018 145);
   --sidebar-primary: oklch(0.68 0.19 126);
@@ -56,6 +60,7 @@
   --popover-foreground: oklch(0.95 0.015 110);
   --primary: oklch(0.86 0.2 126);
   --primary-foreground: oklch(0.16 0.015 145);
+  --primary-text: oklch(0.86 0.2 126);
   --secondary: oklch(0.25 0.018 145);
   --secondary-foreground: oklch(0.91 0.014 110);
   --muted: oklch(0.24 0.016 145);
@@ -63,6 +68,7 @@
   --accent: oklch(0.29 0.03 138);
   --accent-foreground: oklch(0.95 0.015 110);
   --destructive: oklch(0.7 0.19 25);
+  --success: oklch(0.8 0.14 155);
   --border: oklch(0.33 0.02 145);
   --input: oklch(0.35 0.022 145);
   --ring: oklch(0.86 0.2 126);
@@ -71,7 +77,6 @@
   --chart-3: oklch(0.76 0.15 72);
   --chart-4: oklch(0.67 0.16 310);
   --chart-5: oklch(0.69 0.18 25);
-  --radius: 0.75rem;
   --sidebar: oklch(0.18 0.016 145);
   --sidebar-foreground: oklch(0.95 0.015 110);
   --sidebar-primary: oklch(0.86 0.2 126);
@@ -80,45 +85,56 @@
   --sidebar-accent-foreground: oklch(0.95 0.015 110);
   --sidebar-border: oklch(0.33 0.02 145);
   --sidebar-ring: oklch(0.86 0.2 126);
+  --team-blue: oklch(0.72 0.13 250);
+  --team-blue-ink: oklch(0.22 0.06 250);
+  --team-amber: oklch(0.83 0.12 75);
+  --team-amber-ink: oklch(0.26 0.07 70);
 }
 
 @theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-text: var(--primary-text);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
   --color-team-blue: var(--team-blue);
   --color-team-blue-ink: var(--team-blue-ink);
   --color-team-amber: var(--team-amber);
   --color-team-amber-ink: var(--team-amber-ink);
+}
+/* tokens:end */
+
+@theme inline {
   --font-sans: var(--font-manrope), sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
+  --radius-xs: calc(var(--radius) - 8px);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -132,122 +148,31 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    @apply font-sans;
+  }
   body {
     @apply bg-background font-sans text-foreground;
     min-height: 100svh;
   }
-  html {
-    @apply font-sans;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-/* PROTOTYPE ONLY — shared dashboard visual directions. */
-.hf-variant-a {
-  --background: oklch(0.975 0.016 82);
-  --foreground: oklch(0.2 0.026 151);
-  --card: oklch(0.995 0.006 80);
-  --card-foreground: oklch(0.2 0.026 151);
-  --primary: oklch(0.31 0.09 151);
-  --primary-foreground: oklch(0.98 0.01 85);
-  --secondary: oklch(0.91 0.055 83);
-  --secondary-foreground: oklch(0.25 0.04 151);
-  --muted: oklch(0.94 0.02 80);
-  --muted-foreground: oklch(0.48 0.03 151);
-  --accent: oklch(0.83 0.12 82);
-  --accent-foreground: oklch(0.22 0.04 151);
-  --border: oklch(0.79 0.035 79);
-  --ring: oklch(0.31 0.09 151);
-  background-image:
-    linear-gradient(to right, oklch(0.2 0.026 151 / 3%) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(0.2 0.026 151 / 3%) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-.hf-variant-a [data-slot="card"] {
-  box-shadow: 0 20px 50px oklch(0.2 0.026 151 / 7%);
-}
-
-.hf-variant-b {
-  color-scheme: dark;
-  --background: oklch(0.14 0.018 145);
-  --foreground: oklch(0.94 0.015 105);
-  --card: oklch(0.18 0.019 145);
-  --card-foreground: oklch(0.94 0.015 105);
-  --popover: oklch(0.2 0.02 145);
-  --popover-foreground: oklch(0.94 0.015 105);
-  --primary: oklch(0.87 0.19 121);
-  --primary-foreground: oklch(0.17 0.02 145);
-  --secondary: oklch(0.27 0.035 145);
-  --secondary-foreground: oklch(0.94 0.015 105);
-  --muted: oklch(0.23 0.018 145);
-  --muted-foreground: oklch(0.67 0.025 120);
-  --accent: oklch(0.31 0.05 135);
-  --accent-foreground: oklch(0.95 0.02 110);
-  --border: oklch(0.36 0.025 145);
-  --input: oklch(0.36 0.025 145);
-  --ring: oklch(0.87 0.19 121);
-  background-image:
-    radial-gradient(circle at 12% 10%, oklch(0.87 0.19 121 / 8%), transparent 28%),
-    linear-gradient(to right, oklch(0.94 0.015 105 / 3%) 1px, transparent 1px);
-  background-size:
-    auto,
-    52px 52px;
-}
-
-.hf-variant-b [data-slot="card"] {
-  box-shadow: none;
-}
-
-.hf-variant-c {
-  --background: oklch(0.97 0.025 90);
-  --foreground: oklch(0.22 0.035 29);
-  --card: oklch(0.995 0.01 88);
-  --card-foreground: oklch(0.22 0.035 29);
-  --primary: oklch(0.49 0.16 33);
-  --primary-foreground: oklch(0.98 0.014 86);
-  --secondary: oklch(0.9 0.08 84);
-  --secondary-foreground: oklch(0.27 0.045 34);
-  --muted: oklch(0.93 0.03 88);
-  --muted-foreground: oklch(0.51 0.035 39);
-  --accent: oklch(0.82 0.1 74);
-  --accent-foreground: oklch(0.24 0.04 34);
-  --border: oklch(0.83 0.055 82);
-  --ring: oklch(0.49 0.16 33);
-  background-image:
-    radial-gradient(circle at 85% 5%, oklch(0.82 0.1 74 / 22%), transparent 28%),
-    radial-gradient(circle at 5% 40%, oklch(0.49 0.16 33 / 7%), transparent 24%);
-}
-
-.hf-variant-c [data-slot="card"],
-.hf-variant-c [data-slot="alert"],
-.hf-variant-c [data-slot="empty"] {
-  border-radius: 1.25rem;
-}
-
-.hf-variant-c [data-slot="card"] {
-  box-shadow: 0 16px 36px oklch(0.22 0.035 29 / 8%);
-}
-
-.hf-variant-c .hf-ticket {
-  position: relative;
-  overflow: visible;
-}
-
-.hf-variant-c .hf-ticket::before,
-.hf-variant-c .hf-ticket::after {
-  position: absolute;
-  top: 52%;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 999px;
-  background: var(--background);
-  content: "";
-}
-
-.hf-variant-c .hf-ticket::before {
-  left: -0.5rem;
-}
-
-.hf-variant-c .hf-ticket::after {
-  right: -0.5rem;
+/* Overline label above a title or value: section kickers, stat labels, team captions. */
+@utility eyebrow {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }

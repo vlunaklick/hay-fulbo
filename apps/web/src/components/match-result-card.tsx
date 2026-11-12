@@ -60,12 +60,10 @@ export function MatchResultCard({
         <h2 id="share-result-title" className="text-sm font-medium">
           Resultado para compartir
         </h2>
-        <span className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
-          Final
-        </span>
+        <span className="eyebrow text-muted-foreground">Final</span>
       </header>
       <Card className="relative gap-0 px-4 py-5">
-        <p className="relative truncate text-center text-[0.625rem] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+        <p className="relative truncate text-center eyebrow text-muted-foreground">
           Hay Fulbo · {dateLabel}
         </p>
         <div className="relative mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">

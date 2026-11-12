@@ -8,7 +8,7 @@ const badgeVariants = cva(
   cn(
     "border-border group shrink-0 flex-row items-center justify-center gap-1 overflow-hidden rounded-full border px-2 py-0.5",
     Platform.select({
-      web: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive w-fit whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] [&>svg]:pointer-events-none [&>svg]:size-3",
+      web: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive w-fit whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-2 [&>svg]:pointer-events-none [&>svg]:size-3",
     }),
   ),
   {
@@ -23,9 +23,10 @@ const badgeVariants = cva(
           Platform.select({ web: "[a&]:hover:bg-secondary/90" }),
         ),
         destructive: cn(
-          "bg-destructive border-transparent",
-          Platform.select({ web: "[a&]:hover:bg-destructive/90" }),
+          "bg-destructive/10 border-transparent dark:bg-destructive/20",
+          Platform.select({ web: "[a&]:hover:bg-destructive/20" }),
         ),
+        success: "bg-success/10 border-transparent dark:bg-success/20",
         outline: Platform.select({ web: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground" }),
       },
     },
@@ -40,7 +41,8 @@ const badgeTextVariants = cva("text-xs font-medium", {
     variant: {
       default: "text-primary-foreground",
       secondary: "text-secondary-foreground",
-      destructive: "text-white",
+      destructive: "text-destructive",
+      success: "text-success",
       outline: "text-foreground",
     },
   },

@@ -184,7 +184,7 @@ export function GroupMembersPage() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <p className="text-sm font-semibold text-primary">Tu grupo</p>
+        <p className="text-sm font-semibold text-primary-text">Tu grupo</p>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Personas y permisos</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           Designá líderes para que puedan editar partidos, jugadores y canchas.
@@ -450,7 +450,10 @@ export function GroupMembersPage() {
               </ItemContent>
               {member.role === "owner" ? (
                 <ItemActions className="min-h-10 text-sm text-muted-foreground">
-                  <ShieldCheckIcon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  <ShieldCheckIcon
+                    className="size-4 shrink-0 text-primary-text"
+                    aria-hidden="true"
+                  />
                   Responsable del grupo
                 </ItemActions>
               ) : (

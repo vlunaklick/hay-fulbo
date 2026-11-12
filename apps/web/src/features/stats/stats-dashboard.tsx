@@ -213,7 +213,7 @@ function StatsDashboardContent({
               Grupo público · solo lectura
             </Badge>
           ) : null}
-          <h1 className="text-2xl font-bold tracking-[-0.03em] sm:text-3xl">Estadísticas</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Estadísticas</h1>
           <p className="text-sm text-muted-foreground">
             {dashboard.group.name} · solo partidos cerrados
           </p>
@@ -241,9 +241,11 @@ function StatsDashboardContent({
               >
                 <span className="font-medium text-foreground">
                   {match.teams[0]?.displayName}{" "}
-                  <strong className="tabular-nums text-primary">{match.teams[0]?.goals}</strong>
+                  <strong className="tabular-nums text-primary-text">
+                    {match.teams[0]?.goals}
+                  </strong>
                   <span className="px-0.5">–</span>
-                  <strong className="tabular-nums text-primary">
+                  <strong className="tabular-nums text-primary-text">
                     {match.teams[1]?.goals}
                   </strong>{" "}
                   {match.teams[1]?.displayName}
@@ -305,10 +307,8 @@ function StatsDashboardContent({
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                            La figura
-                          </p>
-                          <h2 className="truncate text-2xl font-bold tracking-[-0.03em]">
+                          <p className="eyebrow text-muted-foreground">La figura</p>
+                          <h2 className="truncate text-2xl font-bold tracking-tight">
                             {figure.displayName}
                           </h2>
                           <p className="text-sm text-muted-foreground">
@@ -598,9 +598,7 @@ function FilterSelect({
         value={value}
       >
         <SelectTrigger className="min-h-11 w-full bg-background/35" id={id}>
-          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            {label}
-          </span>
+          <span className="shrink-0 eyebrow text-muted-foreground">{label}</span>
           <SelectValue className="min-w-0 font-medium">
             {options.find((option) => option.value === value)?.label}
           </SelectValue>
@@ -670,7 +668,7 @@ function Ranking({
                 <span className="block text-lg font-semibold tabular-nums">
                   {row.contributions}
                 </span>
-                <span className="block text-[10px] uppercase text-muted-foreground">G+A</span>
+                <span className="block eyebrow text-muted-foreground">G+A</span>
               </span>
             </Link>
           </div>
@@ -793,7 +791,7 @@ function ContributionRace({
               {String(index + 1).padStart(2, "0")}
             </span>
             <Avatar className="size-8 shrink-0">
-              <AvatarFallback className={index === 0 ? "bg-primary/15 text-primary" : ""}>
+              <AvatarFallback className={index === 0 ? "bg-primary/15 text-primary-text" : ""}>
                 {initials(player.displayName)}
               </AvatarFallback>
             </Avatar>
@@ -819,9 +817,7 @@ function ContributionRace({
 function SpotlightMetric({ label, value }: { label: string; value: number | string }) {
   return (
     <div>
-      <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
+      <dt className="eyebrow text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-xl font-bold tabular-nums">{value}</dd>
     </div>
   );
@@ -842,13 +838,11 @@ function HallLeader({
 }) {
   return (
     <Item className="min-h-[3.65rem] flex-nowrap px-0" role="listitem" size="sm">
-      <ItemMedia className="text-primary" variant="icon">
+      <ItemMedia className="text-primary-text" variant="icon">
         {icon}
       </ItemMedia>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          {label}
-        </p>
+        <p className="eyebrow text-muted-foreground">{label}</p>
         <p className="truncate text-sm font-semibold">{player?.displayName ?? "Sin datos"}</p>
       </div>
       <p className="shrink-0 text-right text-xs tabular-nums text-muted-foreground">

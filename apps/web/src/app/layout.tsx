@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
+import { tokenHex } from "@hay-fulbo/ui/tokens";
 
 import "../index.css";
 import Providers from "@/components/providers";
@@ -17,8 +18,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   colorScheme: "light dark",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafcf9" },
-    { media: "(prefers-color-scheme: dark)", color: "#101512" },
+    { media: "(prefers-color-scheme: light)", color: tokenHex("background", "light") },
+    { media: "(prefers-color-scheme: dark)", color: tokenHex("background", "dark") },
   ],
   viewportFit: "cover",
 };

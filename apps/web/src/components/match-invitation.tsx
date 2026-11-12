@@ -125,7 +125,7 @@ export function MatchInvitation({
 
         <Card className="overflow-hidden">
           <CardHeader className="border-b">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow text-primary-text">
               {invitation.match.status === "open" ? "Próximo partido" : "Partido"}
             </p>
             <h1 className="text-3xl font-bold">
@@ -138,7 +138,7 @@ export function MatchInvitation({
           </CardHeader>
           <CardContent className="flex flex-col gap-6 py-6 sm:flex-row">
             <p className="flex items-center gap-3 text-lg font-semibold sm:flex-[1_1_0]">
-              <UsersIcon className="size-5 text-primary" aria-hidden="true" />
+              <UsersIcon className="size-5 text-primary-text" aria-hidden="true" />
               {invitation.summary.playing}{" "}
               {invitation.summary.playing === 1 ? "anotado" : "anotados"}
             </p>
@@ -153,7 +153,7 @@ export function MatchInvitation({
                     <a href={invitation.match.court.mapsUrl} rel="noreferrer" target="_blank" />
                   }
                 >
-                  <ItemMedia variant="icon" className="text-primary">
+                  <ItemMedia variant="icon" className="text-primary-text">
                     <MapPinIcon aria-hidden="true" />
                   </ItemMedia>
                   <ItemContent>

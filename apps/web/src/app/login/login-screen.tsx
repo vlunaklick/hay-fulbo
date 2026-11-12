@@ -86,7 +86,7 @@ export default function LoginScreen({
     <main className="relative grid min-h-svh place-items-center overflow-hidden px-4 py-10">
       <div className="flex w-full max-w-md flex-col gap-8">
         <header className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 text-primary">
+          <div className="flex items-center gap-2 text-primary-text">
             <ShieldCheckIcon aria-hidden="true" />
             <span className="text-sm font-semibold uppercase tracking-[0.18em]">Hay Fulbo</span>
           </div>
