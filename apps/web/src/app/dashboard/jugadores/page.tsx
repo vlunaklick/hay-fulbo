@@ -1,5 +1,11 @@
-import { DirectoryPage } from "@/components/directory-page";
+import { Suspense } from "react";
 
-export default function PlayersPage() {
-  return <DirectoryPage kind="players" />;
+import { PlayersPage } from "@/features/players/players-page";
+
+export default function DashboardPlayersPage() {
+  return (
+    <Suspense fallback={null}>
+      <PlayersPage />
+    </Suspense>
+  );
 }
