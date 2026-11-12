@@ -26,8 +26,10 @@ export function MatchShareRow({
   court,
   groupName,
   detail,
+  size = "sm",
   variant = "outline",
 }: {
+  size?: "sm" | "default";
   /** `default` when inviting is the one thing left to do before kickoff. */
   variant?: "default" | "outline";
   court: { address: string; mapsUrl: string; name: string } | null;
@@ -86,7 +88,7 @@ export function MatchShareRow({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button size="sm" variant={variant} />}>
+      <DropdownMenuTrigger render={<Button size={size} variant={variant} />}>
         <Share2Icon data-icon="inline-start" aria-hidden="true" />
         Invitar
       </DropdownMenuTrigger>

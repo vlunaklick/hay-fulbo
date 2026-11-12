@@ -3,8 +3,8 @@
 import type { AppRouter } from "@hay-fulbo/api/routers/index";
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
 import { Badge } from "@hay-fulbo/ui/components/badge";
+import { Card } from "@hay-fulbo/ui/components/card";
 import { Button } from "@hay-fulbo/ui/components/button";
-import { Card, CardContent } from "@hay-fulbo/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -29,26 +29,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@hay-fulbo/ui/components/sheet";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { Spinner } from "@hay-fulbo/ui/components/spinner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@hay-fulbo/ui/components/tabs";
+import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import {
   ArrowLeftIcon,
   BanIcon,
-  CalendarClockIcon,
   CheckIcon,
   CircleAlertIcon,
+  DownloadIcon,
   LockKeyholeIcon,
-  MapPinIcon,
   Maximize2Icon,
   MinusIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
   RotateCcwIcon,
+  Share2Icon,
   UserXIcon,
   WalletIcon,
 } from "lucide-react";
@@ -61,13 +70,22 @@ import type { ReactNode } from "react";
 import { useAppContext } from "@/components/app-shell";
 import { MatchParityCard } from "@/components/match-parity-card";
 import { MatchRatings } from "@/components/match-ratings";
-import { MatchResultCard } from "@/components/match-result-card";
+import { downloadResultCard, shareResultCard } from "@/components/match-result-card";
 import {
-  MatchScoreboard,
+  GoalPicker,
   useMatchCommand,
+  type GoalPick,
   type RunMatchAction,
 } from "@/components/match-scoreboard";
 import { MatchShareRow } from "@/components/match-share-row";
+import {
+  ActionDock,
+  DrillList,
+  DrillRow,
+  HeroNumber,
+  NextStep,
+  StatusHeader,
+} from "@/components/next-step";
 import { isTerminalReadError, matchReadErrorMessage } from "@/lib/match-command-error";
 import { formatDate, formatMoney, toMinor } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
@@ -75,14 +93,16 @@ import { trpc } from "@/utils/trpc";
 type Outputs = inferRouterOutputs<AppRouter>;
 type Detail = Outputs["matches"]["detail"];
 type Directory = Outputs["matches"]["directory"];
+type Ratings = Outputs["matches"]["ratings"];
 type Appearance = Detail["teams"][number]["appearances"][number];
 type PaymentSubject = Pick<
   Appearance,
   "playerId" | "playerDisplayName" | "expectedMinor" | "paidMinor" | "contributionStatus"
 >;
-/** Where the match is in its life: drives the hero, the tabs and the one primary action. */
+/** Where the match is in its life: drives the hero, the next step and the rows. */
 type Phase = "upcoming" | "live" | "closed" | "cancelled";
-type Tab = "planilla" | "equipos" | "caja" | "notas";
+/** Everything that is not the next step opens in one of these sheets. */
+type Panel = "equipos" | "caja" | "goles" | "notas" | "datos";
 
 const issueText = {
   match_not_started: "La hora del partido todavía no pasó.",
@@ -102,19 +122,20 @@ const phaseLabel = {
   cancelled: "Cancelado",
 } as const satisfies Record<Phase, string>;
 
-const tabsByPhase = {
-  upcoming: ["equipos", "caja"],
-  live: ["planilla", "equipos", "caja"],
-  closed: ["notas", "planilla", "caja"],
+const rowsByPhase = {
+  upcoming: ["equipos", "caja", "datos"],
+  live: ["equipos", "caja", "goles", "datos"],
+  closed: ["caja", "goles", "notas", "equipos"],
   cancelled: ["equipos"],
-} as const satisfies Record<Phase, readonly Tab[]>;
+} as const satisfies Record<Phase, readonly Panel[]>;
 
-const tabLabel = {
-  planilla: "Planilla",
+const panelTitle = {
   equipos: "Equipos",
   caja: "Caja",
+  goles: "Goles",
   notas: "Notas",
-} as const satisfies Record<Tab, string>;
+  datos: "Datos del partido",
+} as const satisfies Record<Panel, string>;
 
 export default function MatchPage() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -126,10 +147,11 @@ export default function MatchPage() {
 
   if (detail.isPending || directory.isPending) {
     return (
-      <div className="flex flex-col gap-5">
-        <Skeleton className="h-11 w-28" />
-        <Skeleton className="h-52 w-full" />
-        <Skeleton className="h-96 w-full" />
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-48 w-full" />
       </div>
     );
   }
@@ -146,7 +168,7 @@ export default function MatchPage() {
 
   // A failed background poll keeps the cached workspace (and any open drafts) mounted.
   return (
-    <>
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
       {readError ? (
         <Alert role="status">
           <CircleAlertIcon aria-hidden="true" />
@@ -167,14 +189,17 @@ export default function MatchPage() {
         </Alert>
       ) : null}
       <MatchWorkspace key={detail.data.id} detail={detail.data} directory={directory.data} />
-    </>
+    </div>
   );
 }
 
-// The score is the anchor of the page: it sits on the first screen in every state (and follows
-// you down on the phone); rosters, the sheet, the money and the ratings live in tabs under it.
+/**
+ * Próximo paso: status → the number → the one thing to do now → rows that drill into sheets.
+ * See docs/prototypes/proximo-paso.md.
+ */
 function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Directory }) {
   const { groupName, role, user } = useAppContext();
+  const mobile = useIsMobile();
   const manager = detail.organizerUserId === user.id || role !== "member";
   const isOpen = detail.status === "open";
   const editable = isOpen && manager;
@@ -185,7 +210,19 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
   const [left, right] = detail.teams;
   const leftName = left?.displayName ?? "Equipo 1";
   const rightName = right?.displayName ?? "Equipo 2";
-  const showClosingBar = editable && phase === "live";
+  const leftGoals = scoreFor(detail, left?.id);
+  const rightGoals = scoreFor(detail, right?.id);
+  const ratings = useQuery({
+    ...trpc.matches.ratings.queryOptions({ matchId: detail.id }),
+    enabled: phase === "closed",
+  });
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const [goalPick, setGoalPick] = useState<GoalPick | null>(null);
+  const goalTrigger = useRef<HTMLButtonElement | null>(null);
+  const openGoalPicker = (trigger: HTMLButtonElement, pick: GoalPick) => {
+    goalTrigger.current = trigger;
+    setGoalPick(pick);
+  };
   const [heroVisible, setHeroVisible] = useState(true);
   const heroRef = useCallback((node: HTMLElement | null) => {
     if (!node) return;
@@ -197,159 +234,576 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  const tabs = tabsByPhase[phase];
+
+  const result = {
+    dateLabel: formatDate(detail.scheduledAt),
+    groupName,
+    left: { goals: leftGoals, name: leftName },
+    matchId: detail.id,
+    right: { goals: rightGoals, name: rightName },
+  };
+  const cash = cashSummary(detail);
+  const showDock = phase === "live";
+  const sheetSide = mobile ? "bottom" : "right";
+  // Inviting is the next step for the organizer before kickoff; otherwise it is a quiet header action.
+  const inviteInNextStep = phase === "upcoming" && manager;
+
+  const menuItems = [
+    editable ? (
+      <DropdownMenuItem
+        key="cancel"
+        variant="destructive"
+        onClick={() => run({ type: "cancelMatch", matchId: detail.id })}
+      >
+        <BanIcon aria-hidden="true" />
+        Cancelar partido
+      </DropdownMenuItem>
+    ) : null,
+    detail.status === "closed" && manager ? (
+      <DropdownMenuItem
+        key="reopen"
+        onClick={() => run({ type: "reopenMatch", matchId: detail.id })}
+      >
+        <RotateCcwIcon aria-hidden="true" />
+        Reabrir partido
+      </DropdownMenuItem>
+    ) : null,
+    phase === "closed" ? (
+      <DropdownMenuItem key="download" onClick={() => downloadResultCard(result)}>
+        <DownloadIcon aria-hidden="true" />
+        Descargar placa
+      </DropdownMenuItem>
+    ) : null,
+  ].filter(Boolean);
 
   return (
-    <div className={cn("flex flex-col gap-5", showClosingBar && "pb-20 md:pb-0")}>
+    <div className={cn("flex flex-col gap-5", showDock && "pb-32 md:pb-0")}>
       {phase === "live" || phase === "closed" ? (
         <CompactScore
           visible={!heroVisible}
-          left={{ name: leftName, goals: scoreFor(detail, left?.id) }}
-          right={{ name: rightName, goals: scoreFor(detail, right?.id) }}
+          left={{ name: leftName, goals: leftGoals }}
+          right={{ name: rightName, goals: rightGoals }}
         />
       ) : null}
 
-      <MatchHeader
-        courts={directory.courts}
-        detail={detail}
-        editable={editable}
-        pending={pending}
-        run={run}
-        share={
-          isOpen ? (
-            <MatchShareRow
-              court={court}
-              detail={detail}
-              groupName={groupName}
-              variant={phase === "upcoming" && manager ? "default" : "outline"}
-            />
-          ) : null
+      <StatusHeader
+        back={
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-ml-3 text-muted-foreground"
+              render={<Link href="/dashboard/partidos" />}
+              nativeButton={false}
+            >
+              <ArrowLeftIcon data-icon="inline-start" aria-hidden="true" />
+              Partidos
+            </Button>
+            <div className="flex min-w-0 items-center gap-1">
+              {isOpen && !inviteInNextStep ? (
+                <MatchShareRow court={court} detail={detail} groupName={groupName} />
+              ) : null}
+              {menuItems.length > 0 ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        aria-label="Más acciones del partido"
+                        disabled={pending}
+                        size="icon"
+                        variant="ghost"
+                      />
+                    }
+                  >
+                    <MoreHorizontalIcon aria-hidden="true" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {menuItems}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+            </div>
+          </div>
         }
-        onCancelMatch={
-          editable ? () => run({ type: "cancelMatch", matchId: detail.id }) : undefined
+        title={
+          <>
+            <span>{leftName}</span> vs <span>{rightName}</span>
+          </>
         }
-        onRestore={
-          detail.status === "cancelled" && manager
-            ? () => run({ type: "restoreMatch", matchId: detail.id })
-            : undefined
-        }
-        onReopen={
-          detail.status === "closed" && manager
-            ? () => run({ type: "reopenMatch", matchId: detail.id })
-            : undefined
+        meta={`${formatDate(detail.scheduledAt)} · ${court?.name ?? "Cancha a definir"}`}
+        status={
+          <Badge
+            variant={
+              phase === "cancelled" ? "destructive" : phase === "live" ? "default" : "secondary"
+            }
+          >
+            {phaseLabel[phase]}
+          </Badge>
         }
       />
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start lg:gap-8">
-        <section
-          aria-label="Marcador"
-          ref={heroRef}
-          className="flex flex-col gap-3 lg:sticky lg:top-8"
-        >
-          <h1 className="sr-only">
-            {leftName} vs {rightName}
-          </h1>
-          <MatchMeta detail={detail} phase={phase} courtName={court?.name ?? null} />
-
-          {phase === "live" ? (
-            <MatchScoreboard
-              detail={detail}
-              canScore={canScore}
-              pending={pending}
-              run={run}
-              actions={
-                <>
-                  {editable ? (
-                    <ScorekeeperSelect
-                      detail={detail}
-                      directory={directory}
-                      pending={pending}
-                      run={run}
-                    />
-                  ) : null}
-                  <Button
-                    render={<Link href={`/dashboard/partidos/${detail.id}/cancha` as Route} />}
-                    nativeButton={false}
-                    size="sm"
-                    variant={canScore ? "secondary" : "outline"}
-                  >
-                    <Maximize2Icon data-icon="inline-start" aria-hidden="true" />
-                    Modo cancha
-                  </Button>
-                </>
-              }
-            />
-          ) : phase === "closed" ? (
-            <MatchResultCard
-              dateLabel={formatDate(detail.scheduledAt)}
-              groupName={groupName}
-              left={{ goals: scoreFor(detail, left?.id), name: leftName }}
-              matchId={detail.id}
-              right={{ goals: scoreFor(detail, right?.id), name: rightName }}
-            />
-          ) : (
-            <Lineup detail={detail}>
-              {phase === "upcoming" ? (
-                <div className="flex flex-col gap-3 border-t px-4 py-4">
-                  <h2 className="text-xs font-medium text-muted-foreground">Cómo llegan</h2>
-                  <MatchParityCard matchId={detail.id} />
-                </div>
-              ) : (
-                <p className="border-t px-4 py-3 text-sm text-muted-foreground">
-                  Partido cancelado · no suma resultados ni deuda.
-                </p>
-              )}
-            </Lineup>
-          )}
-
-          {showClosingBar ? (
-            <ClosingBar
-              issues={closureIssues(detail)}
-              pending={pending}
-              onClose={() => run({ type: "closeMatch", matchId: detail.id })}
-            />
-          ) : null}
+      {phase === "upcoming" ? (
+        <HeroNumber caption={playingCount(detail) === 1 ? "anotado" : "anotados"}>
+          {playingCount(detail)}
+        </HeroNumber>
+      ) : phase === "live" || phase === "closed" ? (
+        <section aria-label="Marcador" ref={heroRef}>
+          <HeroNumber
+            caption={
+              phase === "closed"
+                ? "Resultado final"
+                : detail.scorekeeperName
+                  ? `Planillero: ${detail.scorekeeperName}`
+                  : canScore
+                    ? "Sin planillero"
+                    : "El organizador y el planillero cargan los goles"
+            }
+          >
+            <span className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-4">
+              <ScoreSide goals={leftGoals} name={leftName} slot={1} />
+              <span
+                aria-hidden="true"
+                className="pb-1 text-3xl font-semibold text-muted-foreground"
+              >
+                –
+              </span>
+              <ScoreSide goals={rightGoals} name={rightName} slot={2} />
+            </span>
+          </HeroNumber>
         </section>
+      ) : null}
 
-        <Tabs key={phase} defaultValue={tabs[0]} className="gap-4">
-          <TabsList className="w-full">
-            {tabs.map((tab) => (
-              <TabsTrigger key={tab} value={tab}>
-                {tabLabel[tab]}
-                {tab === "caja" ? <CashCount detail={detail} /> : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <TabsContent value="equipos" className="text-sm">
-            <RosterGrid
-              detail={detail}
-              directory={directory}
-              editable={editable}
-              pending={pending}
-              run={run}
-            />
-          </TabsContent>
-          <TabsContent value="planilla" className="text-sm">
-            {phase === "closed" ? (
-              <ReadOnlyStats detail={detail} />
-            ) : (
-              <Planilla detail={detail} editable={editable} pending={pending} run={run} />
-            )}
-          </TabsContent>
-          <TabsContent value="caja" className="text-sm">
-            <Caja
-              detail={detail}
-              editable={manager && detail.status !== "cancelled"}
-              pending={pending}
-              run={run}
-            />
-          </TabsContent>
-          <TabsContent value="notas" className="text-sm">
-            <MatchRatings matchId={detail.id} teams={detail.teams} />
-          </TabsContent>
-        </Tabs>
-      </div>
+      <MatchNextStep
+        canScore={canScore}
+        cash={cash}
+        detail={detail}
+        manager={manager}
+        phase={phase}
+        ratings={ratings.data}
+        pending={pending}
+        invite={
+          <MatchShareRow
+            court={court}
+            detail={detail}
+            groupName={groupName}
+            size="default"
+            variant="default"
+          />
+        }
+        onGoal={openGoalPicker}
+        onOpen={setPanel}
+        onRestore={() => run({ type: "restoreMatch", matchId: detail.id })}
+        onShare={() => void shareResultCard(result)}
+      />
+
+      <DrillList>
+        {rowsByPhase[phase].map((key) => (
+          <DrillRow
+            key={key}
+            label={panelTitle[key]}
+            value={panelValue(key, { cash, detail, phase, ratings: ratings.data })}
+            onClick={() => setPanel(key)}
+          />
+        ))}
+      </DrillList>
+
+      {showDock ? (
+        <ActionDock>
+          <div className="flex flex-col gap-2">
+            {editable ? <ClosingHint issues={closureIssues(detail)} /> : null}
+            <div className="flex gap-2 *:flex-1">
+              <Button
+                render={<Link href={`/dashboard/partidos/${detail.id}/cancha` as Route} />}
+                nativeButton={false}
+                variant="outline"
+              >
+                <Maximize2Icon data-icon="inline-start" aria-hidden="true" />
+                Modo cancha
+              </Button>
+              {editable ? (
+                <Button
+                  disabled={closureIssues(detail).length > 0 || pending}
+                  onClick={() => run({ type: "closeMatch", matchId: detail.id })}
+                >
+                  <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
+                  Cerrar partido
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </ActionDock>
+      ) : null}
+
+      <PanelSheet
+        open={panel === "equipos"}
+        onOpenChange={(open) => setPanel(open ? "equipos" : null)}
+        side={sheetSide}
+        title="Equipos"
+        description={
+          editable
+            ? "Sumá, mové o sacá jugadores. Tocá el nombre de un equipo para cambiarlo."
+            : `${leftName} vs ${rightName}`
+        }
+      >
+        <div className="flex flex-col gap-6">
+          {phase === "upcoming" ? (
+            <section className="flex flex-col gap-3">
+              <h2 className="text-xs font-medium text-muted-foreground">Cómo llegan</h2>
+              <MatchParityCard matchId={detail.id} />
+            </section>
+          ) : null}
+          {phase === "cancelled" ? (
+            <p className="text-sm text-muted-foreground">
+              Partido cancelado · no suma resultados ni deuda.
+            </p>
+          ) : null}
+          <RosterGrid
+            detail={detail}
+            directory={directory}
+            editable={editable}
+            pending={pending}
+            run={run}
+          />
+        </div>
+      </PanelSheet>
+
+      <PanelSheet
+        open={panel === "caja"}
+        onOpenChange={(open) => setPanel(open ? "caja" : null)}
+        side={sheetSide}
+        title="Caja"
+        description="Lo que pone cada uno para la cancha."
+      >
+        <Caja
+          detail={detail}
+          editable={manager && detail.status !== "cancelled"}
+          pending={pending}
+          run={run}
+        />
+      </PanelSheet>
+
+      <PanelSheet
+        open={panel === "goles"}
+        onOpenChange={(open) => setPanel(open ? "goles" : null)}
+        side={sheetSide}
+        title="Goles"
+        description={
+          phase === "closed"
+            ? "La planilla del partido."
+            : editable
+              ? "Goles, asistencias y en contra de cada jugador."
+              : "La planilla, a medida que se carga."
+        }
+      >
+        {phase === "closed" ? (
+          <ReadOnlyStats detail={detail} />
+        ) : (
+          <div className="flex flex-col gap-5">
+            {editable ? (
+              <Field orientation="horizontal" className="justify-between">
+                <FieldLabel>Quién carga los goles</FieldLabel>
+                <ScorekeeperSelect
+                  detail={detail}
+                  directory={directory}
+                  pending={pending}
+                  run={run}
+                />
+              </Field>
+            ) : null}
+            {canScore && !editable ? (
+              <div className="flex gap-2 *:flex-1">
+                {detail.teams.map((team) => (
+                  <Button
+                    key={team.id}
+                    aria-label={`Restar un gol a ${team.displayName}`}
+                    disabled={pending || scoreFor(detail, team.id) === 0}
+                    variant="outline"
+                    onClick={(event) =>
+                      openGoalPicker(event.currentTarget, { teamId: team.id, delta: -1 })
+                    }
+                  >
+                    <MinusIcon data-icon="inline-start" aria-hidden="true" />
+                    <span className="truncate">Restar a {team.displayName}</span>
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+            <Planilla detail={detail} editable={editable} pending={pending} run={run} />
+          </div>
+        )}
+      </PanelSheet>
+
+      <PanelSheet
+        open={panel === "notas"}
+        onOpenChange={(open) => setPanel(open ? "notas" : null)}
+        side={sheetSide}
+        title="Notas"
+        description="Anónimas: nadie ve quién puso qué."
+      >
+        <MatchRatings matchId={detail.id} teams={detail.teams} />
+      </PanelSheet>
+
+      <MatchDataSheet
+        courts={directory.courts}
+        court={court}
+        detail={detail}
+        editable={editable}
+        open={panel === "datos"}
+        onOpenChange={(open) => setPanel(open ? "datos" : null)}
+        pending={pending}
+        run={run}
+        side={sheetSide}
+      />
+
+      <GoalPicker
+        canScore={canScore}
+        detail={detail}
+        onClose={() => setGoalPick(null)}
+        pending={pending}
+        pick={goalPick}
+        returnFocus={goalTrigger}
+        run={run}
+        side={sheetSide}
+      />
     </div>
+  );
+}
+
+type CashSummary =
+  | { state: "no_price" }
+  | { state: "empty" }
+  | {
+      state: "ready";
+      debtors: number;
+      missing: bigint;
+      perPlayer: bigint;
+    };
+
+function cashSummary(detail: Detail): CashSummary {
+  if (detail.courtCostMinor === null) return { state: "no_price" };
+  const rows = cashRows(detail);
+  if (rows.length === 0) return { state: "empty" };
+  const collected = rows.reduce((acc, row) => acc + BigInt(row.paidMinor), 0n);
+  const expected = rows.reduce((acc, row) => acc + BigInt(row.expectedMinor), 0n);
+  const count = BigInt(rows.length);
+  return {
+    state: "ready",
+    debtors: rows.filter(
+      (row) => row.contributionStatus === "pending" || row.contributionStatus === "partial",
+    ).length,
+    missing: expected > collected ? expected - collected : 0n,
+    perPlayer: (BigInt(detail.courtCostMinor) + count - 1n) / count,
+  };
+}
+
+function panelValue(
+  panel: Panel,
+  {
+    cash,
+    detail,
+    phase,
+    ratings,
+  }: { cash: CashSummary; detail: Detail; phase: Phase; ratings: Ratings | undefined },
+): ReactNode {
+  switch (panel) {
+    case "equipos": {
+      const [left, right] = detail.teams;
+      const absent = detail.absences.length;
+      return `${left?.appearances.length ?? 0} vs ${right?.appearances.length ?? 0}${
+        absent > 0 ? ` · ${absent} no ${absent === 1 ? "vino" : "vinieron"}` : ""
+      }`;
+    }
+    case "caja":
+      if (cash.state === "no_price") return "sin precio";
+      if (cash.state === "empty") return "—";
+      if (phase === "upcoming") return `${formatMoney(cash.perPlayer)} c/u`;
+      return cash.missing > 0n ? (
+        <span className="font-medium text-destructive">falta {formatMoney(cash.missing)}</span>
+      ) : (
+        "completa"
+      );
+    case "goles": {
+      const total = detail.score.reduce((sum, row) => sum + row.goals, 0);
+      return total === 1 ? "1 cargado" : `${total} cargados`;
+    }
+    case "notas":
+      if (!ratings) return null;
+      if (ratings.revealed) {
+        return ratings.figure ? `Figura: ${ratings.figure.displayName}` : "reveladas";
+      }
+      return `votaron ${ratings.completeVotes} de ${ratings.eligibleVoters}`;
+    case "datos":
+      return detail.courtCostMinor === null ? "sin precio" : formatMoney(detail.courtCostMinor);
+  }
+}
+
+/** The one thing to do now. Changes with the phase; hidden when there is nothing to do. */
+function MatchNextStep({
+  canScore,
+  cash,
+  detail,
+  invite,
+  manager,
+  onGoal,
+  onOpen,
+  onRestore,
+  onShare,
+  pending,
+  phase,
+  ratings,
+}: {
+  canScore: boolean;
+  cash: CashSummary;
+  detail: Detail;
+  invite: ReactNode;
+  manager: boolean;
+  onGoal: (trigger: HTMLButtonElement, pick: GoalPick) => void;
+  onOpen: (panel: Panel) => void;
+  onRestore: () => void;
+  onShare: () => void;
+  pending: boolean;
+  phase: Phase;
+  ratings: Ratings | undefined;
+}) {
+  if (phase === "upcoming") {
+    if (!manager) return null;
+    const [left, right] = detail.teams;
+    const gap = Math.abs((left?.appearances.length ?? 0) - (right?.appearances.length ?? 0));
+    const short = (left?.appearances.length ?? 0) < (right?.appearances.length ?? 0) ? left : right;
+    const playing = playingCount(detail);
+    return (
+      <NextStep
+        kicker={
+          playing === 0
+            ? "Todavía no hay anotados"
+            : gap > 0 && short
+              ? `${gap === 1 ? "Falta 1" : `Faltan ${gap}`} en ${short.displayName}`
+              : `${playing} anotados`
+        }
+        title={playing === 0 ? "Invitá al grupo" : "Invitá a los que faltan"}
+        action={invite}
+      >
+        Mandá el link por WhatsApp y se anotan solos.
+      </NextStep>
+    );
+  }
+
+  if (phase === "live") {
+    if (!canScore) return null;
+    return (
+      <NextStep
+        kicker="En juego"
+        title="¿Hubo gol?"
+        action={detail.teams.slice(0, 2).map((team) => (
+          <Button
+            key={team.id}
+            aria-label={`Sumar un gol a ${team.displayName}`}
+            disabled={pending}
+            size="lg"
+            variant={team.slot === 1 ? "team-blue" : "team-amber"}
+            onClick={(event) => onGoal(event.currentTarget, { teamId: team.id, delta: 1 })}
+          >
+            <PlusIcon data-icon="inline-start" aria-hidden="true" />
+            <span className="truncate">{team.displayName}</span>
+          </Button>
+        ))}
+      />
+    );
+  }
+
+  if (phase === "closed") {
+    if (manager && cash.state === "ready" && cash.debtors > 0) {
+      return (
+        <NextStep
+          kicker={cash.debtors === 1 ? "1 debe su parte" : `${cash.debtors} deben su parte`}
+          title={`Cobrar ${formatMoney(cash.missing)}`}
+          action={
+            <Button onClick={() => onOpen("caja")}>
+              <WalletIcon data-icon="inline-start" aria-hidden="true" />
+              Abrir caja
+            </Button>
+          }
+        />
+      );
+    }
+    const toRate = ratings?.viewerCanRate
+      ? ratings.players.filter(
+          (player) =>
+            player.playerId !== ratings.viewerPlayerId &&
+            ratings.ownScores[player.playerId] === undefined,
+        ).length
+      : 0;
+    if (ratings && toRate > 0) {
+      return (
+        <NextStep
+          kicker={`Votaron ${ratings.completeVotes} de ${ratings.eligibleVoters}`}
+          title="Calificá a tus compañeros"
+          action={<Button onClick={() => onOpen("notas")}>Calificar</Button>}
+        >
+          {toRate === 1 ? "Te falta 1 nota." : `Te faltan ${toRate} notas.`}
+        </NextStep>
+      );
+    }
+    return (
+      <NextStep
+        kicker="Partido cerrado"
+        title="Compartí el resultado"
+        action={
+          <Button onClick={onShare}>
+            <Share2Icon data-icon="inline-start" aria-hidden="true" />
+            Compartir resultado
+          </Button>
+        }
+      />
+    );
+  }
+
+  return manager ? (
+    <NextStep
+      kicker="Partido cancelado"
+      title="No suma resultados ni deuda"
+      action={
+        <Button disabled={pending} onClick={onRestore} variant="outline">
+          <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
+          Restaurar partido
+        </Button>
+      }
+    />
+  ) : (
+    <p className="text-sm text-muted-foreground">
+      Partido cancelado · no suma resultados ni deuda.
+    </p>
+  );
+}
+
+function PanelSheet({
+  children,
+  description,
+  footer,
+  onOpenChange,
+  open,
+  side,
+  title,
+}: {
+  children: ReactNode;
+  description?: ReactNode;
+  footer?: ReactNode;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  side: "bottom" | "right";
+  title: string;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side={side} className={side === "bottom" ? "max-h-[90dvh]" : undefined}>
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+          {description ? <SheetDescription>{description}</SheetDescription> : null}
+        </SheetHeader>
+        <SheetBody className="text-sm">{children}</SheetBody>
+        {footer ? <SheetFooter>{footer}</SheetFooter> : null}
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -357,6 +811,10 @@ function phaseOf(detail: Detail): Phase {
   if (detail.status === "closed") return "closed";
   if (detail.status === "cancelled") return "cancelled";
   return new Date(detail.scheduledAt).getTime() > Date.now() ? "upcoming" : "live";
+}
+
+function playingCount(detail: Detail) {
+  return detail.teams.reduce((sum, team) => sum + team.appearances.length, 0);
 }
 
 function TeamDot({ slot }: { slot: number }) {
@@ -368,56 +826,27 @@ function TeamDot({ slot }: { slot: number }) {
   );
 }
 
-function MatchMeta({
-  courtName,
-  detail,
-  phase,
-}: {
-  courtName: string | null;
-  detail: Detail;
-  phase: Phase;
-}) {
+function ScoreSide({ goals, name, slot }: { goals: number; name: string; slot: 1 | 2 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-      <Badge
-        variant={phase === "cancelled" ? "destructive" : phase === "live" ? "default" : "secondary"}
+    <span
+      className={cn(
+        "flex min-w-0 flex-col gap-2",
+        slot === 1 ? "items-end text-right" : "items-start text-left",
+      )}
+    >
+      <span
+        className={cn(
+          "flex max-w-full items-center gap-2 text-sm font-semibold tracking-normal",
+          slot === 1 && "flex-row-reverse",
+        )}
       >
-        {phaseLabel[phase]}
-      </Badge>
-      <span className="flex items-center gap-1.5">
-        <CalendarClockIcon className="size-3.5 shrink-0" aria-hidden="true" />
-        {formatDate(detail.scheduledAt)}
+        <TeamDot slot={slot} />
+        <span className="truncate">{name}</span>
       </span>
-      <span className="flex min-w-0 items-center gap-1.5">
-        <MapPinIcon className="size-3.5 shrink-0" aria-hidden="true" />
-        <span className="truncate">{courtName ?? "Cancha a definir"}</span>
-      </span>
-      {detail.courtCostMinor !== null ? (
-        <span className="tabular-nums">{formatMoney(detail.courtCostMinor)}</span>
-      ) : null}
-    </div>
-  );
-}
-
-/** Who plays, before there is a score to show (or when there will never be one). */
-function Lineup({ children, detail }: { children: ReactNode; detail: Detail }) {
-  return (
-    <Card className="gap-0 py-0">
-      <div className="grid grid-cols-2 divide-x">
-        {detail.teams.map((team) => (
-          <div key={team.id} className="flex min-w-0 flex-col items-center gap-2 px-3 py-5">
-            <h2 className="flex max-w-full items-center gap-2 text-sm font-semibold">
-              <TeamDot slot={team.slot} />
-              <span className="truncate">{team.displayName}</span>
-            </h2>
-            <p className="text-sm text-muted-foreground tabular-nums">
-              {team.appearances.length === 1 ? "1 anotado" : `${team.appearances.length} anotados`}
-            </p>
-          </div>
-        ))}
-      </div>
-      {children}
-    </Card>
+      <output aria-label={`Marcador de ${name}`} className="text-6xl leading-none">
+        {goals}
+      </output>
+    </span>
   );
 }
 
@@ -457,6 +886,24 @@ function CompactScore({
   );
 }
 
+/** Above the dock buttons: what still blocks closing, or that it is ready. */
+function ClosingHint({ issues }: { issues: (keyof typeof issueText)[] }) {
+  const [first] = issues;
+  return (
+    <p className="flex min-w-0 items-start gap-2 text-xs text-muted-foreground">
+      {first ? (
+        <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
+      ) : (
+        <CheckIcon className="size-4 shrink-0 text-success" aria-hidden="true" />
+      )}
+      <span>
+        {first ? issueText[first] : "Todo listo para cerrar."}
+        {issues.length > 1 ? ` (y ${issues.length - 1} más)` : null}
+      </span>
+    </p>
+  );
+}
+
 function ScorekeeperSelect({
   detail,
   directory,
@@ -481,7 +928,7 @@ function ScorekeeperSelect({
         void run({ type: "setScorekeeper", matchId: detail.id, scorekeeperUserId: value });
       }}
     >
-      <SelectTrigger aria-label="Planillero" size="sm" className="w-40">
+      <SelectTrigger aria-label="Planillero" className="w-44">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -497,194 +944,170 @@ function ScorekeeperSelect({
   );
 }
 
-function MatchHeader({
+type MatchDataDraft = {
+  courtId: string | null;
+  cost: string;
+  lockVersion: number;
+  scheduledAt: string;
+};
+
+/**
+ * Date, court and price. Organizers edit them here; a draft survives closing the sheet and
+ * background polls until it is saved, so nothing typed is lost.
+ */
+function MatchDataSheet({
+  court,
   courts,
   detail,
   editable,
-  onCancelMatch,
-  onReopen,
-  onRestore,
+  onOpenChange,
+  open,
   pending,
   run,
-  share,
+  side,
 }: {
+  court: Directory["courts"][number] | null;
   courts: Directory["courts"];
   detail: Detail;
   editable: boolean;
-  onCancelMatch?: () => void;
-  onReopen?: () => void;
-  onRestore?: () => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
   pending: boolean;
   run: RunMatchAction;
-  share: ReactNode;
+  side: "bottom" | "right";
 }) {
-  const [editing, setEditing] = useState(false);
-  const [expectedLockVersion, setExpectedLockVersion] = useState(detail.lockVersion);
+  const [draft, setDraft] = useState<MatchDataDraft | null>(null);
   const localDate = toLocalInputValue(detail.scheduledAt);
-  const [scheduledAt, setScheduledAt] = useState(localDate);
-  const [courtId, setCourtId] = useState<string | null>(detail.courtId);
-  const [cost, setCost] = useState(
-    detail.courtCostMinor === null ? "" : String(Number(detail.courtCostMinor) / 100),
-  );
+  const current: MatchDataDraft = draft ?? {
+    courtId: detail.courtId,
+    cost: detail.courtCostMinor === null ? "" : String(Number(detail.courtCostMinor) / 100),
+    lockVersion: detail.lockVersion,
+    scheduledAt: localDate,
+  };
+  const edit = (patch: Partial<MatchDataDraft>) => setDraft({ ...current, ...patch });
 
   async function save() {
-    const courtCostMinor = cost.trim() ? toMinor(cost) : null;
+    const next = current.cost.trim() ? toMinor(current.cost) : null;
     const saved = await run(
       {
         type: "updateMatch",
         matchId: detail.id,
-        ...(scheduledAt !== localDate ? { scheduledAt: new Date(scheduledAt) } : {}),
-        ...(courtId !== detail.courtId ? { courtId } : {}),
-        ...(() => {
-          const next = cost.trim() ? courtCostMinor : null;
-          return next !== detail.courtCostMinor ? { courtCostMinor: next } : {};
-        })(),
+        ...(current.scheduledAt !== localDate
+          ? { scheduledAt: new Date(current.scheduledAt) }
+          : {}),
+        ...(current.courtId !== detail.courtId ? { courtId: current.courtId } : {}),
+        ...(next !== detail.courtCostMinor ? { courtCostMinor: next } : {}),
       },
-      { expectedLockVersion, onConflict: setExpectedLockVersion },
+      {
+        expectedLockVersion: current.lockVersion,
+        onConflict: (lockVersion) => setDraft({ ...current, lockVersion }),
+      },
     );
-    if (saved) setEditing(false);
+    if (saved) {
+      setDraft(null);
+      onOpenChange(false);
+    }
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-3 text-muted-foreground"
-          render={<Link href="/dashboard/partidos" />}
-          nativeButton={false}
+    <PanelSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      side={side}
+      title="Datos del partido"
+      description={editable ? "Fecha, cancha y precio." : undefined}
+    >
+      {editable ? (
+        <form
+          id="match-data"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save();
+          }}
+          className="flex flex-col gap-4"
         >
-          <ArrowLeftIcon data-icon="inline-start" aria-hidden="true" />
-          Partidos
-        </Button>
-        <div className="flex min-w-0 items-center gap-1">
-          {share}
-          {editable ? (
-            <Button
-              aria-expanded={editing}
-              onClick={() => {
-                if (!editing) {
-                  setExpectedLockVersion(detail.lockVersion);
-                  setScheduledAt(toLocalInputValue(detail.scheduledAt));
-                  setCourtId(detail.courtId);
-                  setCost(
-                    detail.courtCostMinor === null
-                      ? ""
-                      : String(Number(detail.courtCostMinor) / 100),
-                  );
-                }
-                setEditing((current) => !current);
-              }}
-              size="sm"
-              variant="outline"
+          <Field>
+            <FieldLabel htmlFor="match-date">Fecha y hora</FieldLabel>
+            <Input
+              id="match-date"
+              type="datetime-local"
+              value={current.scheduledAt}
+              onChange={(event) => edit({ scheduledAt: event.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="match-court">Cancha</FieldLabel>
+            <Select
+              items={courtItemsFor(courts, detail.courtId)}
+              value={current.courtId}
+              onValueChange={(courtId) => edit({ courtId })}
             >
-              <PencilIcon data-icon="inline-start" aria-hidden="true" />
-              <span className="max-sm:sr-only">{editing ? "Cerrar edición" : "Editar datos"}</span>
-            </Button>
-          ) : null}
-          {onReopen ? (
-            <Button onClick={onReopen} size="sm" variant="outline">
-              <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
-              Reabrir partido
-            </Button>
-          ) : null}
-          {onRestore ? (
-            <Button onClick={onRestore} size="sm" variant="outline">
-              <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
-              Restaurar partido
-            </Button>
-          ) : null}
-          {onCancelMatch ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    aria-label="Más acciones del partido"
-                    disabled={pending}
-                    size="icon"
-                    variant="ghost"
-                  />
-                }
-              >
-                <MoreHorizontalIcon aria-hidden="true" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem variant="destructive" onClick={onCancelMatch}>
-                  <BanIcon aria-hidden="true" />
-                  Cancelar partido
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-        </div>
-      </div>
-
-      {editing ? (
-        <Card>
-          <CardContent>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                save();
-              }}
-              className="grid gap-4 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end"
-            >
-              <Field>
-                <FieldLabel htmlFor="match-date">Fecha y hora</FieldLabel>
-                <Input
-                  id="match-date"
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(event) => setScheduledAt(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="match-court">Cancha</FieldLabel>
-                <Select
-                  items={courtItemsFor(courts, detail.courtId)}
-                  value={courtId}
-                  onValueChange={setCourtId}
+              <SelectTrigger id="match-court" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {courtItemsFor(courts, detail.courtId).map((item) => (
+                    <SelectItem key={item.value ?? "no-court"} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="match-cost">Precio total</FieldLabel>
+            <Input
+              id="match-cost"
+              inputMode="decimal"
+              placeholder="Ej. 48000"
+              value={current.cost}
+              onChange={(event) => edit({ cost: event.target.value })}
+            />
+          </Field>
+          <Button disabled={pending} type="submit">
+            {pending ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <CheckIcon data-icon="inline-start" aria-hidden="true" />
+            )}
+            Guardar datos
+          </Button>
+        </form>
+      ) : (
+        <dl className="flex flex-col divide-y">
+          {[
+            { label: "Fecha y hora", value: formatDate(detail.scheduledAt) },
+            {
+              label: "Cancha",
+              value: court ? (
+                <a
+                  className="underline underline-offset-4"
+                  href={court.mapsUrl}
+                  rel="noreferrer"
+                  target="_blank"
                 >
-                  <SelectTrigger id="match-court" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {courtItemsFor(courts, detail.courtId).map((item) => (
-                        <SelectItem key={item.value ?? "no-court"} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="match-cost">Precio total</FieldLabel>
-                <Input
-                  id="match-cost"
-                  inputMode="decimal"
-                  placeholder="Ej. 48000"
-                  value={cost}
-                  onChange={(event) => setCost(event.target.value)}
-                />
-              </Field>
-              <Button disabled={pending} type="submit">
-                {pending ? (
-                  <Spinner data-icon="inline-start" />
-                ) : (
-                  <CheckIcon data-icon="inline-start" aria-hidden="true" />
-                )}
-                Guardar datos
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      ) : null}
-    </div>
+                  {court.name}
+                </a>
+              ) : (
+                "A definir"
+              ),
+            },
+            { label: "Precio total", value: formatMoney(detail.courtCostMinor) },
+            { label: "Planillero", value: detail.scorekeeperName ?? "Sin planillero" },
+          ].map((item) => (
+            <div key={item.label} className="flex min-h-12 items-center justify-between gap-3">
+              <dt className="text-muted-foreground">{item.label}</dt>
+              <dd className="truncate font-medium tabular-nums">{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </PanelSheet>
   );
 }
+
 function TeamNameEditor({
   editable,
   detail,
@@ -1245,41 +1668,6 @@ function EmptyNote({ children }: { children: ReactNode }) {
   );
 }
 
-/** Pinned above the bottom nav on the phone, under the score on wider screens. */
-function ClosingBar({
-  issues,
-  onClose,
-  pending,
-}: {
-  issues: (keyof typeof issueText)[];
-  onClose: () => void;
-  pending: boolean;
-}) {
-  const ready = issues.length === 0;
-  const [first] = issues;
-  return (
-    <div className="fixed inset-x-0 bottom-[calc(4rem+1px+max(0.5rem,env(safe-area-inset-bottom)))] z-20 border-t bg-background px-4 py-3 md:static md:border-0 md:bg-transparent md:p-0">
-      <div className="flex items-center gap-3">
-        <p className="flex min-w-0 flex-1 items-start gap-2 text-xs text-muted-foreground">
-          {ready ? (
-            <CheckIcon className="size-4 shrink-0 text-success" aria-hidden="true" />
-          ) : (
-            <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
-          )}
-          <span>
-            {first ? issueText[first] : "Todo listo para cerrar."}
-            {issues.length > 1 ? ` (y ${issues.length - 1} más)` : null}
-          </span>
-        </p>
-        <Button disabled={!ready || pending} onClick={onClose}>
-          <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
-          Cerrar partido
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function Stepper({
   disabled,
   label,
@@ -1367,20 +1755,6 @@ function cashRows(detail: Detail) {
   ];
 }
 
-function CashCount({ detail }: { detail: Detail }) {
-  const rows = cashRows(detail);
-  if (detail.courtCostMinor === null || rows.length === 0) return null;
-  const settled = rows.filter(
-    (row) => row.contributionStatus === "paid" || row.contributionStatus === "overpaid",
-  ).length;
-  return (
-    <span className="font-normal text-muted-foreground tabular-nums">
-      {settled}/{rows.length}
-      <span className="sr-only"> pagaron</span>
-    </span>
-  );
-}
-
 function Caja({
   detail,
   editable,
@@ -1395,7 +1769,9 @@ function Caja({
   const rows = cashRows(detail);
   if (detail.courtCostMinor === null) {
     return (
-      <EmptyNote>Cargá el precio de la cancha en “Editar datos” para repartir la caja.</EmptyNote>
+      <EmptyNote>
+        Cargá el precio de la cancha en “Datos del partido” para repartir la caja.
+      </EmptyNote>
     );
   }
   if (rows.length === 0) {
