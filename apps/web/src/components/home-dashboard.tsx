@@ -152,6 +152,7 @@ export function HomeDashboard() {
             groupName={groupName}
             hasUpcoming={hasUpcoming}
             myPlayerId={me?.id ?? null}
+            userId={user.id}
             now={now}
             onCreate={() => setCreating(true)}
             phase={fecha.phase}
@@ -223,6 +224,7 @@ function FechaCard({
   groupName,
   hasUpcoming,
   myPlayerId,
+  userId,
   now,
   onCreate,
   phase,
@@ -233,6 +235,7 @@ function FechaCard({
   groupName: string;
   hasUpcoming: boolean;
   myPlayerId: string | null;
+  userId: string;
   now: Date;
   onCreate: () => void;
   phase: FechaPhase;
@@ -323,10 +326,13 @@ function FechaCard({
         );
       break;
     }
-    case "live":
+    case "live": {
+      // Same rule as modo cancha: managers, the organizer and the planillero load goals.
+      const canScore =
+        canManage || detail.organizerUserId === userId || detail.scorekeeperUserId === userId;
       headline = `Empezó a las ${formatTime(scheduledAt)}`;
       body = <Scoreboard detail={detail} goals={goals} />;
-      actions = (
+      actions = canScore ? (
         <>
           <Button render={<Link href={matchHref(detail.id, "/cancha")} />} nativeButton={false}>
             Cargar goles
@@ -339,8 +345,13 @@ function FechaCard({
             Ver partido
           </Button>
         </>
+      ) : (
+        <Button render={<Link href={matchHref(detail.id)} />} nativeButton={false}>
+          Ver partido
+        </Button>
       );
       break;
+    }
     case "close":
       headline = "Revisá y cerrá el partido";
       body = (
