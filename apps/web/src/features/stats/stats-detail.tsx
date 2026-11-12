@@ -7,8 +7,11 @@ import { useQuery } from "@tanstack/react-query";
 import { TrophyIcon } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
+import type * as React from "react";
+import { useState } from "react";
 
 import { DrillList, DrillRow, HeroNumber, StatusHeader } from "@/components/next-step";
+import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { trpc } from "@/utils/trpc";
 
 import { StatsError } from "./stats-error";
@@ -21,7 +24,7 @@ import {
   plural,
   signed,
 } from "./stats-format";
-import { StatsBack, StatsEmpty, StatsPage } from "./stats-layout";
+import { StatsBack, StatsEmpty } from "./stats-layout";
 import { StatsLoading } from "./stats-loading";
 
 type SerializedPlayerStats = Omit<PlayerStats, "matches"> & {
@@ -71,7 +74,7 @@ function PlayerStatsContent({
 }) {
   const aggregate = data.aggregate;
   return (
-    <StatsPage>
+    <NextStepLayout emptyDetail={<p>Elegí una fila para verla acá.</p>}>
       <StatusHeader
         back={<StatsBack href={filters.href(`${STATS_BASE}/tabla`)}>Tabla</StatsBack>}
         meta={`${data.group.name} · ${filters.periodLabel.toLowerCase()}`}
@@ -124,25 +127,31 @@ function PlayerStatsContent({
       )}
 
       {data.matches.length ? (
-        <DrillList title="Partidos">
-          {data.matches.map((match) => (
-            <DrillRow
-              key={match.matchId}
-              label={`${formatShortDay(match.scheduledAt, data.group.timeZone)} · ${match.teams[0]?.goals ?? 0}–${match.teams[1]?.goals ?? 0}`}
-              value={`${outcomeLabel(match.outcome)} · ${match.contributions} G+A`}
-              render={({ className, children }) => (
-                <Link
-                  className={className}
-                  href={filters.href(`${STATS_BASE}/partidos/${match.matchId}`)}
-                >
-                  {children}
-                </Link>
-              )}
-            />
-          ))}
-        </DrillList>
+        <ColumnDetail
+          label="Partidos"
+          mobileHeading
+          value={plural(data.matches.length, "partido", "partidos")}
+        >
+          <DrillList>
+            {data.matches.map((match) => (
+              <DrillRow
+                key={match.matchId}
+                label={`${formatShortDay(match.scheduledAt, data.group.timeZone)} · ${match.teams[0]?.goals ?? 0}–${match.teams[1]?.goals ?? 0}`}
+                value={`${outcomeLabel(match.outcome)} · ${match.contributions} G+A`}
+                render={({ className, children }) => (
+                  <Link
+                    className={className}
+                    href={filters.href(`${STATS_BASE}/partidos/${match.matchId}`)}
+                  >
+                    {children}
+                  </Link>
+                )}
+              />
+            ))}
+          </DrillList>
+        </ColumnDetail>
       ) : null}
-    </StatsPage>
+    </NextStepLayout>
   );
 }
 
@@ -170,7 +179,7 @@ function MatchStatsContent({
     .join(" · ");
 
   return (
-    <StatsPage>
+    <NextStepLayout emptyDetail={<p>Elegí una fila para verla acá.</p>}>
       <StatusHeader
         back={<StatsBack href={filters.href(`${STATS_BASE}/partidos`)}>Partidos</StatsBack>}
         meta={meta}
@@ -191,34 +200,49 @@ function MatchStatsContent({
         {home?.goals ?? 0}–{away?.goals ?? 0}
       </HeroNumber>
 
-      {grouped.map(({ team, appearances }) => (
-        <DrillList
-          key={team.id}
-          title={
-            <span className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "size-2 shrink-0 rounded-full",
-                  team.slot === 1 ? "bg-team-blue" : "bg-team-amber",
-                )}
-              />
-              {team.displayName} · {plural(team.goals, "gol", "goles")}
-            </span>
-          }
-        >
-          {appearances.map((appearance) => (
-            <AppearanceRow appearance={appearance} filters={filters} key={appearance.playerId} />
+      <ColumnDetail
+        label="Actuaciones"
+        value={plural(data.appearances.length, "jugador", "jugadores")}
+      >
+        <div className="flex flex-col gap-6">
+          {grouped.map(({ team, appearances }) => (
+            <DrillList
+              key={team.id}
+              title={
+                <span className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "size-2 shrink-0 rounded-full",
+                      team.slot === 1 ? "bg-team-blue" : "bg-team-amber",
+                    )}
+                  />
+                  {team.displayName} · {plural(team.goals, "gol", "goles")}
+                </span>
+              }
+            >
+              {appearances.map((appearance) => (
+                <AppearanceRow
+                  appearance={appearance}
+                  filters={filters}
+                  key={appearance.playerId}
+                />
+              ))}
+            </DrillList>
           ))}
-        </DrillList>
-      ))}
-      {teamless.length ? (
-        <DrillList title="Sin equipo">
-          {teamless.map((appearance) => (
-            <AppearanceRow appearance={appearance} filters={filters} key={appearance.playerId} />
-          ))}
-        </DrillList>
-      ) : null}
+          {teamless.length ? (
+            <DrillList title="Sin equipo">
+              {teamless.map((appearance) => (
+                <AppearanceRow
+                  appearance={appearance}
+                  filters={filters}
+                  key={appearance.playerId}
+                />
+              ))}
+            </DrillList>
+          ) : null}
+        </div>
+      </ColumnDetail>
 
       <DrillList>
         <DrillRow
@@ -231,7 +255,47 @@ function MatchStatsContent({
           )}
         />
       </DrillList>
-    </StatsPage>
+    </NextStepLayout>
+  );
+}
+
+/**
+ * The long list of a detail page. Mobile: inline below the summary. Desktop: a
+ * row in the left column, open by default in the right column.
+ */
+function ColumnDetail({
+  children,
+  label,
+  mobileHeading,
+  value,
+}: {
+  children: React.ReactNode;
+  label: string;
+  /** Show `label` as a list title on mobile (when children carry none). */
+  mobileHeading?: boolean;
+  value: string;
+}) {
+  const desktop = useIsDesktop();
+  const [open, setOpen] = useState(true);
+  if (!desktop) {
+    return mobileHeading ? (
+      <section className="flex flex-col">
+        <h2 className="mb-1 text-xs font-medium text-muted-foreground">{label}</h2>
+        {children}
+      </section>
+    ) : (
+      <>{children}</>
+    );
+  }
+  return (
+    <>
+      <DrillList>
+        <DrillRow label={label} onClick={() => setOpen(true)} selected={open} value={value} />
+      </DrillList>
+      <DrillDetail onOpenChange={setOpen} open={open} title={label}>
+        {children}
+      </DrillDetail>
+    </>
   );
 }
 

@@ -254,9 +254,12 @@ function pairKey(left: string, right: string) {
 }
 
 export function Chemistry({
+  maxPlayers,
   ranking,
   societies,
 }: {
+  /** Matrix size; defaults to 7 on mobile and 12 on wider screens. */
+  maxPlayers?: number;
   ranking: StatsAggregate[];
   societies: StatsSociety[];
 }) {
@@ -268,7 +271,7 @@ export function Chemistry({
   const players = ranking
     .filter((row) => !row.archived)
     .toSorted((left, right) => right.played - left.played)
-    .slice(0, mobile ? 7 : 12);
+    .slice(0, maxPlayers ?? (mobile ? 7 : 12));
   const pairs = new Map(societies.map((row) => [pairKey(...row.playerIds), row]));
   const inMatrix = new Set(players.map((row) => row.playerId));
   const fallback =
