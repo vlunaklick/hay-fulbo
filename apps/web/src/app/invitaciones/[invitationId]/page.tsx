@@ -1,12 +1,11 @@
 import { auth } from "@hay-fulbo/auth";
 import { Button } from "@hay-fulbo/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader } from "@hay-fulbo/ui/components/card";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { InvitationAcceptance } from "@/components/invitation-acceptance";
-import { LogoMark } from "@/components/logo-mark";
+import { PublicHeading, PublicShell } from "@/components/public-shell";
 
 export default async function InvitationPage({
   params,
@@ -34,27 +33,15 @@ export default async function InvitationPage({
     );
   } catch {
     return (
-      <main className="grid min-h-svh place-items-center px-4 py-10">
-        <div className="flex w-full max-w-md flex-col gap-6">
-          <div className="flex items-center gap-3">
-            <LogoMark className="size-10" />
-            <span className="font-bold tracking-tight">Hay Fulbo</span>
-          </div>
-          <Card>
-            <CardHeader>
-              <h1 className="text-xl font-bold">Esta invitación no está disponible</h1>
-              <CardDescription>
-                Puede haber vencido, ya fue usada o pertenece a otra cuenta.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button render={<Link href="/dashboard" />} nativeButton={false}>
-                Volver al inicio
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+      <PublicShell>
+        <PublicHeading
+          title="Esta invitación no está disponible"
+          description="Puede haber vencido, ya fue usada o pertenece a otra cuenta."
+        />
+        <Button render={<Link href="/dashboard" />} nativeButton={false}>
+          Volver al inicio
+        </Button>
+      </PublicShell>
     );
   }
 }
