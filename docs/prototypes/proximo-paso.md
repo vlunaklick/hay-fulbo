@@ -19,5 +19,15 @@ Componentes en `apps/web/src/components/next-step.tsx`.
 - **Sin pestañas** (`Tabs`) para separar secciones de una pantalla. Lo que antes era una pestaña es una `DrillRow` que abre una `Sheet` (móvil: `side="bottom"`) o una subpágina.
 - **Una acción primaria por vista** vive en `NextStep` (o en el dock, nunca en ambos).
 - **Valores, no formularios**: la fila muestra el resumen; la edición vive adentro.
-- **Escritorio amplía**: el contenido queda en una columna de `max-w-xl`; se puede mostrar la `Sheet` como panel derecho, pero el orden mental es el mismo.
 - Estado vacío = un `NextStep` que lleva a crear lo primero.
+
+## Escritorio: maestro-detalle
+
+Todo se hace también para escritorio. Envolvé la pantalla en `NextStepLayout` (`apps/web/src/components/next-step-layout.tsx`):
+
+- **Columna izquierda (26rem, sticky)**: la pantalla móvil tal cual: `StatusHeader` → `HeroNumber` → `NextStep` → `DrillList`.
+- **Columna derecha**: lo que abre una fila. Usá `DrillDetail` en vez de una `Sheet` directa: en móvil es una hoja inferior y desde `lg` se renderiza inline en la columna derecha. Marcá la fila abierta con `selected`.
+- **Nunca vacía**: en escritorio abrí por defecto la fila más relevante para el estado (en juego → Goles; cerrado con deudas → Caja; lista de jugadores → el primero). Si no hay nada, `emptyDetail` con una línea corta.
+- `ActionDock` deja de flotar desde `md` y queda en la columna izquierda.
+- Por debajo de `lg` es una sola columna centrada de `max-w-xl`.
+- Verificá cada pantalla a 375 px y a 1280 px.
