@@ -52,6 +52,11 @@ Rechazadas:
 - `apps/web/src/features/shared-view/`. La vista vive en el layout de
   `/g/[slug]` y de `/compartido`. Las rutas `/partidos/[id]` y
   `/jugadores/[id]` siguen existiendo (los enlaces viejos funcionan) y se
-  abren como sheet sobre la pestaña que lista ese detalle.
-- Pestaña y métrica en la URL: `?tab=resultados|tabla`, `?orden=goals|assists`.
+  abren como sheet sobre la pantalla.
+- Desde el rediseño "Próximo paso" (`docs/prototypes/proximo-paso.md`) ya no hay
+  pestañas: una sola pantalla con la hora del próximo partido, un `NextStep`
+  con "Cómo llegar" y filas Equipos, La caja (solo enlace privado), Resultados
+  y Tabla. Cada fila abre la misma sheet.
+- Sección y métrica en la URL: `?seccion=resultados|tabla|caja`,
+  `?orden=goals|assists`. El viejo `?tab=` sigue abriendo la sección.
 - `/g/[slug]` nunca muestra importes; `/compartido` sí.

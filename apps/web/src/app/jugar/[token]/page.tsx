@@ -3,7 +3,8 @@ import { env } from "@hay-fulbo/env/server";
 import { Button } from "@hay-fulbo/ui/components/button";
 import Link from "next/link";
 
-import { PublicHeading, PublicShell } from "@/components/public-shell";
+import { NextStep } from "@/components/next-step";
+import { PublicShell } from "@/components/public-shell";
 import { MatchInvitation } from "@/components/match-invitation";
 
 export default async function PlayInvitationPage({
@@ -17,13 +18,16 @@ export default async function PlayInvitationPage({
   if (!invitation) {
     return (
       <PublicShell>
-        <PublicHeading
+        <NextStep
+          action={
+            <Button render={<Link href="/login" />} nativeButton={false}>
+              Ir al inicio
+            </Button>
+          }
           title="Este partido no está disponible"
-          description="El link puede ser incorrecto o el grupo ya no está activo."
-        />
-        <Button render={<Link href="/login" />} nativeButton={false}>
-          Ir al inicio
-        </Button>
+        >
+          El link puede ser incorrecto o el grupo ya no está activo.
+        </NextStep>
       </PublicShell>
     );
   }

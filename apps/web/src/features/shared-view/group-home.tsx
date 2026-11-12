@@ -76,7 +76,7 @@ export function GroupHome({ dashboard }: { dashboard: ViewDashboard }) {
                 </a>
               ) : undefined
             }
-            kicker={`Próximo partido · ${when.relative(upcoming.scheduledAt, tz)}`}
+            kicker="Próximo partido"
             title={upcoming.court?.name ?? "Cancha a confirmar"}
           >
             {upcoming.court?.address ?? "El organizador todavía no eligió la cancha."}

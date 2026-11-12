@@ -5,7 +5,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { InvitationAcceptance } from "@/components/invitation-acceptance";
-import { PublicHeading, PublicShell } from "@/components/public-shell";
+import { NextStep } from "@/components/next-step";
+import { PublicShell } from "@/components/public-shell";
 
 export default async function InvitationPage({
   params,
@@ -34,13 +35,16 @@ export default async function InvitationPage({
   } catch {
     return (
       <PublicShell>
-        <PublicHeading
+        <NextStep
+          action={
+            <Button render={<Link href="/dashboard" />} nativeButton={false}>
+              Volver al inicio
+            </Button>
+          }
           title="Esta invitación no está disponible"
-          description="Puede haber vencido, ya fue usada o pertenece a otra cuenta."
-        />
-        <Button render={<Link href="/dashboard" />} nativeButton={false}>
-          Volver al inicio
-        </Button>
+        >
+          Puede haber vencido, ya fue usada o pertenece a otra cuenta.
+        </NextStep>
       </PublicShell>
     );
   }
