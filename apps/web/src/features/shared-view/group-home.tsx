@@ -16,7 +16,7 @@ import { plural, sortRanking, when } from "./parts";
  * how to get there, and everything else one row away.
  */
 export function GroupHome({ dashboard }: { dashboard: ViewDashboard }) {
-  const { source, showMoney, open, openSection } = useView();
+  const { source, showMoney, open, openSection, detail, section } = useView();
   const upcoming = dashboard.upcoming;
   const tz = dashboard.group.timeZone;
   const lineup = useViewMatch(source, upcoming?.matchId);
@@ -88,6 +88,7 @@ export function GroupHome({ dashboard }: { dashboard: ViewDashboard }) {
         {upcoming ? (
           <DrillRow
             label="Equipos"
+            selected={detail?.kind === "partido" && detail.id === upcoming.matchId}
             onClick={() => open("partido", upcoming.matchId)}
             value={lineupValue}
           />
@@ -97,6 +98,7 @@ export function GroupHome({ dashboard }: { dashboard: ViewDashboard }) {
         {finances ? (
           <DrillRow
             label="La caja"
+            selected={!detail && section === "caja"}
             onClick={() => openSection("caja")}
             value={
               finances.debtors.length > 0
@@ -109,6 +111,7 @@ export function GroupHome({ dashboard }: { dashboard: ViewDashboard }) {
         ) : null}
         <DrillRow
           label="Resultados"
+          selected={!detail && section === "resultados"}
           onClick={() => openSection("resultados")}
           value={
             dashboard.history.length > 0
@@ -118,6 +121,7 @@ export function GroupHome({ dashboard }: { dashboard: ViewDashboard }) {
         />
         <DrillRow
           label="Tabla"
+          selected={!detail && section === "tabla"}
           onClick={() => openSection("tabla")}
           value={
             leader ? (
