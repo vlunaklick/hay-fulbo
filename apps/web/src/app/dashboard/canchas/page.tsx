@@ -1,5 +1,5 @@
-import { DirectoryPage } from "@/components/directory-page";
+import { CourtsPage } from "@/components/courts-page";
 
-export default function CourtsPage() {
-  return <DirectoryPage kind="courts" />;
+export default function CourtsRoute() {
+  return <CourtsPage />;
 }

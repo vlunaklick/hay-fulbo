@@ -55,6 +55,28 @@ export function createMatchQueries(database: MatchDatabase) {
               id: court.id,
               mapsUrl: court.mapsUrl,
               name: court.name,
+              // Usage, derived from the group's matches at this court.
+              played: sql<number>`(
+                select count(*)::int from ${match} m
+                where m.group_id = "court"."group_id" and m.court_id = "court"."id"
+                  and m.status = 'closed'
+              )`.mapWith(Number),
+              lastPlayedAt: sql<Date | null>`(
+                select max(m.scheduled_at) from ${match} m
+                where m.group_id = "court"."group_id" and m.court_id = "court"."id"
+                  and m.status = 'closed'
+              )`.mapWith((value: string | Date | null) => (value ? new Date(value) : null)),
+              nextMatchAt: sql<Date | null>`(
+                select min(m.scheduled_at) from ${match} m
+                where m.group_id = "court"."group_id" and m.court_id = "court"."id"
+                  and m.status = 'open' and m.scheduled_at >= now()
+              )`.mapWith((value: string | Date | null) => (value ? new Date(value) : null)),
+              lastCostMinor: sql<string | null>`(
+                select m.court_cost_minor::text from ${match} m
+                where m.group_id = "court"."group_id" and m.court_id = "court"."id"
+                  and m.status <> 'cancelled' and m.court_cost_minor is not null
+                order by m.scheduled_at desc limit 1
+              )`,
             })
             .from(court)
             .where(eq(court.groupId, scope.groupId))

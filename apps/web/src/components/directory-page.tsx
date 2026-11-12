@@ -45,9 +45,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CircleAlertIcon,
   CopyIcon,
-  ExternalLinkIcon,
   MailPlusIcon,
-  MapPinIcon,
   PlusIcon,
   SearchIcon,
   SearchXIcon,
@@ -75,14 +73,6 @@ type PlayerRow = {
   linkedUserId: string | null;
 };
 
-type CourtRow = {
-  address: string;
-  archivedAt: Date | string | null;
-  id: string;
-  mapsUrl: string;
-  name: string;
-};
-
 type PlayerAggregate = {
   assists: number;
   contributions: number;
@@ -105,13 +95,11 @@ const EMPTY_PLAYER_STATS: PlayerAggregate = {
   wins: 0,
 };
 
-export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
+export function DirectoryPage() {
   const { activeGroupId, role } = useAppContext();
   const directory = useQuery(trpc.matches.directory.queryOptions());
-  const isPlayers = kind === "players";
   const stats = useQuery({
     ...trpc.stats.dashboard.queryOptions({}),
-    enabled: isPlayers,
   });
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -123,7 +111,7 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
   const execute = useMutation(
     trpc.matches.execute.mutationOptions({
       onSuccess: async () => {
-        toast.success(isPlayers ? "Jugador actualizado" : "Cancha actualizada");
+        toast.success("Jugador actualizado");
         setCreateOpen(false);
         setSelectedId(null);
         setError(null);
@@ -140,7 +128,6 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
   );
 
   const players: PlayerRow[] = directory.data?.players ?? [];
-  const courts: CourtRow[] = directory.data?.courts ?? [];
   const normalizedSearch = normalizeSearch(search);
   const statusPlayers = players.filter((player) => {
     if (playerFilter === "all") return true;
@@ -156,7 +143,6 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
     (stats.data?.ranking ?? []).map((aggregate) => [aggregate.playerId, aggregate]),
   );
   const selectedPlayer = players.find((player) => player.id === selectedId) ?? null;
-  const selectedCourt = courts.find((court) => court.id === selectedId) ?? null;
 
   function archivePlayer(player: PlayerRow) {
     setError(null);
@@ -167,28 +153,15 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
     });
   }
 
-  function archiveCourt(court: CourtRow) {
-    setError(null);
-    execute.mutate({
-      type: "archiveCourt",
-      courtId: court.id,
-      archived: !court.archivedAt,
-    });
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title={isPlayers ? "Jugadores" : "Canchas"}
-        description={
-          isPlayers
-            ? "Entrá a un jugador para ver estadísticas y editar."
-            : "Entrá a una cancha para consultar o actualizar sus datos."
-        }
+        title="Jugadores"
+        description="Entrá a un jugador para ver estadísticas y editar."
         actions={
           canManage ? (
             <>
-              {isPlayers && role === "owner" ? (
+              {role === "owner" ? (
                 <Button
                   nativeButton={false}
                   render={<Link href="/dashboard/grupo#invitar" />}
@@ -200,10 +173,9 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
                 </Button>
               ) : null}
               <CreateDirectoryDialog
-                key={`${kind}-${createOpen ? "open" : "closed"}`}
+                key={createOpen ? "open" : "closed"}
                 error={error}
                 isPending={execute.isPending}
-                kind={kind}
                 onOpenChange={(open) => {
                   setCreateOpen(open);
                   setError(null);
@@ -227,45 +199,43 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
         </Alert>
       ) : null}
 
-      {isPlayers ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <InputGroup className="sm:max-w-xs">
-            <InputGroupAddon>
-              <SearchIcon aria-hidden="true" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <InputGroup className="sm:max-w-xs">
+          <InputGroupAddon>
+            <SearchIcon aria-hidden="true" />
+          </InputGroupAddon>
+          <InputGroupInput
+            aria-label="Buscar jugadores"
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar por nombre"
+            type="search"
+            value={search}
+          />
+          {search ? (
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                aria-label="Limpiar búsqueda"
+                onClick={() => setSearch("")}
+                size="icon-xs"
+              >
+                <XIcon aria-hidden="true" />
+              </InputGroupButton>
             </InputGroupAddon>
-            <InputGroupInput
-              aria-label="Buscar jugadores"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar por nombre"
-              type="search"
-              value={search}
-            />
-            {search ? (
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  aria-label="Limpiar búsqueda"
-                  onClick={() => setSearch("")}
-                  size="icon-xs"
-                >
-                  <XIcon aria-hidden="true" />
-                </InputGroupButton>
-              </InputGroupAddon>
-            ) : null}
-          </InputGroup>
-          <Tabs
-            value={playerFilter}
-            onValueChange={(value) => setPlayerFilter(value as "active" | "all" | "archived")}
-          >
-            <TabsList>
-              <TabsTrigger value="active">Activos</TabsTrigger>
-              <TabsTrigger value="all">Todos</TabsTrigger>
-              <TabsTrigger value="archived">Archivados</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      ) : null}
+          ) : null}
+        </InputGroup>
+        <Tabs
+          value={playerFilter}
+          onValueChange={(value) => setPlayerFilter(value as "active" | "all" | "archived")}
+        >
+          <TabsList>
+            <TabsTrigger value="active">Activos</TabsTrigger>
+            <TabsTrigger value="all">Todos</TabsTrigger>
+            <TabsTrigger value="archived">Archivados</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-      {directory.isPending || (isPlayers && stats.isPending) ? (
+      {directory.isPending || stats.isPending ? (
         <div className="flex flex-col">
           {Array.from({ length: 6 }, (_, index) => (
             <Skeleton
@@ -274,23 +244,17 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
             />
           ))}
         </div>
-      ) : directory.isError || (isPlayers && stats.isError) ? (
+      ) : directory.isError || stats.isError ? (
         <Alert variant="destructive">
           <CircleAlertIcon aria-hidden="true" />
           <AlertTitle>No pudimos cargar el directorio</AlertTitle>
           <AlertDescription>{directory.error?.message ?? stats.error?.message}</AlertDescription>
         </Alert>
-      ) : (isPlayers ? players : courts).length === 0 ? (
+      ) : players.length === 0 ? (
         <div className="flex items-center gap-4 rounded-lg border border-dashed p-4">
-          {isPlayers ? (
-            <UserRoundIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          ) : (
-            <MapPinIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          )}
+          <UserRoundIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div className="flex min-w-0 flex-col gap-0.5">
-            <p className="text-sm font-medium">
-              {isPlayers ? "No hay jugadores" : "No hay canchas guardadas"}
-            </p>
+            <p className="text-sm font-medium">No hay jugadores</p>
             <p className="text-sm text-muted-foreground">
               {canManage
                 ? "Usá el botón Agregar para cargar el primero."
@@ -298,7 +262,7 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
             </p>
           </div>
         </div>
-      ) : isPlayers && visiblePlayers.length === 0 ? (
+      ) : visiblePlayers.length === 0 ? (
         <div className="flex flex-col items-start gap-4 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center">
           <SearchXIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -311,7 +275,7 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
             Limpiar búsqueda
           </Button>
         </div>
-      ) : isPlayers ? (
+      ) : (
         <Card className="gap-0 py-0">
           <div className="flex items-center gap-3 border-b px-4 py-2 text-xs font-medium text-muted-foreground">
             <span className="flex-1 tabular-nums">
@@ -341,28 +305,9 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
             </Fragment>
           ))}
         </Card>
-      ) : (
-        <Card className="gap-0 py-0">
-          {courts.map((court, index) => (
-            <Fragment key={court.id}>
-              {index > 0 ? <Separator /> : null}
-              <Button
-                aria-label={`Ver detalle de ${court.name}`}
-                className="h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal"
-                onClick={() => {
-                  setError(null);
-                  setSelectedId(court.id);
-                }}
-                variant="ghost"
-              >
-                <CourtRow court={court} />
-              </Button>
-            </Fragment>
-          ))}
-        </Card>
       )}
 
-      {isPlayers && selectedPlayer ? (
+      {selectedPlayer ? (
         <PlayerDialog
           key={selectedPlayer.id}
           error={error}
@@ -388,31 +333,6 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
           stats={rankingByPlayer.get(selectedPlayer.id) ?? EMPTY_PLAYER_STATS}
         />
       ) : null}
-
-      {!isPlayers && selectedCourt ? (
-        <CourtDialog
-          key={selectedCourt.id}
-          court={selectedCourt}
-          error={error}
-          isPending={execute.isPending}
-          onArchive={() => archiveCourt(selectedCourt)}
-          onOpenChange={(open) => {
-            if (!open) setSelectedId(null);
-            setError(null);
-          }}
-          onSave={({ address, mapsUrl, name }) => {
-            setError(null);
-            execute.mutate({
-              type: "upsertCourt",
-              address,
-              courtId: selectedCourt.id,
-              mapsUrl,
-              name,
-            });
-          }}
-          role={role}
-        />
-      ) : null}
     </div>
   );
 }
@@ -435,21 +355,6 @@ function PlayerRow({ player, stats }: { player: PlayerRow; stats: PlayerAggregat
       </span>
       <span className="w-9 text-right text-sm font-semibold tabular-nums" aria-label="Asistencias">
         {stats.assists}
-      </span>
-    </span>
-  );
-}
-
-function CourtRow({ court }: { court: CourtRow }) {
-  return (
-    <span className="flex min-w-0 flex-1 items-center gap-3">
-      <MapPinIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium">{court.name}</span>
-          {court.archivedAt ? <Badge variant="secondary">Archivada</Badge> : null}
-        </span>
-        <span className="block truncate text-xs text-muted-foreground">{court.address}</span>
       </span>
     </span>
   );
@@ -711,169 +616,52 @@ function PlayerDialog({
   );
 }
 
-function CourtDialog({
-  court,
-  error,
-  isPending,
-  onArchive,
-  onOpenChange,
-  onSave,
-  role,
-}: {
-  court: CourtRow;
-  error: string | null;
-  isPending: boolean;
-  onArchive: () => void;
-  onOpenChange: (open: boolean) => void;
-  onSave: (input: { address: string; mapsUrl: string; name: string }) => void;
-  role: "member" | "leader" | "owner";
-}) {
-  const [name, setName] = useState(court.name);
-  const [address, setAddress] = useState(court.address);
-  const [mapsUrl, setMapsUrl] = useState(court.mapsUrl);
-  const valid = Boolean(name.trim() && address.trim() && isHttpUrl(mapsUrl));
-
-  function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!valid) return;
-    onSave({ address, mapsUrl, name });
-  }
-
-  return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-lg">{court.name}</DialogTitle>
-          <DialogDescription>
-            {court.archivedAt ? "Cancha archivada" : "Cancha activa"} · Los partidos históricos
-            conservan esta referencia.
-          </DialogDescription>
-        </DialogHeader>
-
-        {role !== "member" ? (
-          <form onSubmit={submit}>
-            <FieldGroup>
-              <CourtFields
-                address={address}
-                mapsUrl={mapsUrl}
-                name={name}
-                onAddressChange={setAddress}
-                onMapsUrlChange={setMapsUrl}
-                onNameChange={setName}
-                prefix="court-edit"
-              />
-              <Button
-                render={<a href={court.mapsUrl} target="_blank" rel="noreferrer" />}
-                variant="outline"
-              >
-                <ExternalLinkIcon data-icon="inline-start" aria-hidden="true" />
-                Abrir en Maps
-              </Button>
-              {error ? <FieldError role="alert">{error}</FieldError> : null}
-              <DialogFooter>
-                <Button type="button" variant="outline" disabled={isPending} onClick={onArchive}>
-                  {court.archivedAt ? "Reactivar cancha" : "Archivar cancha"}
-                </Button>
-                <Button type="submit" disabled={isPending || !valid}>
-                  Guardar cambios
-                </Button>
-              </DialogFooter>
-            </FieldGroup>
-          </form>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground">Dirección</span>
-              <span className="text-sm">{court.address}</span>
-            </div>
-            <Button render={<a href={court.mapsUrl} target="_blank" rel="noreferrer" />}>
-              <ExternalLinkIcon data-icon="inline-start" aria-hidden="true" />
-              Abrir en Maps
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function CreateDirectoryDialog({
   error,
   isPending,
-  kind,
   onOpenChange,
   onSave,
   open,
 }: {
   error: string | null;
   isPending: boolean;
-  kind: "players" | "courts";
   onOpenChange: (open: boolean) => void;
-  onSave: (
-    input:
-      | { type: "upsertPlayer"; displayName: string; linkedUserId: null }
-      | { type: "upsertCourt"; name: string; address: string; mapsUrl: string },
-  ) => void;
+  onSave: (input: { type: "upsertPlayer"; displayName: string; linkedUserId: null }) => void;
   open: boolean;
 }) {
   const [displayName, setDisplayName] = useState("");
-  const [address, setAddress] = useState("");
-  const [mapsUrl, setMapsUrl] = useState("");
-  const isPlayers = kind === "players";
-  const valid = isPlayers
-    ? Boolean(displayName.trim())
-    : Boolean(displayName.trim() && address.trim() && isHttpUrl(mapsUrl));
+  const valid = Boolean(displayName.trim());
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!valid) return;
-    if (isPlayers) {
-      onSave({ type: "upsertPlayer", displayName, linkedUserId: null });
-      return;
-    }
-    onSave({ type: "upsertCourt", name: displayName, address, mapsUrl });
+    onSave({ type: "upsertPlayer", displayName, linkedUserId: null });
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger render={<Button />}>
         <PlusIcon data-icon="inline-start" aria-hidden="true" />
-        <span className="hidden sm:inline">{isPlayers ? "Nuevo jugador" : "Nueva cancha"}</span>
+        <span className="hidden sm:inline">Nuevo jugador</span>
         <span className="sm:hidden">Agregar</span>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isPlayers ? "Nuevo jugador" : "Nueva cancha"}</DialogTitle>
-          <DialogDescription>
-            {isPlayers
-              ? "Quedará disponible para próximos partidos."
-              : "La vas a poder elegir al crear un partido."}
-          </DialogDescription>
+          <DialogTitle>Nuevo jugador</DialogTitle>
+          <DialogDescription>Quedará disponible para próximos partidos.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit}>
           <FieldGroup>
-            {isPlayers ? (
-              <Field data-invalid={Boolean(displayName && !displayName.trim())}>
-                <FieldLabel htmlFor="directory-name">Nombre</FieldLabel>
-                <Input
-                  aria-invalid={Boolean(displayName && !displayName.trim())}
-                  id="directory-name"
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  placeholder="Nombre del jugador"
-                  value={displayName}
-                />
-              </Field>
-            ) : (
-              <CourtFields
-                address={address}
-                mapsUrl={mapsUrl}
-                name={displayName}
-                onAddressChange={setAddress}
-                onMapsUrlChange={setMapsUrl}
-                onNameChange={setDisplayName}
-                prefix="new-court"
+            <Field data-invalid={Boolean(displayName && !displayName.trim())}>
+              <FieldLabel htmlFor="directory-name">Nombre</FieldLabel>
+              <Input
+                aria-invalid={Boolean(displayName && !displayName.trim())}
+                id="directory-name"
+                onChange={(event) => setDisplayName(event.target.value)}
+                placeholder="Nombre del jugador"
+                value={displayName}
               />
-            )}
+            </Field>
             {error ? <FieldError role="alert">{error}</FieldError> : null}
             <Button type="submit" disabled={isPending || !valid}>
               Guardar
@@ -885,78 +673,6 @@ function CreateDirectoryDialog({
   );
 }
 
-function CourtFields({
-  address,
-  mapsUrl,
-  name,
-  onAddressChange,
-  onMapsUrlChange,
-  onNameChange,
-  prefix,
-}: {
-  address: string;
-  mapsUrl: string;
-  name: string;
-  onAddressChange: (value: string) => void;
-  onMapsUrlChange: (value: string) => void;
-  onNameChange: (value: string) => void;
-  prefix: string;
-}) {
-  return (
-    <>
-      <Field data-invalid={Boolean(name && !name.trim())}>
-        <FieldLabel htmlFor={`${prefix}-name`}>Nombre</FieldLabel>
-        <Input
-          aria-invalid={Boolean(name && !name.trim())}
-          id={`${prefix}-name`}
-          aria-describedby={name && !name.trim() ? `${prefix}-name-error` : undefined}
-          onChange={(event) => onNameChange(event.target.value)}
-          placeholder="Nombre de la cancha"
-          value={name}
-        />
-        {name && !name.trim() ? (
-          <FieldError id={`${prefix}-name-error`} role="alert">
-            Ingresá el nombre de la cancha.
-          </FieldError>
-        ) : null}
-      </Field>
-      <Field data-invalid={Boolean(address && !address.trim())}>
-        <FieldLabel htmlFor={`${prefix}-address`}>Dirección</FieldLabel>
-        <Input
-          aria-invalid={Boolean(address && !address.trim())}
-          id={`${prefix}-address`}
-          aria-describedby={address && !address.trim() ? `${prefix}-address-error` : undefined}
-          onChange={(event) => onAddressChange(event.target.value)}
-          placeholder="Calle 123, Ciudad"
-          value={address}
-        />
-        {address && !address.trim() ? (
-          <FieldError id={`${prefix}-address-error`} role="alert">
-            Ingresá la dirección.
-          </FieldError>
-        ) : null}
-      </Field>
-      <Field data-invalid={Boolean(mapsUrl && !isHttpUrl(mapsUrl))}>
-        <FieldLabel htmlFor={`${prefix}-map`}>Enlace de Google Maps</FieldLabel>
-        <Input
-          aria-invalid={Boolean(mapsUrl && !isHttpUrl(mapsUrl))}
-          id={`${prefix}-map`}
-          aria-describedby={mapsUrl && !isHttpUrl(mapsUrl) ? `${prefix}-map-error` : undefined}
-          onChange={(event) => onMapsUrlChange(event.target.value)}
-          placeholder="https://maps.google.com/…"
-          type="url"
-          value={mapsUrl}
-        />
-        {mapsUrl && !isHttpUrl(mapsUrl) ? (
-          <FieldError id={`${prefix}-map-error`} role="alert">
-            Usá un enlace que empiece con https:// o http://.
-          </FieldError>
-        ) : null}
-      </Field>
-    </>
-  );
-}
-
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="flex flex-col gap-1">
@@ -964,15 +680,6 @@ function Stat({ label, value }: { label: string; value: number | string }) {
       <dd className="text-xl font-semibold tabular-nums">{value}</dd>
     </div>
   );
-}
-
-function isHttpUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function normalizeSearch(value: string) {
