@@ -46,17 +46,31 @@ export function oklchToHex(value: string): string {
     .join("")}`;
 }
 
-/** WCAG 2 relative luminance. */
-export function relativeLuminance(value: string): number {
-  const [r, g, b] = oklchToLinearSrgb(value);
+function decodeGamma(channel: number) {
+  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function luminance([r, g, b]: Rgb) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function ratio(a: number, b: number) {
+  const [lighter, darker] = a > b ? [a, b] : [b, a];
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 /** WCAG 2 contrast ratio between two OKLCH colors. */
 export function contrastRatio(a: string, b: string): number {
-  const [lighter, darker] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x) as [
-    number,
-    number,
-  ];
-  return (lighter + 0.05) / (darker + 0.05);
+  return ratio(luminance(oklchToLinearSrgb(a)), luminance(oklchToLinearSrgb(b)));
+}
+
+/**
+ * Contrast of `text` over `surface` tinted with `text` at `alpha`, as in
+ * `bg-destructive/15 text-destructive`. Browsers blend gamma-encoded sRGB.
+ */
+export function contrastOnTint(text: string, surface: string, alpha: number): number {
+  const fg = oklchToLinearSrgb(text).map(encodeGamma);
+  const bg = oklchToLinearSrgb(surface).map(encodeGamma);
+  const mixed = bg.map((channel, i) => decodeGamma(channel * (1 - alpha) + fg[i]! * alpha)) as Rgb;
+  return ratio(luminance(oklchToLinearSrgb(text)), luminance(mixed));
 }

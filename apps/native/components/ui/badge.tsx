@@ -23,10 +23,10 @@ const badgeVariants = cva(
           Platform.select({ web: "[a&]:hover:bg-secondary/90" }),
         ),
         destructive: cn(
-          "bg-destructive/10 border-transparent dark:bg-destructive/20",
-          Platform.select({ web: "[a&]:hover:bg-destructive/20" }),
+          "bg-destructive/10 border-transparent dark:bg-destructive/15",
+          Platform.select({ web: "[a&]:hover:bg-destructive/15" }),
         ),
-        success: "bg-success/10 border-transparent dark:bg-success/20",
+        success: "bg-success/10 border-transparent dark:bg-success/15",
         outline: Platform.select({ web: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground" }),
       },
     },

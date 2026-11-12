@@ -18,9 +18,9 @@ const buttonVariants = cva(
           Platform.select({ web: "hover:bg-primary/90" }),
         ),
         destructive: cn(
-          "bg-destructive/10 active:bg-destructive/20 dark:bg-destructive/20 dark:active:bg-destructive/30",
+          "bg-destructive/10 active:bg-destructive/15 dark:bg-destructive/15 dark:active:bg-destructive/20",
           Platform.select({
-            web: "hover:bg-destructive/20 dark:hover:bg-destructive/30 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
+            web: "hover:bg-destructive/15 dark:hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
           }),
         ),
         outline: cn(
