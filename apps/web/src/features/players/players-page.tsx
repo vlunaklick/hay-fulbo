@@ -28,7 +28,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
-import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
+import {
+  DrillList,
+  DrillRow,
+  GroupBack,
+  HeroNumber,
+  NextStep,
+  StatusHeader,
+} from "@/components/next-step";
 import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { formatShortDate } from "@/lib/format";
 import { initials } from "@/lib/initials";
@@ -125,7 +132,7 @@ export function PlayersPage() {
     <NextStepLayout
       emptyDetail={isPending || error ? undefined : "Cuando sumes jugadores, acá ves sus números."}
     >
-      <StatusHeader title="Jugadores" meta="Los que más juegan, arriba" />
+      <StatusHeader back={<GroupBack />} title="Jugadores" meta="Los que más juegan, arriba" />
       {canManage ? <CreatePlayerDialog open={createOpen} onOpenChange={setCreateOpen} /> : null}
 
       {isPending ? (

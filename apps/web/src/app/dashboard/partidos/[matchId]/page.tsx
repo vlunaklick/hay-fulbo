@@ -299,7 +299,7 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
               nativeButton={false}
             >
               <ArrowLeftIcon data-icon="inline-start" aria-hidden="true" />
-              Partidos
+              Historial
             </Button>
             <div className="flex min-w-0 items-center gap-1">
               {isOpen && !inviteInNextStep ? (

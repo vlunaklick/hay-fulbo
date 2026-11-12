@@ -12,7 +12,7 @@ test("a failed background poll keeps open drafts", async ({ page }, testInfo) =>
   await page.getByRole("button", { name: "Crear grupo" }).click();
   await page.getByLabel(/^Nombre/).fill(`Grupo ${runId}`);
   await page.getByRole("button", { name: "Crear y entrar" }).click();
-  await expect(page.getByRole("heading", { name: "Resumen del grupo" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^La fecha de / })).toBeVisible();
   await page.goto("/dashboard/partidos");
   await page.getByRole("button", { name: /^Crear / }).click();
   await expect(page).toHaveURL(/\/dashboard\/partidos\/[0-9a-f-]{36}$/);
@@ -47,7 +47,7 @@ test("a failed background poll keeps modo cancha and its open own-goal picker", 
   await page.getByRole("button", { name: "Crear grupo" }).click();
   await page.getByLabel(/^Nombre/).fill(`Grupo ${runId}`);
   await page.getByRole("button", { name: "Crear y entrar" }).click();
-  await expect(page.getByRole("heading", { name: "Resumen del grupo" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^La fecha de / })).toBeVisible();
   await page.goto("/dashboard/partidos");
   await page.getByRole("button", { name: /^Crear / }).click();
   await expect(page).toHaveURL(/\/dashboard\/partidos\/[0-9a-f-]{36}$/);

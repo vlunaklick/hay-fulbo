@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback } from "@hay-fulbo/ui/components/avatar";
-import { Button } from "@hay-fulbo/ui/components/button";
+import { Button, buttonVariants } from "@hay-fulbo/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,33 +19,16 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@hay-fulbo/ui/components/empty";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from "@hay-fulbo/ui/components/sidebar";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  HouseIcon,
   ArrowRightIcon,
   CalendarDaysIcon,
   ChevronUpIcon,
   CircleUserRoundIcon,
+  HistoryIcon,
   LogOutIcon,
-  MapPinIcon,
   PlusIcon,
   SettingsIcon,
   TrophyIcon,
@@ -79,25 +62,20 @@ export function useAppContext() {
 }
 
 const navigation = [
-  { href: "/dashboard", label: "Inicio", icon: HouseIcon },
-  { href: "/dashboard/partidos", label: "Partidos", icon: CalendarDaysIcon },
-  { href: "/dashboard/jugadores", label: "Jugadores", icon: UsersRoundIcon },
-  { href: "/dashboard/estadisticas", label: "Estadísticas", icon: TrophyIcon },
+  { href: "/dashboard", label: "Fecha", icon: CalendarDaysIcon },
+  { href: "/dashboard/partidos", label: "Historial", icon: HistoryIcon },
+  { href: "/dashboard/estadisticas", label: "Tabla", icon: TrophyIcon },
 ] as const;
 
-const groupNavigation = [
-  { href: "/dashboard/canchas", label: "Canchas", icon: MapPinIcon },
-  { href: "/dashboard/grupo", label: "Personas y permisos", icon: SettingsIcon },
-] as const;
+/** Screens reached from the gear rather than the main navigation. */
+const groupPaths = ["/dashboard/grupo", "/dashboard/jugadores", "/dashboard/canchas"];
 
 export function AppShell({
   activeGroupId,
-  defaultSidebarOpen = true,
   user,
   children,
 }: {
   activeGroupId: string | null;
-  defaultSidebarOpen?: boolean;
   user: AppContextValue["user"];
   children: React.ReactNode;
 }) {
@@ -192,174 +170,111 @@ export function AppShell({
       >
         Saltar al contenido
       </a>
-      <SidebarProvider defaultOpen={defaultSidebarOpen}>
-        <ShellSidebar
-          group={group}
-          groups={groups.data}
-          pathname={pathname}
-          role={context.role}
-          user={user}
-          onProfile={() => router.push("/dashboard/perfil")}
-          onSignOut={signOut}
-        />
-
-        <SidebarInset id="contenido" tabIndex={-1} className="min-w-0">
-          <header className="sticky top-0 z-10 border-b bg-background md:hidden">
-            <div className="flex h-14 items-center justify-between gap-3 px-4">
-              <GroupSwitcher activeGroup={group} groups={groups.data} role={context.role} />
-              <div className="flex shrink-0 items-center gap-2">
-                <ModeToggle />
-                <UserMenu
-                  compact
-                  role={context.role}
-                  side="bottom"
-                  user={user}
-                  onProfile={() => router.push("/dashboard/perfil")}
-                  onSignOut={signOut}
-                />
-              </div>
-            </div>
-          </header>
-          <div className="mx-auto w-full max-w-6xl px-4 py-5 pb-28 md:px-8 md:py-8 md:pb-10">
-            {children}
+      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 md:h-16 md:gap-6 md:px-8">
+          <Brand />
+          <div className="min-w-0 flex-1 md:max-w-56 md:flex-none">
+            <GroupSwitcher activeGroup={group} groups={groups.data} role={context.role} />
           </div>
-        </SidebarInset>
+          <nav aria-label="Principal" className="hidden items-center gap-1 md:flex">
+            {navigation.map((item) => {
+              const active = isActivePath(pathname, item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    buttonVariants({ variant: "ghost" }),
+                    "font-semibold",
+                    active ? "bg-muted text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-2">
+            <GroupSettingsLink active={isGroupPath(pathname)} />
+            <ModeToggle />
+            <UserMenu
+              compact
+              role={context.role}
+              side="bottom"
+              user={user}
+              onProfile={() => router.push("/dashboard/perfil")}
+              onSignOut={signOut}
+            />
+          </div>
+        </div>
+      </header>
 
-        <nav
-          className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t bg-sidebar px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden"
-          aria-label="Principal"
-        >
-          {navigation.map((item) => {
-            const active = isActivePath(pathname, item.href);
-            return (
-              <Button
-                key={item.href}
-                variant="ghost"
-                render={<Link href={item.href} aria-current={active ? "page" : undefined} />}
-                nativeButton={false}
-                className={cn(
-                  "relative h-14 flex-col gap-1 hover:bg-transparent",
-                  active ? "text-foreground" : "text-muted-foreground",
-                )}
-              >
-                {active ? (
-                  <span
-                    className="absolute top-0 h-0.5 w-6 rounded-full bg-primary"
-                    aria-hidden="true"
-                  />
-                ) : null}
-                <item.icon aria-hidden="true" />
-                <span className="text-xs font-medium">{item.label}</span>
-              </Button>
-            );
-          })}
-        </nav>
-      </SidebarProvider>
+      <main id="contenido" tabIndex={-1} className="min-w-0 outline-none">
+        <div className="mx-auto w-full max-w-6xl px-4 py-5 pb-28 md:px-8 md:py-8 md:pb-10">
+          {children}
+        </div>
+      </main>
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden"
+        aria-label="Principal"
+      >
+        {navigation.map((item) => {
+          const active = isActivePath(pathname, item.href);
+          return (
+            <Button
+              key={item.href}
+              variant="ghost"
+              render={<Link href={item.href} aria-current={active ? "page" : undefined} />}
+              nativeButton={false}
+              className={cn(
+                "relative h-14 flex-col gap-1 hover:bg-transparent",
+                active ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              {active ? (
+                <span
+                  className="absolute top-0 h-0.5 w-6 rounded-full bg-primary"
+                  aria-hidden="true"
+                />
+              ) : null}
+              <item.icon aria-hidden="true" />
+              <span className="text-xs font-medium">{item.label}</span>
+            </Button>
+          );
+        })}
+      </nav>
     </AppContext>
   );
 }
 
-type GroupSummary = { id: string; name: string; slug: string };
-
-function ShellSidebar({
-  group,
-  groups,
-  onProfile,
-  onSignOut,
-  pathname,
-  role,
-  user,
-}: {
-  group: GroupSummary;
-  groups: readonly GroupSummary[];
-  onProfile: () => void;
-  onSignOut: () => void;
-  pathname: string;
-  role: AppContextValue["role"];
-  user: AppContextValue["user"];
-}) {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
-  const toggleLabel = collapsed ? "Expandir navegación" : "Contraer navegación";
-
+/** Jugadores, canchas and permisos live behind one gear: they support la fecha, they are not it. */
+function GroupSettingsLink({ active }: { active: boolean }) {
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:flex-col">
-        <Brand collapsed={collapsed} />
-        <SidebarTrigger aria-label={toggleLabel} title={toggleLabel} />
-      </SidebarHeader>
-      <SidebarGroup className="pb-0 group-data-[collapsible=icon]:items-center">
-        <GroupSwitcher activeGroup={group} compact={collapsed} groups={groups} role={role} />
-      </SidebarGroup>
-      <SidebarContent>
-        <nav aria-label="Principal" className="flex flex-col">
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <NavMenu items={navigation} pathname={pathname} />
-            </SidebarGroupContent>
-          </SidebarGroup>
-          <SidebarGroup>
-            <SidebarGroupLabel>Grupo</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <NavMenu items={groupNavigation} pathname={pathname} />
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </nav>
-      </SidebarContent>
-      <SidebarFooter className="flex-row items-center group-data-[collapsible=icon]:flex-col">
-        <ModeToggle />
-        <div className="min-w-0 flex-1 group-data-[collapsible=icon]:flex-none">
-          <UserMenu
-            compact={collapsed}
-            role={role}
-            side="right"
-            user={user}
-            onProfile={onProfile}
-            onSignOut={onSignOut}
-          />
-        </div>
-      </SidebarFooter>
-    </Sidebar>
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Grupo: jugadores, canchas y permisos"
+      title="Grupo"
+      render={<Link href="/dashboard/grupo" aria-current={active ? "page" : undefined} />}
+      nativeButton={false}
+      className={cn("size-11", active ? "bg-muted text-foreground" : "text-muted-foreground")}
+    >
+      <SettingsIcon aria-hidden="true" />
+    </Button>
   );
 }
 
-function NavMenu({
-  items,
-  pathname,
-}: {
-  items: ReadonlyArray<(typeof navigation)[number] | (typeof groupNavigation)[number]>;
-  pathname: string;
-}) {
-  return (
-    <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
-      {items.map((item) => {
-        const active = isActivePath(pathname, item.href);
-        return (
-          <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton
-              isActive={active}
-              tooltip={item.label}
-              render={<Link href={item.href} aria-current={active ? "page" : undefined} />}
-            >
-              <item.icon aria-hidden="true" />
-              <span>{item.label}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        );
-      })}
-    </SidebarMenu>
-  );
-}
-
-function Brand({ collapsed }: { collapsed: boolean }) {
+function Brand() {
   return (
     <Link
       href="/dashboard"
-      className="flex min-w-0 items-center gap-2"
-      aria-label={collapsed ? "Hay Fulbo, inicio" : undefined}
+      className="hidden min-w-0 shrink-0 items-center gap-2 md:flex"
+      aria-label="Hay Fulbo, la fecha"
     >
       <LogoMark className="size-8 shrink-0" />
-      {collapsed ? null : <span className="truncate font-bold tracking-tight">Hay Fulbo</span>}
+      <span className="hidden font-bold tracking-tight lg:inline">Hay Fulbo</span>
     </Link>
   );
 }
@@ -513,6 +428,10 @@ function ShellSkeleton() {
       <Skeleton className="h-72 w-full" />
     </div>
   );
+}
+
+function isGroupPath(pathname: string) {
+  return groupPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
 function isActivePath(pathname: string, href: string) {

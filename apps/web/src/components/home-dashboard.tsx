@@ -3,47 +3,51 @@
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
+import { Progress } from "@hay-fulbo/ui/components/progress";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
+import { cn } from "@hay-fulbo/ui/lib/utils";
+import type { AppRouter } from "@hay-fulbo/api/routers/index";
 import { useQuery } from "@tanstack/react-query";
-import { CircleAlertIcon, PlusIcon } from "lucide-react";
+import type { inferRouterOutputs } from "@trpc/server";
+import { ArrowRightIcon, CircleAlertIcon, PlusIcon } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
 import { MatchShareRow } from "@/components/match-share-row";
-import { MatchSummary } from "@/components/match-summary";
 import { NewMatchDetail } from "@/components/new-match-dialog";
-import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
-import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
-import { formatDayTitle, formatMoney, formatShortWeekday, formatTime } from "@/lib/format";
+import { NextStep } from "@/components/next-step";
+import { type FechaPhase, owedFor, pickFecha, rosterTarget } from "@/lib/fecha";
+import { formatDayTitle, formatMoney, formatTime } from "@/lib/format";
 import { relativeDay } from "@/lib/match-schedule";
-import { type HomeStep, pickHomeStep } from "@/lib/next-step";
+import { missingPlayers } from "@/lib/next-step";
 import { trpc } from "@/utils/trpc";
 
-/** Results listed in the "Último resultado" sheet before linking to the full list. */
-const shownResults = 6;
+type Detail = inferRouterOutputs<AppRouter>["matches"]["detail"];
+type Court = { name: string; address: string; mapsUrl: string } | null;
 
-/** What a row opens: a bottom sheet on phones, the right column on desktop. */
-type Detail = "live" | "next" | "results" | "debts" | "create";
+/** Past dates listed beside the fecha before linking to the full history. */
+const shownResults = 5;
+/** Debtors listed beside the fecha before linking to the match's caja. */
+const shownDebtors = 5;
 
-function matchHref(id: string) {
-  return `/dashboard/partidos/${id}` as Route;
+function matchHref(id: string, suffix = "") {
+  return `/dashboard/partidos/${id}${suffix}` as Route;
 }
 
-/** A `DrillRow` that navigates. */
-function linkTo(href: Route) {
-  return ({ className, children }: { className: string; children: React.ReactNode }) => (
-    <Link className={className} href={href}>
-      {children}
-    </Link>
-  );
-}
+const phaseLabel: Record<FechaPhase, string> = {
+  upcoming: "Convocando",
+  live: "En juego",
+  close: "Por cerrar",
+  closed: "Cerrada",
+};
 
 /**
- * The group home answers "¿qué hago ahora?": the match being played or the next
- * one as the hero, the most urgent action in a `NextStep`, and everything else
- * (results, debts, players, stats) one row away. See docs/prototypes/proximo-paso.md.
+ * The group home is la fecha: the one match that matters now, in whichever of
+ * its four moments it is (convocando, en juego, por cerrar, cerrada), with a
+ * single action. What is owed and the last results sit beside it on desktop and
+ * below it on phones.
  */
 export function HomeDashboard() {
   const { groupName, role, user } = useAppContext();
@@ -51,24 +55,40 @@ export function HomeDashboard() {
   const stats = useQuery(trpc.stats.dashboard.queryOptions({}));
   const directory = useQuery(trpc.matches.directory.queryOptions());
   const list = useQuery(trpc.matches.list.queryOptions({ limit: 50 }));
-  const upcomingId = stats.data?.upcoming?.matchId;
-  const upcomingDetail = useQuery({
-    ...trpc.matches.detail.queryOptions({ matchId: upcomingId ?? "" }),
-    enabled: Boolean(upcomingId),
+  const [creating, setCreating] = useState(false);
+
+  const now = new Date();
+  const fecha =
+    stats.data && list.data
+      ? pickFecha({
+          now,
+          canManage,
+          matches: list.data.map((match) => ({
+            ...match,
+            scheduledAt: new Date(match.scheduledAt),
+          })),
+          upcomingId: stats.data.upcoming?.matchId ?? null,
+        })
+      : null;
+  const detail = useQuery({
+    ...trpc.matches.detail.queryOptions({ matchId: fecha?.matchId ?? "" }),
+    enabled: Boolean(fecha),
   });
-  const desktop = useIsDesktop();
-  // `undefined` until the viewer picks a row: desktop then opens the most relevant one.
-  const [picked, setPicked] = useState<Detail | null>();
+  // What is owed comes from the last closed match: before kickoff everyone "owes".
+  const lastClosedId = stats.data?.history.find((match) => match.status === "closed")?.matchId;
+  const lastClosed = useQuery({
+    ...trpc.matches.detail.queryOptions({ matchId: lastClosedId ?? "" }),
+    enabled: Boolean(lastClosedId),
+  });
 
   if (stats.isPending || directory.isPending || list.isPending) {
     return (
-      <NextStepLayout>
-        <div className="flex flex-col gap-6" aria-label="Cargando resumen">
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-36 w-full" />
-          <Skeleton className="h-60 w-full" />
+      <HomeLayout>
+        <div className="flex flex-col gap-4" aria-label="Cargando la fecha">
+          <Skeleton className="h-72 w-full rounded-xl" />
         </div>
-      </NextStepLayout>
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </HomeLayout>
     );
   }
 
@@ -76,7 +96,7 @@ export function HomeDashboard() {
     return (
       <Alert variant="destructive" className="mx-auto max-w-xl">
         <CircleAlertIcon aria-hidden="true" />
-        <AlertTitle>No pudimos cargar el resumen</AlertTitle>
+        <AlertTitle>No pudimos cargar la fecha</AlertTitle>
         <AlertDescription>
           {stats.error?.message ?? directory.error?.message ?? list.error?.message}
         </AlertDescription>
@@ -84,356 +104,499 @@ export function HomeDashboard() {
     );
   }
 
-  const now = new Date();
-  const dashboard = stats.data;
-  const upcoming = dashboard.upcoming;
-  const finances = dashboard.finances;
-  const matches = list.data.map((match) => ({
-    ...match,
-    scheduledAt: new Date(match.scheduledAt),
-  }));
+  const courts = new Map(directory.data.courts.map((court) => [court.id, court] as const));
   const me = directory.data.players.find((player) => player.linkedUserId === user.id);
-  const myAppearance = upcomingDetail.data
-    ? [
-        ...upcomingDetail.data.teams.flatMap((team) => team.appearances),
-        ...upcomingDetail.data.absences.filter((absence) => absence.owesContribution),
-      ].find((appearance) => appearance.playerId === me?.id)
-    : undefined;
-  const myDebt = myAppearance
-    ? BigInt(myAppearance.expectedMinor) - BigInt(myAppearance.paidMinor)
-    : null;
-
-  const step = pickHomeStep({
-    now,
-    canManage,
-    matches,
-    upcoming: upcoming
-      ? {
-          matchId: upcoming.matchId,
-          teamSizes: upcomingDetail.data?.teams.map((team) => team.appearances.length) ?? null,
-        }
-      : null,
-    finances: finances ? { debtMinor: finances.debtMinor, debtors: finances.debtors.length } : null,
-    myDebtMinor: myDebt,
-  });
-  const live =
-    step?.kind === "live" ? matches.find((match) => match.id === step.matchId) : undefined;
-  const results = dashboard.history.slice(0, shownResults);
-  const lastResult = dashboard.history[0];
-  const debt = finances ? BigInt(finances.debtMinor) : 0n;
-  const activePlayers = directory.data.players.filter((player) => !player.archivedAt).length;
-  const showDebts = Boolean(finances && upcoming && finances.participantCount > 0);
-  const preferred: Detail | null = live
-    ? "live"
-    : showDebts && (step?.kind === "collect" || step?.kind === "pay")
-      ? "debts"
-      : upcoming
-        ? "next"
-        : canManage
-          ? "create"
-          : lastResult
-            ? "results"
-            : null;
-  const detail = picked === undefined ? (desktop ? preferred : null) : picked;
-  const setSheet = (next: Detail | null) => setPicked(next);
-  const detailProps = (key: Detail) => ({
-    open: detail === key,
-    onOpenChange: (open: boolean) => setSheet(open ? key : null),
-  });
+  const history = stats.data.history.slice(0, shownResults);
+  const hasUpcoming = Boolean(stats.data.upcoming);
 
   return (
-    <NextStepLayout emptyDetail="Elegí una fila para ver el detalle.">
-      <StatusHeader
-        title="Resumen del grupo"
-        meta={groupName}
-        status={live ? <Badge>En juego</Badge> : null}
-      />
-
-      {live ? (
-        <HeroNumber caption={live.teams.map((team) => team.displayName).join(" vs. ")}>
-          {live.teams[0]?.goals ?? 0} – {live.teams[1]?.goals ?? 0}
-        </HeroNumber>
-      ) : upcoming ? (
-        <HeroNumber
-          caption={`${whenLabel(new Date(upcoming.scheduledAt), now)} · ${upcoming.court?.name ?? "Cancha a definir"}`}
-        >
-          {formatTime(upcoming.scheduledAt)}
-        </HeroNumber>
-      ) : null}
-
-      {/* Until the roster loads we can't tell whether the next match needs invites. */}
-      {upcoming && upcomingDetail.isPending && step?.kind !== "live" && step?.kind !== "close" ? (
-        <Skeleton aria-label="Cargando próximo paso" className="h-32 w-full rounded-xl" />
-      ) : step ? (
-        <HomeNextStep
-          step={step}
-          onCreate={() => setSheet("create")}
-          invite={
-            step.kind === "invite" && upcoming && upcomingDetail.data ? (
-              <MatchShareRow
-                court={upcoming.court}
-                detail={upcomingDetail.data}
-                groupName={groupName}
-                size="default"
-                variant="default"
-              />
-            ) : null
-          }
-        />
-      ) : null}
-
-      <DrillList>
-        {live ? (
-          <DrillRow
-            label="Partido en juego"
-            value={resultValue(live)}
-            selected={detail === "live"}
-            onClick={() => setSheet("live")}
-          />
-        ) : null}
-
-        {upcoming ? (
-          <DrillRow
-            label="Próximo partido"
-            value={`${formatShortWeekday(upcoming.scheduledAt)} ${new Date(upcoming.scheduledAt).getDate()} · ${formatTime(upcoming.scheduledAt)}`}
-            selected={detail === "next"}
-            onClick={() => setSheet("next")}
-          />
-        ) : canManage ? (
-          <DrillRow
-            label="Próximo partido"
-            value="Sin fecha"
-            selected={detail === "create"}
-            onClick={() => setSheet("create")}
-          />
-        ) : (
-          <DrillRow label="Próximo partido" value="Sin fecha" static />
-        )}
-
-        {lastResult ? (
-          <DrillRow
-            label="Último resultado"
-            value={resultValue(lastResult)}
-            selected={detail === "results"}
-            onClick={() => setSheet("results")}
-          />
-        ) : (
-          <DrillRow label="Último resultado" value="—" static />
-        )}
-
-        {showDebts ? (
-          <DrillRow
-            label="Deudas"
-            value={debt > 0n ? `falta ${formatMoney(debt.toString())}` : "Al día"}
-            selected={detail === "debts"}
-            onClick={() => setSheet("debts")}
-          />
-        ) : null}
-
-        <DrillRow
-          label="Jugadores"
-          value={String(activePlayers)}
-          render={linkTo("/dashboard/jugadores")}
-        />
-        <DrillRow
-          label="Estadísticas"
-          value={`${dashboard.summary.matchesPlayed} ${dashboard.summary.matchesPlayed === 1 ? "partido" : "partidos"} · ${dashboard.summary.totalGoals} goles`}
-          render={linkTo("/dashboard/estadisticas")}
-        />
-        <DrillRow label="Todos los partidos" render={linkTo("/dashboard/partidos")} />
-      </DrillList>
-
-      {live ? (
-        <DrillDetail
-          {...detailProps("live")}
-          title="Partido en juego"
-          description={`Empezó a las ${formatTime(live.scheduledAt)}`}
-        >
-          <MatchSummary matchId={live.id} />
-        </DrillDetail>
-      ) : null}
-
-      {upcoming ? (
-        <DrillDetail
-          {...detailProps("next")}
-          title="Próximo partido"
-          description={`${formatDayTitle(upcoming.scheduledAt)} · ${formatTime(upcoming.scheduledAt)} · ${upcoming.court?.name ?? "Cancha a definir"}`}
-        >
-          <MatchSummary matchId={upcoming.matchId} />
-        </DrillDetail>
-      ) : null}
-
-      <DrillDetail {...detailProps("results")} title="Últimos resultados">
-        <DrillList>
-          {results.map((match) => (
-            <DrillRow
-              key={match.matchId}
-              label={formatDayTitle(match.scheduledAt)}
-              value={
-                match.figure && match.status === "closed"
-                  ? `${resultValue(match)} · ${match.figure.displayName}`
-                  : resultValue(match)
+    <HomeLayout>
+      <h1 className="sr-only">La fecha de {groupName}</h1>
+      <div className="flex min-w-0 flex-col gap-4">
+        {!fecha ? (
+          canManage ? (
+            <NextStep
+              kicker="No hay próxima fecha"
+              title="Armá el próximo partido"
+              action={
+                <Button onClick={() => setCreating(true)}>
+                  <PlusIcon data-icon="inline-start" aria-hidden="true" />
+                  Crear partido
+                </Button>
               }
-              render={linkTo(matchHref(match.matchId))}
-            />
-          ))}
-        </DrillList>
-        <Button
-          variant="outline"
-          className="mt-4 w-full"
-          render={<Link href="/dashboard/partidos" />}
-          nativeButton={false}
-        >
-          {dashboard.history.length > shownResults
-            ? `Ver los ${dashboard.history.length} partidos`
-            : "Ver todos los partidos"}
-        </Button>
-      </DrillDetail>
+            >
+              Elegí el día. Cancha y equipos se completan después.
+            </NextStep>
+          ) : (
+            <NextStep kicker="No hay próxima fecha" title="Todavía no hay partido armado">
+              Cuando el organizador cree la fecha, la vas a ver acá.
+            </NextStep>
+          )
+        ) : detail.isPending ? (
+          <Skeleton aria-label="Cargando la fecha" className="h-72 w-full rounded-xl" />
+        ) : detail.isError ? (
+          <Alert variant="destructive">
+            <CircleAlertIcon aria-hidden="true" />
+            <AlertTitle>No pudimos cargar el partido</AlertTitle>
+            <AlertDescription>
+              <Button variant="outline" className="mt-2 w-fit" onClick={() => detail.refetch()}>
+                Reintentar
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <FechaCard
+            canManage={canManage}
+            court={detail.data.courtId ? (courts.get(detail.data.courtId) ?? null) : null}
+            detail={detail.data}
+            groupName={groupName}
+            hasUpcoming={hasUpcoming}
+            myPlayerId={me?.id ?? null}
+            now={now}
+            onCreate={() => setCreating(true)}
+            phase={fecha.phase}
+          />
+        )}
+      </div>
 
-      {finances && upcoming ? (
-        <DrillDetail
-          {...detailProps("debts")}
-          title="Deudas del próximo partido"
-          description={`${formatDayTitle(upcoming.scheduledAt)} · pagaron ${finances.paidCount} de ${finances.participantCount}`}
-        >
-          <DrillList>
-            {myDebt !== null ? (
-              <DrillRow
-                static
-                label="Tu parte"
-                value={
-                  myDebt > 0n
-                    ? `falta ${formatMoney(myDebt.toString())}`
-                    : myDebt < 0n
-                      ? "A favor"
-                      : "Al día"
-                }
-              />
-            ) : null}
-            {finances.debtors.length ? (
-              finances.debtors.map((debtor) => (
-                <DrillRow
-                  key={debtor.playerId}
-                  static
-                  label={debtor.displayName}
-                  value={`falta ${formatMoney(debtor.debtMinor)}`}
-                />
-              ))
-            ) : (
-              <p className="py-3 text-sm text-muted-foreground">Nadie debe nada.</p>
-            )}
-          </DrillList>
+      <aside className="flex min-w-0 flex-col gap-4" aria-label="Contexto del grupo">
+        {lastClosed.data ? (
+          <DebtsCard canManage={canManage} detail={lastClosed.data} myPlayerId={me?.id ?? null} />
+        ) : null}
+        <section className="flex flex-col gap-1 rounded-xl border bg-card p-4">
+          <h2 className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            Últimas fechas
+          </h2>
+          {history.length ? (
+            <ul className="flex flex-col divide-y">
+              {history.map((match) => (
+                <li key={match.matchId}>
+                  <Link
+                    href={matchHref(match.matchId)}
+                    className="flex min-h-11 items-center gap-2 text-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                  >
+                    <WinnerDot teams={match.teams} status={match.status} />
+                    <span className="min-w-0 flex-1 truncate">
+                      {formatDayTitle(match.scheduledAt)}
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {match.status === "cancelled"
+                        ? "Cancelado"
+                        : `${match.teams[0]?.goals ?? 0} – ${match.teams[1]?.goals ?? 0}`}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-2 text-sm text-muted-foreground">Todavía no se jugó ninguna.</p>
+          )}
           <Button
-            className="mt-4 w-full"
-            render={<Link href={matchHref(upcoming.matchId)} />}
+            variant="ghost"
+            className="mt-1 justify-between px-0 hover:bg-transparent"
+            render={<Link href="/dashboard/partidos" />}
             nativeButton={false}
           >
-            Abrir la caja
+            Ver historial
+            <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
           </Button>
-        </DrillDetail>
-      ) : null}
+        </section>
+      </aside>
 
-      <NewMatchDetail {...detailProps("create")} />
-    </NextStepLayout>
+      {canManage ? <NewMatchDetail open={creating} onOpenChange={setCreating} /> : null}
+    </HomeLayout>
   );
 }
 
-function HomeNextStep({
-  invite,
+function HomeLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mx-auto grid w-full max-w-xl gap-4 lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-6">
+      {children}
+    </div>
+  );
+}
+
+function FechaCard({
+  canManage,
+  court,
+  detail,
+  groupName,
+  hasUpcoming,
+  myPlayerId,
+  now,
   onCreate,
-  step,
+  phase,
 }: {
-  invite: React.ReactNode;
+  canManage: boolean;
+  court: Court;
+  detail: Detail;
+  groupName: string;
+  hasUpcoming: boolean;
+  myPlayerId: string | null;
+  now: Date;
   onCreate: () => void;
-  step: HomeStep;
+  phase: FechaPhase;
 }) {
-  switch (step.kind) {
+  const scheduledAt = new Date(detail.scheduledAt);
+  const sizes = detail.teams.map((team) => team.appearances.length);
+  const playing = sizes.reduce((total, size) => total + size, 0);
+  const goals = new Map(detail.score.map((entry) => [entry.teamId, entry.goals]));
+  const owed = owedFor(detail);
+  const perPlayer =
+    detail.courtCostMinor !== null && playing > 0
+      ? (BigInt(detail.courtCostMinor) + BigInt(playing) - 1n) / BigInt(playing)
+      : null;
+  const meta = [
+    court?.name ?? "Cancha a definir",
+    phase === "upcoming" ? `${playing} ${playing === 1 ? "anotado" : "anotados"}` : null,
+    phase === "upcoming" && perPlayer !== null ? `${formatMoney(perPlayer.toString())} c/u` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const myDebt =
+    myPlayerId === null
+      ? 0n
+      : BigInt(owed.debtors.find((debtor) => debtor.playerId === myPlayerId)?.debtMinor ?? "0");
+
+  let headline: string;
+  let body: React.ReactNode = null;
+  let actions: React.ReactNode;
+
+  switch (phase) {
+    case "upcoming": {
+      const missing = missingPlayers(sizes);
+      const target = rosterTarget(sizes);
+      headline =
+        missing > 0
+          ? missing === 1
+            ? "Falta 1 para completar"
+            : `Faltan ${missing} para completar`
+          : "Equipos completos";
+      body = (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Progress
+              aria-label={`${playing} de ${target} jugadores`}
+              value={Math.min(100, Math.round((playing / target) * 100))}
+            />
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {playing} de {target} jugadores
+            </p>
+          </div>
+          <TeamColumns detail={detail} />
+          {sizes.every((size) => size > 0) ? <ParityLine matchId={detail.id} /> : null}
+        </>
+      );
+      const openMatch = (
+        <Button
+          variant={missing > 0 ? "outline" : "default"}
+          render={<Link href={matchHref(detail.id)} />}
+          nativeButton={false}
+        >
+          {canManage ? "Armar equipos" : "Ver partido"}
+        </Button>
+      );
+      actions =
+        missing > 0 ? (
+          <>
+            <MatchShareRow
+              court={court}
+              detail={detail}
+              groupName={groupName}
+              size="default"
+              variant="default"
+            />
+            {openMatch}
+          </>
+        ) : canManage && owed.totalMinor > 0n ? (
+          <>
+            <Button render={<Link href={matchHref(detail.id)} />} nativeButton={false}>
+              Cobrar {formatMoney(owed.totalMinor.toString())}
+            </Button>
+          </>
+        ) : myDebt > 0n ? (
+          <Button render={<Link href={matchHref(detail.id)} />} nativeButton={false}>
+            Pagar tu parte · {formatMoney(myDebt.toString())}
+          </Button>
+        ) : (
+          openMatch
+        );
+      break;
+    }
     case "live":
-      return (
-        <NextStep
-          kicker={`Empezó a las ${formatTime(step.scheduledAt)}`}
-          title="Hay partido en juego"
-          action={
-            <Button render={<Link href={matchHref(step.matchId)} />} nativeButton={false}>
-              Ir al partido
-            </Button>
-          }
-        />
+      headline = `Empezó a las ${formatTime(scheduledAt)}`;
+      body = <Scoreboard detail={detail} goals={goals} />;
+      actions = (
+        <>
+          <Button render={<Link href={matchHref(detail.id, "/cancha")} />} nativeButton={false}>
+            Cargar goles
+          </Button>
+          <Button
+            variant="outline"
+            render={<Link href={matchHref(detail.id)} />}
+            nativeButton={false}
+          >
+            Ver partido
+          </Button>
+        </>
       );
+      break;
     case "close":
-      return (
-        <NextStep
-          kicker="Falta cerrar"
-          title={`Cerrá el partido del ${formatDayTitle(step.scheduledAt).toLowerCase()}`}
-          action={
-            <Button render={<Link href={matchHref(step.matchId)} />} nativeButton={false}>
-              Ir al partido
-            </Button>
-          }
-        />
+      headline = "Revisá y cerrá el partido";
+      body = (
+        <>
+          <Scoreboard detail={detail} goals={goals} />
+          <p className="text-sm text-muted-foreground">
+            Al cerrarlo, el resultado cuenta para la tabla y los aportes quedan fijos.
+          </p>
+        </>
       );
-    case "invite":
-      return (
-        <NextStep
-          kicker={step.missing === 1 ? "Falta 1 jugador" : `Faltan ${step.missing} jugadores`}
-          title="Completá el próximo partido"
-          action={invite}
-        />
+      actions = (
+        <Button render={<Link href={matchHref(detail.id)} />} nativeButton={false}>
+          Revisar y cerrar
+        </Button>
       );
-    case "collect":
-      return (
-        <NextStep
-          kicker={step.debtors === 1 ? "1 debe su parte" : `${step.debtors} deben su parte`}
-          title={`Cobrar ${formatMoney(step.debtMinor.toString())}`}
-          action={
-            <Button render={<Link href={matchHref(step.matchId)} />} nativeButton={false}>
+      break;
+    case "closed":
+      headline =
+        owed.totalMinor > 0n
+          ? `Faltan cobrar ${formatMoney(owed.totalMinor.toString())}`
+          : "Todo cobrado";
+      body = (
+        <>
+          <Scoreboard detail={detail} goals={goals} />
+          {owed.people > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <Progress
+                aria-label={`Pagaron ${owed.paid} de ${owed.people}`}
+                value={Math.round((owed.paid / owed.people) * 100)}
+              />
+              <p className="text-xs text-muted-foreground tabular-nums">
+                Pagaron {owed.paid} de {owed.people}
+              </p>
+            </div>
+          ) : null}
+        </>
+      );
+      actions =
+        canManage && owed.totalMinor > 0n ? (
+          <>
+            <Button render={<Link href={matchHref(detail.id)} />} nativeButton={false}>
               Abrir la caja
             </Button>
-          }
-        />
-      );
-    case "pay":
-      return (
-        <NextStep
-          kicker="Tu parte del próximo partido"
-          title={`Pagar ${formatMoney(step.debtMinor.toString())}`}
-          action={
-            <Button render={<Link href={matchHref(step.matchId)} />} nativeButton={false}>
-              Ver el partido
-            </Button>
-          }
-        />
-      );
-    case "create":
-      return (
-        <NextStep
-          kicker="No hay próxima fecha"
-          title="Armá el próximo partido"
-          action={
-            <Button onClick={onCreate}>
-              <PlusIcon data-icon="inline-start" aria-hidden="true" />
-              Crear partido
-            </Button>
-          }
-        />
-      );
+            {hasUpcoming ? null : (
+              <Button variant="outline" onClick={onCreate}>
+                Nuevo partido
+              </Button>
+            )}
+          </>
+        ) : myDebt > 0n ? (
+          <Button render={<Link href={matchHref(detail.id)} />} nativeButton={false}>
+            Pagar tu parte · {formatMoney(myDebt.toString())}
+          </Button>
+        ) : canManage && !hasUpcoming ? (
+          <Button onClick={onCreate}>
+            <PlusIcon data-icon="inline-start" aria-hidden="true" />
+            Armá el próximo partido
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            render={<Link href={matchHref(detail.id)} />}
+            nativeButton={false}
+          >
+            Ver partido
+          </Button>
+        );
+      break;
   }
+
+  return (
+    <section
+      aria-label="Próximo paso"
+      className="flex flex-col gap-4 rounded-xl border bg-card p-4 sm:p-5"
+    >
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={phase === "live" ? "default" : "secondary"}>{phaseLabel[phase]}</Badge>
+          <span className="text-xs text-muted-foreground">
+            {whenLabel(scheduledAt, now)} · {formatTime(scheduledAt)}
+          </span>
+        </div>
+        <h2 className="text-xl font-bold tracking-tight text-balance">{headline}</h2>
+        <p className="text-sm text-muted-foreground">{meta}</p>
+      </div>
+      {body}
+      <div className="flex flex-col gap-2 sm:flex-row sm:*:flex-1">{actions}</div>
+    </section>
+  );
 }
 
-type HistoryMatch = {
+/** Both teams side by side, so the roster reads as two lineups instead of one list. */
+function TeamColumns({ detail }: { detail: Detail }) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+      {detail.teams.map((team) => (
+        <div key={team.id} className="flex min-w-0 flex-col gap-1.5 rounded-lg border p-2.5">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <TeamDot slot={team.slot} />
+            <span className="min-w-0 flex-1 truncate">{team.displayName}</span>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {team.appearances.length}
+            </span>
+          </div>
+          {team.appearances.length ? (
+            <ul className="flex flex-col gap-1 text-sm">
+              {team.appearances.map((appearance) => (
+                <li key={appearance.playerId} className="truncate rounded-md bg-muted px-2 py-1">
+                  {appearance.playerDisplayName}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rounded-md border border-dashed px-2 py-1 text-xs text-muted-foreground">
+              Sin jugadores
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** "Cómo llegan" in one line: the odds from the group's history, to even the teams out. */
+function ParityLine({ matchId }: { matchId: string }) {
+  const parity = useQuery(trpc.stats.parity.queryOptions({ matchId }));
+  if (!parity.data) return null;
+  const [left, right] = parity.data.teams;
+  const gap = Math.abs(left.probability - right.probability);
+  const verdict =
+    gap < 0.1
+      ? "Parejos"
+      : `Llega mejor ${(left.probability > right.probability ? left : right).displayName}`;
+  return (
+    <p className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-sm">
+      <span className="text-muted-foreground">Cómo llegan</span>
+      <span>
+        <strong className={gap < 0.1 ? "text-success" : undefined}>{verdict}</strong>
+        <span className="text-muted-foreground tabular-nums">
+          {" "}
+          · {Math.round(left.probability * 100)}% – {Math.round(right.probability * 100)}%
+        </span>
+      </span>
+    </p>
+  );
+}
+
+function Scoreboard({ detail, goals }: { detail: Detail; goals: Map<string, number> }) {
+  const [home, away] = detail.teams;
+  if (!home || !away) return null;
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-2 text-center">
+      <ScoreSide name={home.displayName} goals={goals.get(home.id) ?? 0} slot={home.slot} />
+      <span className="text-2xl text-muted-foreground" aria-hidden="true">
+        –
+      </span>
+      <ScoreSide name={away.displayName} goals={goals.get(away.id) ?? 0} slot={away.slot} />
+    </div>
+  );
+}
+
+function ScoreSide({ goals, name, slot }: { goals: number; name: string; slot: number }) {
+  return (
+    <div className="flex min-w-0 flex-col items-center gap-1">
+      <span className="text-5xl font-black leading-none tabular-nums">{goals}</span>
+      <span className="flex max-w-full items-center gap-1.5 text-xs text-muted-foreground">
+        <TeamDot slot={slot} />
+        <span className="truncate">{name}</span>
+      </span>
+    </div>
+  );
+}
+
+function DebtsCard({
+  canManage,
+  detail,
+  myPlayerId,
+}: {
+  canManage: boolean;
+  detail: Detail;
+  myPlayerId: string | null;
+}) {
+  const owed = owedFor(detail);
+  if (owed.totalMinor === 0n) return null;
+  const shown = owed.debtors.slice(0, shownDebtors);
+  const mine = myPlayerId
+    ? owed.debtors.find((debtor) => debtor.playerId === myPlayerId)
+    : undefined;
+
+  return (
+    <section className="flex flex-col gap-1 rounded-xl border bg-card p-4">
+      <h2 className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+        {canManage ? "Te deben" : "Deben"} · {formatDayTitle(detail.scheduledAt)}
+      </h2>
+      {!canManage && myPlayerId ? (
+        <p className="flex min-h-11 items-center justify-between border-b text-sm">
+          <span className="font-semibold">Tu parte</span>
+          <span className={cn("tabular-nums", mine ? "font-semibold" : "text-muted-foreground")}>
+            {mine ? `falta ${formatMoney(mine.debtMinor)}` : "Al día"}
+          </span>
+        </p>
+      ) : null}
+      <ul className="flex flex-col divide-y">
+        {shown.map((debtor) => (
+          <li key={debtor.playerId} className="flex min-h-11 items-center justify-between text-sm">
+            <span className="min-w-0 truncate">{debtor.playerDisplayName}</span>
+            <span className="font-semibold tabular-nums">{formatMoney(debtor.debtMinor)}</span>
+          </li>
+        ))}
+      </ul>
+      <Button
+        variant="ghost"
+        className="mt-1 justify-between px-0 hover:bg-transparent"
+        render={<Link href={matchHref(detail.id)} />}
+        nativeButton={false}
+      >
+        {owed.debtors.length > shown.length
+          ? `Ver los ${owed.debtors.length} · ${formatMoney(owed.totalMinor.toString())}`
+          : `Total ${formatMoney(owed.totalMinor.toString())}`}
+        <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
+      </Button>
+    </section>
+  );
+}
+
+function TeamDot({ slot }: { slot: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("size-2 shrink-0 rounded-full", slot === 1 ? "bg-team-blue" : "bg-team-amber")}
+    />
+  );
+}
+
+function WinnerDot({
+  status,
+  teams,
+}: {
   status: "open" | "closed" | "cancelled";
-  teams: ReadonlyArray<{ goals: number }>;
-};
-
-function resultValue(match: HistoryMatch) {
-  if (match.status === "cancelled") return "Cancelado";
-  return `${match.teams[0]?.goals ?? 0} – ${match.teams[1]?.goals ?? 0}`;
+  teams: ReadonlyArray<{ slot: number; goals: number }>;
+}) {
+  const [home, away] = teams;
+  if (status !== "closed" || !home || !away || home.goals === away.goals) {
+    return (
+      <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-muted-foreground/40" />
+    );
+  }
+  return <TeamDot slot={home.goals > away.goals ? home.slot : away.slot} />;
 }
 
-/** "Hoy", "Mañana", "En 3 días" within the week, "Sábado 14 nov" after that. */
+/** "Hoy", "Mañana", "En 3 días" within the week, "Sábado 14 nov" otherwise. */
 function whenLabel(date: Date, now: Date) {
-  const relative = relativeDay(date, now);
   const days = Math.round((date.getTime() - now.getTime()) / 86_400_000);
-  if (days < 7) return relative.charAt(0).toUpperCase() + relative.slice(1);
+  if (Math.abs(days) < 7) {
+    const relative = relativeDay(date, now);
+    return relative.charAt(0).toUpperCase() + relative.slice(1);
+  }
   return formatDayTitle(date);
 }

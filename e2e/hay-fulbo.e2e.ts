@@ -52,7 +52,7 @@ test("an organizer can create a group and its first match", async ({ page }, tes
   await page.getByLabel("Nombre").fill(groupName);
   await page.getByRole("button", { name: "Crear y entrar" }).click();
 
-  await expect(page.getByRole("heading", { name: "Resumen del grupo" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^La fecha de / })).toBeVisible();
   await expect(page.getByRole("region", { name: "Próximo paso" })).toContainText(
     "Armá el próximo partido",
   );
@@ -69,14 +69,14 @@ test("an organizer can create a group and its first match", async ({ page }, tes
   await page.keyboard.press("Escape");
   await expect(themeTrigger).toBeFocused();
   await expect(page).toHaveURL(dashboardUrl);
-  await expect(page.getByRole("heading", { name: "Resumen del grupo" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^La fecha de / })).toBeVisible();
 
   const matchesNav = desktop
-    ? page.getByRole("link", { name: "Partidos", exact: true })
-    : page.getByRole("button", { name: "Partidos", exact: true });
+    ? page.getByRole("link", { name: "Historial", exact: true })
+    : page.getByRole("button", { name: "Historial", exact: true });
   await activate(matchesNav, page);
   await expect(page).toHaveURL(/\/dashboard\/partidos$/);
-  await expect(page.getByRole("heading", { name: "Partidos" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Historial" })).toBeVisible();
   await expect(page.getByText("Todavía no hay partidos")).toBeVisible();
   await activate(page.getByRole("button", { name: /^Crear / }), page);
 
@@ -158,7 +158,7 @@ test("a designated planillero scores persisted goals without organizer permissio
   await page.getByRole("button", { name: "Crear grupo" }).click();
   await page.getByLabel("Nombre del grupo", { exact: true }).fill(`Planilla ${runId}`);
   await page.getByRole("button", { name: "Crear y entrar" }).click();
-  await expect(page.getByRole("heading", { name: "Resumen del grupo" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^La fecha de / })).toBeVisible();
   const session = await (await page.request.get("/api/auth/get-session")).json();
   const groupId = session.session.activeOrganizationId;
   const link = await command<{ url: string }>(page, "group.joinLink.renew", { groupId });
