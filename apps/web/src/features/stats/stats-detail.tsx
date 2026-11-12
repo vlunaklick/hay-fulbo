@@ -183,7 +183,7 @@ function PlayerStatsContent({
 }) {
   const searchParams = useSearchParams();
   const rankingParams = new URLSearchParams(searchParams.toString());
-  rankingParams.set("tab", "ranking");
+  rankingParams.delete("tab");
   const base = baseFor(mode, slug);
   const aggregate = data.aggregate;
   return (
@@ -236,10 +236,7 @@ function PlayerStatsContent({
           <TrophyIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">Sin partidos cerrados</h2>
-            <p className="text-sm text-muted-foreground">
-              Este jugador existe en el grupo, pero todavía no tiene una actuación que cuente para
-              estadísticas.
-            </p>
+            <p className="text-sm text-muted-foreground">Todavía no jugó ninguno.</p>
           </div>
         </section>
       )}
@@ -304,7 +301,7 @@ function MatchStatsContent({
 }) {
   const searchParams = useSearchParams();
   const rankingParams = new URLSearchParams(searchParams.toString());
-  rankingParams.set("tab", "ranking");
+  rankingParams.delete("tab");
   const base = baseFor(mode, slug);
   const showPayments = mode !== "public";
   const grouped = data.teams.map((team) => ({

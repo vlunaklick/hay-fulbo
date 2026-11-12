@@ -113,11 +113,7 @@ export function PlayersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Jugadores"
-        description={
-          canManage
-            ? "Los que más juegan, arriba. Tocá uno para ver cómo viene."
-            : "Tocá un jugador para ver cómo viene. El organizador administra el plantel."
-        }
+        description="Los que más juegan, arriba."
         actions={
           canManage ? (
             <>
@@ -165,8 +161,8 @@ export function PlayersPage() {
             <p className="text-sm font-medium">No hay jugadores</p>
             <p className="text-sm text-muted-foreground">
               {canManage
-                ? "Usá Nuevo jugador para cargar el primero."
-                : "El organizador todavía no cargó jugadores."}
+                ? "Cargá el primero con Agregar."
+                : "El organizador todavía no cargó ninguno."}
             </p>
           </div>
         </div>

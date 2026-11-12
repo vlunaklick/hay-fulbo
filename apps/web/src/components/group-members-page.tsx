@@ -268,9 +268,6 @@ export function GroupMembersPage() {
                 )}
                 {renewJoinLink.isPending ? "Creando…" : "Crear link"}
               </Button>
-              <p className="text-xs text-muted-foreground">
-                El link se copia automáticamente cuando lo creás.
-              </p>
             </div>
           )}
         </div>
@@ -283,8 +280,8 @@ export function GroupMembersPage() {
             {settings.data?.publicVisibility ? <Badge variant="secondary">Público</Badge> : null}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Cualquiera con la dirección puede ver partidos, resultados y estadísticas. Sin cuentas,
-            sin deudas: los pagos nunca se muestran en la vista pública.
+            Cualquiera con la dirección ve partidos, resultados y estadísticas. Los pagos nunca se
+            muestran.
           </p>
         </div>
         <div className="flex flex-col gap-3">
@@ -350,9 +347,6 @@ export function GroupMembersPage() {
                 )}
                 {updateVisibility.isPending ? "Activando…" : "Hacer público"}
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Podés apagarlo cuando quieras y la dirección deja de funcionar al instante.
-              </p>
             </div>
           )}
         </div>
@@ -364,9 +358,8 @@ export function GroupMembersPage() {
             Notas entre jugadores
           </h2>
           <p className="text-sm text-muted-foreground">
-            Después de cada partido cerrado, los que jugaron pueden ponerle una nota del 1 al 10 a
-            sus compañeros. Los votos son anónimos y los promedios se revelan según el quórum que
-            elijas.
+            Los que jugaron se ponen notas del 1 al 10. Son anónimas y los promedios se ven al
+            llegar al quórum.
           </p>
         </div>
         {settings.isPending ? (

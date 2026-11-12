@@ -71,7 +71,6 @@ export function CreatePlayerDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nuevo jugador</DialogTitle>
-          <DialogDescription>Quedará disponible para próximos partidos.</DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(event) => {

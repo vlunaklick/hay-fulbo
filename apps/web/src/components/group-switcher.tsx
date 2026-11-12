@@ -1,13 +1,7 @@
 "use client";
 
 import { Button } from "@hay-fulbo/ui/components/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@hay-fulbo/ui/components/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@hay-fulbo/ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -205,7 +199,6 @@ export function GroupCreateDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nuevo grupo</DialogTitle>
-          <DialogDescription>Usá un nombre que todos reconozcan.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit}>
           <FieldGroup>

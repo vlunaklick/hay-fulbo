@@ -65,7 +65,6 @@ export function CourtsDirectory() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Canchas"
-        description="Entrá a una cancha para consultar o actualizar sus datos."
         actions={
           canManage ? (
             <CreateCourtDialog
@@ -116,8 +115,8 @@ export function CourtsDirectory() {
             <p className="text-sm font-medium">No hay canchas guardadas</p>
             <p className="text-sm text-muted-foreground">
               {canManage
-                ? "Usá el botón Agregar para cargar la primera."
-                : "El organizador todavía no cargó información."}
+                ? "Cargá la primera con Agregar."
+                : "El organizador todavía no cargó ninguna."}
             </p>
           </div>
         </div>
@@ -225,10 +224,7 @@ function CourtDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-lg">{court.name}</DialogTitle>
-          <DialogDescription>
-            {court.archivedAt ? "Cancha archivada" : "Cancha activa"} · Los partidos históricos
-            conservan esta referencia.
-          </DialogDescription>
+          <DialogDescription>{court.archivedAt ? "Archivada" : "Activa"}</DialogDescription>
         </DialogHeader>
 
         {role !== "member" ? (
@@ -316,7 +312,6 @@ function CreateCourtDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nueva cancha</DialogTitle>
-          <DialogDescription>La vas a poder elegir al crear un partido.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit}>
           <FieldGroup>
