@@ -4,17 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/al
 import { Button } from "@hay-fulbo/ui/components/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@hay-fulbo/ui/components/sheet";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
-import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ArchiveIcon,
@@ -31,6 +21,7 @@ import { toast } from "sonner";
 
 import { useAppContext } from "@/components/app-shell";
 import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
+import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { formatDate, formatMoney, formatShortDate } from "@/lib/format";
 import { queryClient, trpc } from "@/utils/trpc";
 
@@ -48,23 +39,26 @@ type Court = {
 
 type CourtValues = { address: string; mapsUrl: string; name: string };
 
-type SheetState = { mode: "view" | "edit"; courtId: string } | { mode: "new" } | null;
+type Detail =
+  | { kind: "court"; id: string; mode: "view" | "edit" }
+  | { kind: "new" }
+  | { kind: "archived" }
+  | null;
 
 const EMPTY_VALUES: CourtValues = { name: "", address: "", mapsUrl: "" };
 
 /**
  * Canchas: the page exists to get people to the court. Directions and the
  * address are one tap away on every row, the next match's court leads, and
- * details and editing live in a sheet.
+ * details and editing live in a DrillDetail (sheet on mobile, right column on desktop).
  */
 export function CourtsPage() {
   const { role } = useAppContext();
   const canManage = role !== "member";
   const directory = useQuery(trpc.matches.directory.queryOptions());
-  const [sheet, setSheet] = useState<SheetState>(null);
+  const [detail, setDetail] = useState<Detail>(null);
   const [error, setError] = useState<string | null>(null);
-  const [archivedOpen, setArchivedOpen] = useState(false);
-  const isMobile = useIsMobile();
+  const isDesktop = useIsDesktop();
 
   const execute = useMutation(
     trpc.matches.execute.mutationOptions({
@@ -82,7 +76,11 @@ export function CourtsPage() {
               : "Cancha guardada",
           );
         }
-        setSheet(null);
+        setDetail(
+          input.type === "upsertCourt" && input.courtId
+            ? { kind: "court", id: input.courtId, mode: "view" }
+            : null,
+        );
         setError(null);
         await queryClient.invalidateQueries({ queryKey: trpc.matches.directory.queryKey() });
       },
@@ -99,27 +97,42 @@ export function CourtsPage() {
   const next = active
     .filter((court) => court.nextMatchAt)
     .sort((a, b) => time(a.nextMatchAt) - time(b.nextMatchAt))[0];
-  const selected =
-    sheet && sheet.mode !== "new"
-      ? (courts.find((court) => court.id === sheet.courtId) ?? null)
-      : null;
-
-  function openNew() {
-    setError(null);
-    setSheet({ mode: "new" });
-  }
-
   const mostUsed = active[0];
   const featured = next ?? (mostUsed?.played ? mostUsed : undefined);
 
+  // Desktop never shows an empty right column: fall back to the featured court.
+  const fallbackCourt = featured ?? mostUsed;
+  const fallback: Detail =
+    !isDesktop || !directory.data
+      ? null
+      : fallbackCourt
+        ? { kind: "court", id: fallbackCourt.id, mode: "view" }
+        : canManage
+          ? { kind: "new" }
+          : null;
+  const current = detail ?? fallback;
+  const selected =
+    current?.kind === "court" ? (courts.find((court) => court.id === current.id) ?? null) : null;
+
+  function openNew() {
+    setError(null);
+    setDetail({ kind: "new" });
+  }
+
   function openCourt(courtId: string) {
     setError(null);
-    setArchivedOpen(false);
-    setSheet({ mode: "view", courtId });
+    setDetail({ kind: "court", id: courtId, mode: "view" });
+  }
+
+  function close() {
+    setDetail(null);
+    setError(null);
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+    <NextStepLayout
+      emptyDetail={!canManage && !courts.length ? "Todavía no hay canchas cargadas." : undefined}
+    >
       <StatusHeader
         title="Canchas"
         meta={active.length > 1 ? "Ordenadas por uso" : "Dónde juegan"}
@@ -199,6 +212,7 @@ export function CourtsPage() {
                   key={court.id}
                   label={court.name}
                   value={usage(court)}
+                  selected={current?.kind === "court" && current.id === court.id}
                   onClick={() => openCourt(court.id)}
                 />
               ))}
@@ -206,6 +220,7 @@ export function CourtsPage() {
                 <DrillRow
                   label="Agregar cancha"
                   leading={<PlusIcon aria-hidden="true" className="size-4" />}
+                  selected={current?.kind === "new"}
                   onClick={openNew}
                 />
               ) : null}
@@ -213,7 +228,11 @@ export function CourtsPage() {
                 <DrillRow
                   label="Archivadas"
                   value={archived.length}
-                  onClick={() => setArchivedOpen(true)}
+                  selected={current?.kind === "archived"}
+                  onClick={() => {
+                    setError(null);
+                    setDetail({ kind: "archived" });
+                  }}
                 />
               ) : null}
             </DrillList>
@@ -221,38 +240,38 @@ export function CourtsPage() {
         </>
       )}
 
-      <Sheet open={archivedOpen} onOpenChange={setArchivedOpen}>
-        <SheetContent
-          side={isMobile ? "bottom" : "right"}
-          className="max-h-[92dvh] md:max-h-none md:max-w-md"
-        >
-          <SheetHeader>
-            <SheetTitle>Canchas archivadas</SheetTitle>
-            <SheetDescription>No aparecen al crear partidos.</SheetDescription>
-          </SheetHeader>
-          <SheetBody>
-            <DrillList>
-              {archived.map((court) => (
-                <DrillRow
-                  key={court.id}
-                  label={court.name}
-                  value={usage(court)}
-                  onClick={() => openCourt(court.id)}
-                />
-              ))}
-            </DrillList>
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
+      <DrillDetail
+        description="No aparecen al crear partidos."
+        onOpenChange={(open) => (open ? null : close())}
+        open={current?.kind === "archived"}
+        title="Canchas archivadas"
+      >
+        <DrillList>
+          {archived.map((court) => (
+            <DrillRow
+              key={court.id}
+              label={court.name}
+              value={usage(court)}
+              onClick={() => openCourt(court.id)}
+            />
+          ))}
+        </DrillList>
+      </DrillDetail>
 
-      <CourtSheet
-        key={sheet ? `${sheet.mode}-${"courtId" in sheet ? sheet.courtId : "new"}` : "closed"}
+      <CourtDetail
+        key={
+          current?.kind === "court"
+            ? `${current.mode}-${current.id}`
+            : current?.kind === "new"
+              ? "new"
+              : "closed"
+        }
         canManage={canManage}
         court={selected}
         error={error}
         isPending={execute.isPending}
-        mode={sheet?.mode ?? "view"}
-        open={Boolean(sheet)}
+        mode={current?.kind === "new" ? "new" : current?.kind === "court" ? current.mode : "view"}
+        open={current?.kind === "new" || (current?.kind === "court" && Boolean(selected))}
         onArchive={() => {
           if (!selected) return;
           setError(null);
@@ -262,27 +281,26 @@ export function CourtsPage() {
             archived: !selected.archivedAt,
           });
         }}
-        onClose={() => {
-          setSheet(null);
-          setError(null);
-        }}
+        onClose={close}
         onEdit={() => {
-          if (selected) setSheet({ mode: "edit", courtId: selected.id });
+          if (selected) setDetail({ kind: "court", id: selected.id, mode: "edit" });
         }}
         onSave={(values) => {
           setError(null);
           execute.mutate({
             type: "upsertCourt",
-            ...(sheet?.mode === "edit" && selected ? { courtId: selected.id } : {}),
+            ...(current?.kind === "court" && current.mode === "edit" && selected
+              ? { courtId: selected.id }
+              : {}),
             ...values,
           });
         }}
       />
-    </div>
+    </NextStepLayout>
   );
 }
 
-function CourtSheet({
+function CourtDetail({
   canManage,
   court,
   error,
@@ -305,7 +323,6 @@ function CourtSheet({
   onEdit: () => void;
   onSave: (values: CourtValues) => void;
 }) {
-  const isMobile = useIsMobile();
   const [values, setValues] = useState<CourtValues>(
     court && mode === "edit"
       ? { name: court.name, address: court.address, mapsUrl: court.mapsUrl }
@@ -313,112 +330,96 @@ function CourtSheet({
   );
   const editing = mode === "edit" || mode === "new";
   const valid = isValid(values);
-  const footerClass = "pb-[max(1rem,env(safe-area-inset-bottom))]";
+  const footerClass = "flex flex-wrap gap-2 pt-2";
 
   return (
-    <Sheet open={open} onOpenChange={(next) => (next ? null : onClose())}>
-      <SheetContent
-        side={isMobile ? "bottom" : "right"}
-        className="max-h-[92dvh] md:max-h-none md:max-w-md"
-      >
-        <SheetHeader>
-          <SheetTitle className="text-balance">
-            {mode === "new" ? "Nueva cancha" : (court?.name ?? "")}
-          </SheetTitle>
-          <SheetDescription>
-            {mode === "new"
-              ? "La vas a poder elegir al crear un partido."
-              : court?.archivedAt
-                ? "Archivada · no aparece al crear partidos."
-                : court?.address}
-          </SheetDescription>
-        </SheetHeader>
-
-        {editing ? (
-          <form
-            className="contents"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (valid) onSave(values);
-            }}
-          >
-            <SheetBody>
-              <FieldGroup>
-                <CourtFields
-                  autoFocus={mode === "new"}
-                  onChange={setValues}
-                  prefix={mode === "new" ? "new-court" : "court-edit"}
-                  values={values}
-                />
-                {error ? <FieldError role="alert">{error}</FieldError> : null}
-              </FieldGroup>
-            </SheetBody>
-            <SheetFooter className={footerClass}>
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Cancelar
+    <DrillDetail
+      description={
+        mode === "new"
+          ? "La vas a poder elegir al crear un partido."
+          : court?.archivedAt
+            ? "Archivada · no aparece al crear partidos."
+            : court?.address
+      }
+      onOpenChange={(next) => (next ? null : onClose())}
+      open={open}
+      title={mode === "new" ? "Nueva cancha" : (court?.name ?? "")}
+    >
+      {editing ? (
+        <form
+          className="flex flex-col gap-6"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (valid) onSave(values);
+          }}
+        >
+          <FieldGroup>
+            <CourtFields
+              autoFocus={mode === "new"}
+              onChange={setValues}
+              prefix={mode === "new" ? "new-court" : "court-edit"}
+              values={values}
+            />
+            {error ? <FieldError role="alert">{error}</FieldError> : null}
+          </FieldGroup>
+          <div className={footerClass}>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="ml-auto" disabled={isPending || !valid}>
+              {mode === "new" ? "Guardar cancha" : "Guardar cambios"}
+            </Button>
+          </div>
+        </form>
+      ) : court ? (
+        <div className="flex flex-col gap-6">
+          <div className="flex gap-2">
+            <Button
+              className="flex-1"
+              nativeButton={false}
+              render={<a href={court.mapsUrl} target="_blank" rel="noreferrer" />}
+            >
+              <NavigationIcon data-icon="inline-start" aria-hidden="true" />
+              Cómo llegar
+            </Button>
+            <CopyAddressButton address={court.address} name={court.name} variant="outline" />
+          </div>
+          {court.archivedAt ? <p className="text-sm">{court.address}</p> : null}
+          <dl className="grid grid-cols-2 gap-4">
+            <Fact label="Partidos jugados" value={court.played || null} />
+            <Fact
+              label="Último costo"
+              value={court.lastCostMinor ? formatMoney(court.lastCostMinor) : null}
+            />
+            <Fact
+              label="Último partido"
+              value={court.lastPlayedAt ? formatShortDate(court.lastPlayedAt) : null}
+            />
+            <Fact
+              label="Próximo"
+              value={court.nextMatchAt ? formatShortDate(court.nextMatchAt) : null}
+            />
+          </dl>
+          {error ? <FieldError role="alert">{error}</FieldError> : null}
+          {canManage ? (
+            <div className={footerClass}>
+              <Button variant="outline" onClick={onEdit}>
+                <PencilIcon data-icon="inline-start" aria-hidden="true" />
+                Editar datos
               </Button>
-              <Button type="submit" className="sm:ml-auto" disabled={isPending || !valid}>
-                {mode === "new" ? "Guardar cancha" : "Guardar cambios"}
+              <Button className="ml-auto" disabled={isPending} onClick={onArchive} variant="ghost">
+                {court.archivedAt ? (
+                  <ArchiveRestoreIcon data-icon="inline-start" aria-hidden="true" />
+                ) : (
+                  <ArchiveIcon data-icon="inline-start" aria-hidden="true" />
+                )}
+                {court.archivedAt ? "Reactivar" : "Archivar"}
               </Button>
-            </SheetFooter>
-          </form>
-        ) : court ? (
-          <>
-            <SheetBody className="flex flex-col gap-6">
-              <div className="flex gap-2">
-                <Button
-                  className="flex-1"
-                  nativeButton={false}
-                  render={<a href={court.mapsUrl} target="_blank" rel="noreferrer" />}
-                >
-                  <NavigationIcon data-icon="inline-start" aria-hidden="true" />
-                  Cómo llegar
-                </Button>
-                <CopyAddressButton address={court.address} name={court.name} variant="outline" />
-              </div>
-              {court.archivedAt ? <p className="text-sm">{court.address}</p> : null}
-              <dl className="grid grid-cols-2 gap-4">
-                <Fact label="Partidos jugados" value={court.played || null} />
-                <Fact
-                  label="Último costo"
-                  value={court.lastCostMinor ? formatMoney(court.lastCostMinor) : null}
-                />
-                <Fact
-                  label="Último partido"
-                  value={court.lastPlayedAt ? formatShortDate(court.lastPlayedAt) : null}
-                />
-                <Fact
-                  label="Próximo"
-                  value={court.nextMatchAt ? formatShortDate(court.nextMatchAt) : null}
-                />
-              </dl>
-              {error ? <FieldError role="alert">{error}</FieldError> : null}
-            </SheetBody>
-            {canManage ? (
-              <SheetFooter className={footerClass}>
-                <Button variant="outline" onClick={onEdit}>
-                  <PencilIcon data-icon="inline-start" aria-hidden="true" />
-                  Editar datos
-                </Button>
-                <Button
-                  className="sm:ml-auto"
-                  disabled={isPending}
-                  onClick={onArchive}
-                  variant="ghost"
-                >
-                  {court.archivedAt ? (
-                    <ArchiveRestoreIcon data-icon="inline-start" aria-hidden="true" />
-                  ) : (
-                    <ArchiveIcon data-icon="inline-start" aria-hidden="true" />
-                  )}
-                  {court.archivedAt ? "Reactivar" : "Archivar"}
-                </Button>
-              </SheetFooter>
-            ) : null}
-          </>
-        ) : null}
-      </SheetContent>
-    </Sheet>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </DrillDetail>
   );
 }
 

@@ -3,16 +3,7 @@
 import type { AppRouter } from "@hay-fulbo/api/routers/index";
 import { Alert, AlertDescription, AlertTitle } from "@hay-fulbo/ui/components/alert";
 import { Card } from "@hay-fulbo/ui/components/card";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@hay-fulbo/ui/components/sheet";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
-import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -21,6 +12,7 @@ import { useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
 import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
+import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { trpc } from "@/utils/trpc";
 
 type GlobalStats = inferRouterOutputs<AppRouter>["stats"]["global"];
@@ -37,16 +29,18 @@ type OpenSheet = "all" | number | null;
 export function GlobalProfile() {
   const { user } = useAppContext();
   const stats = useQuery(trpc.stats.global.queryOptions());
-  const isMobile = useIsMobile();
-  const [open, setOpen] = useState<OpenSheet>(null);
+  const desktop = useIsDesktop();
+  const [picked, setOpen] = useState<OpenSheet>(null);
 
   if (stats.isPending) {
     return (
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-6" aria-label="Cargando perfil">
-        <Skeleton className="h-9 w-2/3 max-w-sm" />
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-44 w-full" />
-      </div>
+      <NextStepLayout>
+        <div className="flex flex-col gap-6" aria-label="Cargando perfil">
+          <Skeleton className="h-9 w-2/3 max-w-sm" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-44 w-full" />
+        </div>
+      </NextStepLayout>
     );
   }
   if (stats.isError) {
@@ -62,12 +56,19 @@ export function GlobalProfile() {
   const { groups, totals } = stats.data;
   const withStats = groups.filter((group) => group.aggregate).length;
   const unlinked = groups.filter((group) => groupState(group) === "unlinked");
+  // Desktop never shows an empty detail: default to the summary if they played, else the first group.
+  const defaultOpen: OpenSheet = withStats > 0 ? "all" : groups.length > 0 ? 0 : null;
+  const open = picked ?? (desktop ? defaultOpen : null);
   const openGroup = typeof open === "number" ? groups[open] : undefined;
   const sheetOpen = open === "all" || Boolean(openGroup);
   const sheetTitle = open === "all" ? "Todos los grupos" : (openGroup?.groupName ?? "");
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+    <NextStepLayout
+      emptyDetail={
+        groups.length === 0 ? "Tus números aparecen acá cuando te sumes a un grupo." : undefined
+      }
+    >
       <StatusHeader
         title={user.name}
         meta={
@@ -107,6 +108,7 @@ export function GlobalProfile() {
             <DrillRow
               label="Todos los grupos"
               value={withStats > 0 ? `${totals.contributions} G+A` : "Sin partidos"}
+              selected={open === "all"}
               onClick={() => setOpen("all")}
             />
           </DrillList>
@@ -116,6 +118,7 @@ export function GlobalProfile() {
                 key={`${index}-${group.groupName}`}
                 label={group.groupName}
                 value={groupMeta(group)}
+                selected={open === index}
                 onClick={() => setOpen(index)}
               />
             ))}
@@ -127,30 +130,26 @@ export function GlobalProfile() {
         </p>
       )}
 
-      <Sheet open={sheetOpen} onOpenChange={(next) => (next ? null : setOpen(null))}>
-        <SheetContent
-          side={isMobile ? "bottom" : "right"}
-          className="max-h-[92dvh] md:max-h-none md:max-w-md"
-        >
-          <SheetHeader>
-            <SheetTitle className="text-balance">{sheetTitle}</SheetTitle>
-            <SheetDescription>
-              {open === "all"
-                ? withStats > 0
-                  ? `Sumado entre ${withStats} ${plural(withStats, "grupo", "grupos")} donde jugaste.`
-                  : "Todavía no jugaste partidos cerrados en ningún grupo."
-                : openGroup?.playerName
-                  ? `Jugás como ${openGroup.playerName}`
-                  : "Sin jugador vinculado"}
-            </SheetDescription>
-          </SheetHeader>
-          <SheetBody className="flex flex-col gap-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            {open === "all" ? <AllPanel stats={stats.data} /> : null}
-            {openGroup ? <GroupPanel group={openGroup} /> : null}
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
-    </div>
+      <DrillDetail
+        open={sheetOpen}
+        onOpenChange={(next) => (next ? null : setOpen(null))}
+        title={sheetTitle}
+        description={
+          open === "all"
+            ? withStats > 0
+              ? `Sumado entre ${withStats} ${plural(withStats, "grupo", "grupos")} donde jugaste.`
+              : "Todavía no jugaste partidos cerrados en ningún grupo."
+            : openGroup?.playerName
+              ? `Jugás como ${openGroup.playerName}`
+              : "Sin jugador vinculado"
+        }
+      >
+        <div className="flex flex-col gap-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {open === "all" ? <AllPanel stats={stats.data} /> : null}
+          {openGroup ? <GroupPanel group={openGroup} /> : null}
+        </div>
+      </DrillDetail>
+    </NextStepLayout>
   );
 }
 
