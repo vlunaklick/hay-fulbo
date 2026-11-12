@@ -203,7 +203,7 @@ test("a designated planillero scores persisted goals without organizer permissio
     }
     const matchUrl = `/dashboard/partidos/${created.matchId}`;
     await page.goto(matchUrl);
-    await page.getByRole("button", { name: /^Goles/ }).click();
+    await page.getByRole("button", { name: /^Goles\s*\d+ cargados?$/ }).click();
     const scorekeeperSelect = page.getByRole("combobox", { name: "Planillero", exact: true });
     await expect(scorekeeperSelect).toBeVisible();
     await scorekeeperSelect.click();
@@ -328,7 +328,8 @@ test("a designated planillero scores persisted goals without organizer permissio
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("button", { name: /^Caja/ }).click();
-    const caja = page.getByRole("dialog", { name: "Caja" });
+    // Phone: bottom sheet. Desktop: inline in the right column.
+    const caja = page.getByRole(desktop ? "region" : "dialog", { name: "Caja" });
     await expect(caja.getByText("Ausente · aporta", { exact: true })).toBeVisible();
     await caja.getByRole("button", { name: "Editar pago de Beto" }).click();
     await caja.getByLabel("Pagó Beto").fill("50");
@@ -412,7 +413,7 @@ test("a polled match preserves stale drafts until an explicit conflict retry", a
       return (await response.text()).includes('"courtCostMinor":"1500000"');
     });
     await manager.getByRole("button", { name: "Guardar datos", exact: true }).click();
-    await expect(manager.getByRole("dialog")).toHaveCount(0);
+    await expect(manager.getByRole("button", { name: "Guardar datos" })).toHaveCount(0);
     await polled;
     await expect(page.getByLabel("Precio total")).toHaveValue("12000");
     const conflict = page.waitForResponse(
@@ -430,7 +431,7 @@ test("a polled match preserves stale drafts until an explicit conflict retry", a
     };
     expect(await readCost()).toBe("1500000");
     await page.getByRole("button", { name: "Guardar datos", exact: true }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Guardar datos" })).toHaveCount(0);
     expect(await readCost()).toBe("1200000");
   } finally {
     await managerContext.close();
