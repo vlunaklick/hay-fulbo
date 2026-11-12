@@ -50,7 +50,7 @@ export default function MatchesPage() {
   if (matches.isPending) {
     return (
       <NextStepLayout>
-        <StatusHeader title="Partidos" />
+        <StatusHeader title="Historial" />
         <Skeleton className="h-36 w-full" />
         <Skeleton className="h-60 w-full" />
       </NextStepLayout>
@@ -59,7 +59,7 @@ export default function MatchesPage() {
   if (matches.isError) {
     return (
       <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
-        <StatusHeader title="Partidos" />
+        <StatusHeader title="Historial" />
         <Alert variant="destructive">
           <CircleAlertIcon aria-hidden="true" />
           <AlertTitle>No pudimos cargar los partidos</AlertTitle>
@@ -130,7 +130,7 @@ function MatchesOverview({
   return (
     <NextStepLayout emptyDetail="Cuando haya partidos, acá vas a ver el elegido.">
       <StatusHeader
-        title="Partidos"
+        title="Historial"
         meta={metaParts.join(" · ")}
         status={live ? <Badge>En juego</Badge> : null}
       />

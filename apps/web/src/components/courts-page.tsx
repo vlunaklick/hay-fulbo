@@ -20,7 +20,14 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppContext } from "@/components/app-shell";
-import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
+import {
+  DrillList,
+  DrillRow,
+  GroupBack,
+  HeroNumber,
+  NextStep,
+  StatusHeader,
+} from "@/components/next-step";
 import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { formatDate, formatMoney, formatShortDate } from "@/lib/format";
 import { queryClient, trpc } from "@/utils/trpc";
@@ -134,6 +141,7 @@ export function CourtsPage() {
       emptyDetail={!canManage && !courts.length ? "Todavía no hay canchas cargadas." : undefined}
     >
       <StatusHeader
+        back={<GroupBack />}
         title="Canchas"
         meta={active.length > 1 ? "Ordenadas por uso" : "Dónde juegan"}
       />

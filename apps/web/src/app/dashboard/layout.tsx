@@ -1,5 +1,5 @@
 import { auth } from "@hay-fulbo/auth";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
@@ -23,12 +23,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     }
   }
 
-  const sidebarState = (await cookies()).get("sidebar_state")?.value;
-
   return (
     <AppShell
       activeGroupId={activeGroupId}
-      defaultSidebarOpen={sidebarState !== "false"}
       user={{ id: session.user.id, name: session.user.name, email: session.user.email }}
     >
       {children}

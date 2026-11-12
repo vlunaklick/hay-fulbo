@@ -130,7 +130,7 @@ function StatsHub({
   return (
     <NextStepLayout emptyDetail={nothingYet ? null : <p>Elegí una fila para verla acá.</p>}>
       <StatusHeader
-        title="Estadísticas"
+        title="Tabla"
         meta={`${dashboard.group.name} · ${filters.periodLabel.toLowerCase()}`}
       />
 
@@ -250,7 +250,7 @@ function HubNextStep({
         title="La tabla arranca con el primer partido"
         action={
           <Button nativeButton={false} render={<Link href="/dashboard/partidos" />}>
-            Ir a partidos
+            Ir al historial
           </Button>
         }
       >
@@ -475,7 +475,7 @@ function SectionPage({
         ) : (
           <StatsPage wide={wide}>
             <StatusHeader
-              back={<StatsBack href={filters.href(STATS_BASE)}>Estadísticas</StatsBack>}
+              back={<StatsBack href={filters.href(STATS_BASE)}>Tabla</StatsBack>}
               meta={meta(dashboard)}
               title={title}
             />

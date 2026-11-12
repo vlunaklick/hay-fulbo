@@ -1,5 +1,6 @@
 import { cn } from "@hay-fulbo/ui/lib/utils";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import Link from "next/link";
 import type * as React from "react";
 
 /**
@@ -32,6 +33,19 @@ export function StatusHeader({
         {status ? <div className="shrink-0">{status}</div> : null}
       </div>
     </header>
+  );
+}
+
+/** Way back to the group settings from the screens reached through its gear. */
+export function GroupBack() {
+  return (
+    <Link
+      href="/dashboard/grupo"
+      className="inline-flex min-h-11 items-center gap-1 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+    >
+      <ChevronLeftIcon aria-hidden className="size-4" />
+      Grupo
+    </Link>
   );
 }
 

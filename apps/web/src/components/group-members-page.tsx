@@ -47,6 +47,7 @@ import {
   UnlinkIcon,
   UsersRoundIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -178,6 +179,7 @@ export function GroupMembersPage() {
         title={groupName}
         meta={isOwner ? "Vos sos el responsable" : `Vos sos ${roleLabel[role].toLowerCase()}`}
       />
+      <GroupDirectoryLinks />
       {isOwner ? (
         <OwnerHub active={active} onOpen={open} />
       ) : (
@@ -295,6 +297,36 @@ function OwnerHub({ active, onOpen }: { active: Topic | null; onOpen: (topic: To
         <GroupsRow active={active} onOpen={onOpen} />
       </DrillList>
     </>
+  );
+}
+
+/** Jugadores and canchas moved out of the main navigation: they support la fecha. */
+function GroupDirectoryLinks() {
+  const directory = useQuery(trpc.matches.directory.queryOptions());
+  const loading = <Skeleton className="h-4 w-6" />;
+  const players = directory.data?.players.filter((player) => !player.archivedAt).length;
+  const courts = directory.data?.courts.filter((court) => !court.archivedAt).length;
+  return (
+    <DrillList>
+      <DrillRow
+        label="Jugadores"
+        value={players ?? loading}
+        render={({ className, children }) => (
+          <Link className={className} href="/dashboard/jugadores">
+            {children}
+          </Link>
+        )}
+      />
+      <DrillRow
+        label="Canchas"
+        value={courts ?? loading}
+        render={({ className, children }) => (
+          <Link className={className} href="/dashboard/canchas">
+            {children}
+          </Link>
+        )}
+      />
+    </DrillList>
   );
 }
 
