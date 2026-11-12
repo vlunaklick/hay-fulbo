@@ -29,18 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@hay-fulbo/ui/components/sheet";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { Spinner } from "@hay-fulbo/ui/components/spinner";
-import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -86,6 +76,7 @@ import {
   NextStep,
   StatusHeader,
 } from "@/components/next-step";
+import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { isTerminalReadError, matchReadErrorMessage } from "@/lib/match-command-error";
 import { formatDate, formatMoney, toMinor } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
@@ -168,9 +159,9 @@ export default function MatchPage() {
 
   // A failed background poll keeps the cached workspace (and any open drafts) mounted.
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+    <div className="flex flex-col gap-5">
       {readError ? (
-        <Alert role="status">
+        <Alert role="status" className="mx-auto w-full max-w-xl lg:max-w-none">
           <CircleAlertIcon aria-hidden="true" />
           <AlertTitle>No pudimos actualizar el partido</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center gap-3">
@@ -199,7 +190,7 @@ export default function MatchPage() {
  */
 function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Directory }) {
   const { groupName, role, user } = useAppContext();
-  const mobile = useIsMobile();
+  const desktop = useIsDesktop();
   const manager = detail.organizerUserId === user.id || role !== "member";
   const isOpen = detail.status === "open";
   const editable = isOpen && manager;
@@ -216,7 +207,9 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
     ...trpc.matches.ratings.queryOptions({ matchId: detail.id }),
     enabled: phase === "closed",
   });
-  const [panel, setPanel] = useState<Panel | null>(null);
+  // undefined = the user has not picked a row yet. On desktop the right column then shows the
+  // row that matters most for the phase, so it is never empty.
+  const [chosen, setPanel] = useState<Panel | null | undefined>(undefined);
   const [goalPick, setGoalPick] = useState<GoalPick | null>(null);
   const goalTrigger = useRef<HTMLButtonElement | null>(null);
   const openGoalPicker = (trigger: HTMLButtonElement, pick: GoalPick) => {
@@ -243,8 +236,14 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
     right: { goals: rightGoals, name: rightName },
   };
   const cash = cashSummary(detail);
+  const rows: readonly Panel[] = rowsByPhase[phase];
+  const panel =
+    chosen === undefined || (chosen !== null && !rows.includes(chosen))
+      ? desktop
+        ? defaultPanel({ cash, manager, phase, ratings: ratings.data })
+        : null
+      : chosen;
   const showDock = phase === "live";
-  const sheetSide = mobile ? "bottom" : "right";
   // Inviting is the next step for the organizer before kickoff; otherwise it is a quiet header action.
   const inviteInNextStep = phase === "upcoming" && manager;
 
@@ -277,7 +276,10 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
   ].filter(Boolean);
 
   return (
-    <div className={cn("flex flex-col gap-5", showDock && "pb-32 md:pb-0")}>
+    <NextStepLayout
+      className={cn(showDock && "pb-32 md:pb-0")}
+      emptyDetail="Elegí una fila para ver el detalle."
+    >
       {phase === "live" || phase === "closed" ? (
         <CompactScore
           visible={!heroVisible}
@@ -403,6 +405,7 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
             label={panelTitle[key]}
             value={panelValue(key, { cash, detail, phase, ratings: ratings.data })}
             onClick={() => setPanel(key)}
+            selected={panel === key}
           />
         ))}
       </DrillList>
@@ -437,7 +440,6 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
       <PanelSheet
         open={panel === "equipos"}
         onOpenChange={(open) => setPanel(open ? "equipos" : null)}
-        side={sheetSide}
         title="Equipos"
         description={
           editable
@@ -470,7 +472,6 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
       <PanelSheet
         open={panel === "caja"}
         onOpenChange={(open) => setPanel(open ? "caja" : null)}
-        side={sheetSide}
         title="Caja"
         description="Lo que pone cada uno para la cancha."
       >
@@ -485,7 +486,6 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
       <PanelSheet
         open={panel === "goles"}
         onOpenChange={(open) => setPanel(open ? "goles" : null)}
-        side={sheetSide}
         title="Goles"
         description={
           phase === "closed"
@@ -536,7 +536,6 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
       <PanelSheet
         open={panel === "notas"}
         onOpenChange={(open) => setPanel(open ? "notas" : null)}
-        side={sheetSide}
         title="Notas"
         description="Anónimas: nadie ve quién puso qué."
       >
@@ -552,7 +551,6 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
         onOpenChange={(open) => setPanel(open ? "datos" : null)}
         pending={pending}
         run={run}
-        side={sheetSide}
       />
 
       <GoalPicker
@@ -563,10 +561,39 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
         pick={goalPick}
         returnFocus={goalTrigger}
         run={run}
-        side={sheetSide}
+        side={desktop ? "right" : "bottom"}
       />
-    </div>
+    </NextStepLayout>
   );
+}
+
+function defaultPanel({
+  cash,
+  manager,
+  phase,
+  ratings,
+}: {
+  cash: CashSummary;
+  manager: boolean;
+  phase: Phase;
+  ratings: Ratings | undefined;
+}): Panel {
+  if (phase === "live") return "goles";
+  if (phase === "closed") {
+    if (manager && cash.state === "ready" && cash.debtors > 0) return "caja";
+    return ratingsToGive(ratings) > 0 ? "notas" : "goles";
+  }
+  return "equipos";
+}
+
+/** Teammates the viewer can still rate. */
+function ratingsToGive(ratings: Ratings | undefined) {
+  if (!ratings?.viewerCanRate) return 0;
+  return ratings.players.filter(
+    (player) =>
+      player.playerId !== ratings.viewerPlayerId &&
+      ratings.ownScores[player.playerId] === undefined,
+  ).length;
 }
 
 type CashSummary =
@@ -726,13 +753,7 @@ function MatchNextStep({
         />
       );
     }
-    const toRate = ratings?.viewerCanRate
-      ? ratings.players.filter(
-          (player) =>
-            player.playerId !== ratings.viewerPlayerId &&
-            ratings.ownScores[player.playerId] === undefined,
-        ).length
-      : 0;
+    const toRate = ratingsToGive(ratings);
     if (ratings && toRate > 0) {
       return (
         <NextStep
@@ -776,34 +797,24 @@ function MatchNextStep({
   );
 }
 
+/** A row's detail: bottom sheet on the phone, the right column on desktop. */
 function PanelSheet({
   children,
   description,
-  footer,
   onOpenChange,
   open,
-  side,
   title,
 }: {
   children: ReactNode;
   description?: ReactNode;
-  footer?: ReactNode;
   onOpenChange: (open: boolean) => void;
   open: boolean;
-  side: "bottom" | "right";
   title: string;
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side={side} className={side === "bottom" ? "max-h-[90dvh]" : undefined}>
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
-          {description ? <SheetDescription>{description}</SheetDescription> : null}
-        </SheetHeader>
-        <SheetBody className="text-sm">{children}</SheetBody>
-        {footer ? <SheetFooter>{footer}</SheetFooter> : null}
-      </SheetContent>
-    </Sheet>
+    <DrillDetail description={description} onOpenChange={onOpenChange} open={open} title={title}>
+      <div className="text-sm">{children}</div>
+    </DrillDetail>
   );
 }
 
@@ -964,7 +975,6 @@ function MatchDataSheet({
   open,
   pending,
   run,
-  side,
 }: {
   court: Directory["courts"][number] | null;
   courts: Directory["courts"];
@@ -974,7 +984,6 @@ function MatchDataSheet({
   open: boolean;
   pending: boolean;
   run: RunMatchAction;
-  side: "bottom" | "right";
 }) {
   const [draft, setDraft] = useState<MatchDataDraft | null>(null);
   const localDate = toLocalInputValue(detail.scheduledAt);
@@ -1013,7 +1022,6 @@ function MatchDataSheet({
     <PanelSheet
       open={open}
       onOpenChange={onOpenChange}
-      side={side}
       title="Datos del partido"
       description={editable ? "Fecha, cancha y precio." : undefined}
     >
