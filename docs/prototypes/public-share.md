@@ -57,6 +57,10 @@ Rechazadas:
   pestañas: una sola pantalla con la hora del próximo partido, un `NextStep`
   con "Cómo llegar" y filas Equipos, La caja (solo enlace privado), Resultados
   y Tabla. Cada fila abre la misma sheet.
+- En escritorio la pantalla va en `NextStepLayout`: la columna izquierda es la
+  pantalla móvil y lo que abre cada fila (`DrillDetail`) ocupa la derecha. Sin
+  nada en la URL abre la caja si hay deudas (enlace privado), si no el próximo
+  partido, si no resultados, si no la tabla.
 - Sección y métrica en la URL: `?seccion=resultados|tabla|caja`,
   `?orden=goals|assists`. El viejo `?tab=` sigue abriendo la sección.
 - `/g/[slug]` nunca muestra importes; `/compartido` sí.

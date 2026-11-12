@@ -28,18 +28,9 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@hay-fulbo/ui/components/input-group";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@hay-fulbo/ui/components/sheet";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@hay-fulbo/ui/components/toggle-group";
-import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -63,6 +54,7 @@ import { toast } from "sonner";
 import { useAppContext } from "@/components/app-shell";
 import { GroupCreateDialog } from "@/components/group-switcher";
 import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
+import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { initials } from "@/lib/initials";
 import { queryClient, trpc } from "@/utils/trpc";
 
@@ -79,8 +71,9 @@ type RatingQuorum = "all_voted" | "half_plus_one" | "first_vote";
 
 /**
  * The group's home, "Próximo paso" style: header → people count → what is pending →
- * one row per topic. Each topic opens in a Sheet whose open state lives in `?tema=`,
- * so the phone's back gesture closes it and other screens can deep-link to it.
+ * one row per topic. Each topic opens in a DrillDetail (bottom Sheet on mobile, right
+ * column on desktop) whose open state lives in `?tema=`, so the phone's back gesture
+ * closes it and other screens can deep-link to it.
  */
 const topics = {
   integrantes: { title: "Integrantes", description: "Quién está en el grupo y qué puede hacer." },
@@ -150,18 +143,28 @@ export function GroupMembersPage() {
   const isOwner = role === "owner";
   const requested = parseTopic(useSearchParams().get("tema"));
   const opened = requested && (isOwner || !ownerTopics.includes(requested)) ? requested : null;
+  // On desktop the right column is never empty: fall back to the main topic.
+  const desktop = useIsDesktop();
+  const active = opened ?? (desktop ? (isOwner ? "integrantes" : "grupos") : null);
   // Keep the last topic rendered while the sheet animates out.
-  const [shown, setShown] = useState<Topic | null>(opened);
-  if (opened && opened !== shown) setShown(opened);
+  const [shown, setShown] = useState<Topic | null>(active);
+  if (active && active !== shown) setShown(active);
   const pushed = useRef(false);
 
   function open(next: Topic) {
+    if (next === active) return;
+    // Desktop switches the right column in place; no history entry per click.
+    if (desktop) {
+      pushed.current = false;
+      router.replace(`${BASE_PATH}?tema=${next}`, { scroll: false });
+      return;
+    }
     pushed.current = true;
     router.push(`${BASE_PATH}?tema=${next}`, { scroll: false });
   }
 
   function close() {
-    if (pushed.current) {
+    if (pushed.current && !desktop) {
       pushed.current = false;
       router.back();
     } else {
@@ -170,13 +173,13 @@ export function GroupMembersPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+    <NextStepLayout>
       <StatusHeader
         title={groupName}
         meta={isOwner ? "Vos sos el responsable" : `Vos sos ${roleLabel[role].toLowerCase()}`}
       />
       {isOwner ? (
-        <OwnerHub onOpen={open} />
+        <OwnerHub active={active} onOpen={open} />
       ) : (
         <>
           <Alert>
@@ -188,16 +191,16 @@ export function GroupMembersPage() {
             </AlertDescription>
           </Alert>
           <DrillList>
-            <GroupsRow onOpen={open} />
+            <GroupsRow active={active} onOpen={open} />
           </DrillList>
         </>
       )}
-      <TopicSheet topic={shown} open={opened !== null} onClose={close} />
-    </div>
+      <TopicDetail topic={shown} open={active !== null} onClose={close} />
+    </NextStepLayout>
   );
 }
 
-function OwnerHub({ onOpen }: { onOpen: (topic: Topic) => void }) {
+function OwnerHub({ active, onOpen }: { active: Topic | null; onOpen: (topic: Topic) => void }) {
   const { activeGroupId, groupName } = useAppContext();
   const directory = useQuery(trpc.matches.directory.queryOptions());
   const joinLink = useQuery(trpc.group.joinLink.status.queryOptions({ groupId: activeGroupId }));
@@ -268,35 +271,40 @@ function OwnerHub({ onOpen }: { onOpen: (topic: Topic) => void }) {
         <DrillRow
           label={topics.integrantes.title}
           value={members ? members.length : loading}
+          selected={active === "integrantes"}
           onClick={() => onOpen("integrantes")}
         />
         <DrillRow
           label={topics.invitar.title}
           value={joinLink.data ? (joinLink.data.active ? "Activo" : "Apagado") : loading}
+          selected={active === "invitar"}
           onClick={() => onOpen("invitar")}
         />
         <DrillRow
           label={topics.publico.title}
           value={settings.data ? (settings.data.publicVisibility ? "Pública" : "Privada") : loading}
+          selected={active === "publico"}
           onClick={() => onOpen("publico")}
         />
         <DrillRow
           label="Notas"
           value={quorum ? quorum.short : loading}
+          selected={active === "notas"}
           onClick={() => onOpen("notas")}
         />
-        <GroupsRow onOpen={onOpen} />
+        <GroupsRow active={active} onOpen={onOpen} />
       </DrillList>
     </>
   );
 }
 
-function GroupsRow({ onOpen }: { onOpen: (topic: Topic) => void }) {
+function GroupsRow({ active, onOpen }: { active: Topic | null; onOpen: (topic: Topic) => void }) {
   const groups = useQuery(trpc.group.list.queryOptions());
   return (
     <DrillRow
       label={topics.grupos.title}
       value={groups.data ? groups.data.length : <Skeleton className="h-4 w-6" />}
+      selected={active === "grupos"}
       onClick={() => onOpen("grupos")}
     />
   );
@@ -321,7 +329,7 @@ function CreateLinkButton({
   );
 }
 
-function TopicSheet({
+function TopicDetail({
   topic,
   open,
   onClose,
@@ -330,28 +338,23 @@ function TopicSheet({
   open: boolean;
   onClose: () => void;
 }) {
-  const isMobile = useIsMobile();
   const copy = topic ? topics[topic] : null;
 
   return (
-    <Sheet open={open} onOpenChange={(next) => (next ? null : onClose())}>
-      <SheetContent
-        side={isMobile ? "bottom" : "right"}
-        className="max-h-[92dvh] md:max-h-none md:max-w-md"
-      >
-        <SheetHeader>
-          <SheetTitle className="text-balance">{copy?.title ?? ""}</SheetTitle>
-          {copy ? <SheetDescription>{copy.description}</SheetDescription> : null}
-        </SheetHeader>
-        <SheetBody className="flex flex-col gap-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-          {topic === "integrantes" ? <MembersTopic /> : null}
-          {topic === "invitar" ? <InviteTopic /> : null}
-          {topic === "publico" ? <PublicTopic /> : null}
-          {topic === "notas" ? <QuorumTopic /> : null}
-          {topic === "grupos" ? <GroupsTopic /> : null}
-        </SheetBody>
-      </SheetContent>
-    </Sheet>
+    <DrillDetail
+      open={open}
+      onOpenChange={(next) => (next ? null : onClose())}
+      title={copy?.title ?? ""}
+      description={copy?.description}
+    >
+      <div className="flex flex-col gap-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pb-0">
+        {topic === "integrantes" ? <MembersTopic /> : null}
+        {topic === "invitar" ? <InviteTopic /> : null}
+        {topic === "publico" ? <PublicTopic /> : null}
+        {topic === "notas" ? <QuorumTopic /> : null}
+        {topic === "grupos" ? <GroupsTopic /> : null}
+      </div>
+    </DrillDetail>
   );
 }
 

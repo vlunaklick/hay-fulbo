@@ -9,17 +9,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@hay-fulbo/ui/components/input-group";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@hay-fulbo/ui/components/sheet";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
-import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -39,6 +29,7 @@ import { useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
 import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
+import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { formatShortDate } from "@/lib/format";
 import { initials } from "@/lib/initials";
 import { accountPresentationLabel, type PlayerAccountMember } from "@/lib/player-account-link";
@@ -71,24 +62,26 @@ type Outcome = "win" | "draw" | "loss";
 const EMPTY_STATS: PlayerStats = { played: 0, goals: 0, assists: 0, winPercentage: 0 };
 /** Above this many active players a compact search shows up over the list. */
 const SEARCH_THRESHOLD = 12;
+/** `?p=` value that opens the archived list instead of a player. */
+const ARCHIVED_KEY = "archivados";
 
 /**
  * Players directory, "Próximo paso" shape: header → active count → one next step
  * (invite the unlinked or add a player) → one row per player, most played first.
- * Each row opens the player's sheet; the open player lives in `?p=` so it survives
- * reloads and can be shared. Archived players sit behind a single trailing row.
+ * Each row opens the player's detail (bottom sheet on mobile, right column on desktop);
+ * the open thing lives in `?p=` (a player id or `archivados`) so it survives reloads and
+ * can be shared. On desktop the most played player is open by default.
  */
 export function PlayersPage() {
   const { role } = useAppContext();
   const canManage = role !== "member";
   const isOwner = role === "owner";
-  const isMobile = useIsMobile();
+  const isDesktop = useIsDesktop();
   const directory = useQuery(trpc.matches.directory.queryOptions());
   const stats = useQuery(trpc.stats.dashboard.queryOptions({}));
-  const [selectedId, select] = useSelectedPlayer();
+  const [openKey, select] = useOpenKey();
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [archivedOpen, setArchivedOpen] = useState(false);
   const [inviteFor, setInviteFor] = useState<string | null>(null);
 
   const ranking = new Map((stats.data?.ranking ?? []).map((row) => [row.playerId, row]));
@@ -112,11 +105,16 @@ export function PlayersPage() {
   const visible = needle
     ? active.filter((player) => normalizeSearch(player.displayName).includes(needle))
     : active;
-  const selected = players.find((player) => player.id === selectedId) ?? null;
   const isPending = directory.isPending || stats.isPending;
   const error = directory.error ?? stats.error;
   const inviteNext = isOwner && unlinked.length > 0 ? unlinked[0] : null;
-  const sheetSide = isMobile ? "bottom" : "right";
+  // One detail at a time: either the archived list or a player. On desktop, fall back
+  // to the most played player so the right column is never empty.
+  const archivedOpen = openKey === ARCHIVED_KEY && archived.length > 0;
+  const selected = archivedOpen
+    ? null
+    : (players.find((player) => player.id === openKey) ??
+      (isDesktop && !isPending && !error ? (active[0] ?? null) : null));
 
   function openPlayer(id: string | null, invite = false) {
     setInviteFor(invite ? id : null);
@@ -124,7 +122,9 @@ export function PlayersPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+    <NextStepLayout
+      emptyDetail={isPending || error ? undefined : "Cuando sumes jugadores, acá ves sus números."}
+    >
       <StatusHeader title="Jugadores" meta="Los que más juegan, arriba" />
       {canManage ? <CreatePlayerDialog open={createOpen} onOpenChange={setCreateOpen} /> : null}
 
@@ -227,6 +227,7 @@ export function PlayersPage() {
                       label={player.displayName}
                       leading={<PlayerAvatar name={player.displayName} />}
                       value={<PlayerTotals stats={player.stats} />}
+                      selected={player.id === selected?.id}
                       onClick={() => openPlayer(player.id)}
                     />
                   ))}
@@ -254,7 +255,8 @@ export function PlayersPage() {
                 <DrillRow
                   label="Archivados"
                   value={archived.length}
-                  onClick={() => setArchivedOpen(true)}
+                  selected={archivedOpen}
+                  onClick={() => openPlayer(ARCHIVED_KEY)}
                 />
               ) : null}
             </DrillList>
@@ -262,48 +264,49 @@ export function PlayersPage() {
         </>
       )}
 
-      <Sheet open={archivedOpen} onOpenChange={setArchivedOpen}>
-        <SheetContent side={sheetSide} className="max-h-[92dvh] md:max-h-none md:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Archivados</SheetTitle>
-            <SheetDescription>No aparecen al armar partidos. Sus números quedan.</SheetDescription>
-          </SheetHeader>
-          <SheetBody className="pb-[max(1rem,env(safe-area-inset-bottom))]">
-            {archived.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay jugadores archivados.</p>
-            ) : (
-              <ul className="flex flex-col divide-y">
-                {archived.map((player) => (
-                  <ArchivedRow
-                    key={player.id}
-                    canManage={canManage}
-                    player={player}
-                    onOpen={() => {
-                      setArchivedOpen(false);
-                      openPlayer(player.id);
-                    }}
-                  />
-                ))}
-              </ul>
-            )}
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
-
-      <Sheet open={selected !== null} onOpenChange={(next) => (next ? null : openPlayer(null))}>
-        <SheetContent side={sheetSide} className="max-h-[92dvh] md:max-h-none md:max-w-md">
-          {selected ? (
-            <PlayerDetail
-              key={selected.id}
+      <DrillDetail
+        description="No aparecen al armar partidos. Sus números quedan."
+        onOpenChange={(next) => (next ? null : openPlayer(null))}
+        open={archivedOpen}
+        title="Archivados"
+      >
+        <ul className="flex flex-col divide-y">
+          {archived.map((player) => (
+            <ArchivedRow
+              key={player.id}
               canManage={canManage}
-              initialInviting={inviteFor === selected.id}
-              members={members}
-              player={selected}
+              player={player}
+              onOpen={() => openPlayer(player.id)}
             />
-          ) : null}
-        </SheetContent>
-      </Sheet>
-    </div>
+          ))}
+        </ul>
+      </DrillDetail>
+
+      <DrillDetail
+        description={
+          selected
+            ? `${selected.archived ? "Archivado · " : ""}${
+                selected.linkedUserId
+                  ? accountPresentationLabel(members, selected.linkedUserId)
+                  : "Sin cuenta en la app"
+              }`
+            : undefined
+        }
+        onOpenChange={(next) => (next ? null : openPlayer(null))}
+        open={selected !== null}
+        title={selected?.displayName ?? "Jugador"}
+      >
+        {selected ? (
+          <PlayerDetail
+            key={selected.id}
+            canManage={canManage}
+            initialInviting={inviteFor === selected.id}
+            members={members}
+            player={selected}
+          />
+        ) : null}
+      </DrillDetail>
+    </NextStepLayout>
   );
 }
 
@@ -387,112 +390,95 @@ function PlayerDetail({
   const shownMatches = showAll ? matches : matches.slice(0, 3);
 
   return (
-    <>
-      <SheetHeader>
-        <div className="flex items-center gap-3">
-          <PlayerAvatar name={player.displayName} />
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <SheetTitle className="text-balance">{player.displayName}</SheetTitle>
-            <SheetDescription className="truncate">
-              {player.archived ? "Archivado · " : ""}
-              {player.linkedUserId
-                ? accountPresentationLabel(members, player.linkedUserId)
-                : "Sin cuenta en la app"}
-            </SheetDescription>
-          </div>
-        </div>
-      </SheetHeader>
+    <div className="flex flex-col gap-6">
+      {canInvite && inviting ? <InvitePlayerForm player={player} /> : null}
 
-      <SheetBody className="flex flex-col gap-6">
-        {canInvite && inviting ? <InvitePlayerForm player={player} /> : null}
-
-        {player.stats.played === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Todavía no jugó un partido cerrado. Sus números aparecen después del primero.
-          </p>
-        ) : (
-          <>
-            <dl className="grid grid-cols-4 gap-2">
-              <Metric label="Partidos" value={player.stats.played} />
-              <Metric label="Goles" value={player.stats.goals} />
-              <Metric label="Asist." value={player.stats.assists} />
-              <Metric label="% victorias" value={`${Math.round(player.stats.winPercentage)}%`} />
-            </dl>
-            {matches.length > 0 ? (
-              <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Últimos {Math.min(formSize, matches.length)}, del más reciente
-                </span>
-                <ol className="flex flex-wrap gap-1">
-                  {matches.slice(0, formSize).map((match) => (
-                    <li key={match.matchId}>
-                      <FormChip outcome={match.outcome} />
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ) : null}
-          </>
-        )}
-
-        {detail.isPending ? (
-          <Skeleton className="h-24 w-full rounded-md" />
-        ) : detail.isError ? (
-          <p className="text-sm text-muted-foreground">No pudimos cargar sus partidos.</p>
-        ) : matches.length > 0 ? (
-          <div className="flex flex-col gap-1">
-            <h3 className="text-sm font-semibold">Partidos</h3>
-            <ul className="flex flex-col">
-              {shownMatches.map((match, index) => {
-                const own = match.teams.find((team) => team.id === match.teamId) ?? match.teams[0];
-                const rival = match.teams.find((team) => team.id !== own?.id) ?? match.teams[1];
-                return (
-                  <li key={match.matchId} className={cn(index > 0 && "border-t border-border/60")}>
-                    <Link
-                      href={`/dashboard/estadisticas/partidos/${match.matchId}` as Route}
-                      className="-mx-2 flex min-h-11 items-center gap-3 rounded-md px-2 text-sm transition-colors duration-150 ease-out hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                    >
-                      <span className="w-14 shrink-0 text-xs text-muted-foreground">
-                        {formatShortDate(match.scheduledAt)}
-                      </span>
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          "size-2 shrink-0 rounded-full",
-                          own?.slot === 1 ? "bg-team-blue" : "bg-team-amber",
-                        )}
-                      />
-                      <span className="font-semibold tabular-nums">
-                        {own?.goals}–{rival?.goals}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                        {outcomeVerb(match.outcome)}
-                        <span className="sr-only"> con {own?.displayName}</span>
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                        {contributionLabel(match.goals, match.assists)}
-                      </span>
-                    </Link>
+      {player.stats.played === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Todavía no jugó un partido cerrado. Sus números aparecen después del primero.
+        </p>
+      ) : (
+        <>
+          <dl className="grid grid-cols-4 gap-2">
+            <Metric label="Partidos" value={player.stats.played} />
+            <Metric label="Goles" value={player.stats.goals} />
+            <Metric label="Asist." value={player.stats.assists} />
+            <Metric label="% victorias" value={`${Math.round(player.stats.winPercentage)}%`} />
+          </dl>
+          {matches.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                Últimos {Math.min(formSize, matches.length)}, del más reciente
+              </span>
+              <ol className="flex flex-wrap gap-1">
+                {matches.slice(0, formSize).map((match) => (
+                  <li key={match.matchId}>
+                    <FormChip outcome={match.outcome} />
                   </li>
-                );
-              })}
-            </ul>
-            {!showAll && matches.length > 3 ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="-ml-3 w-fit"
-                onClick={() => setShowAll(true)}
-              >
-                Ver los {matches.length} partidos
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-      </SheetBody>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+        </>
+      )}
 
+      {detail.isPending ? (
+        <Skeleton className="h-24 w-full rounded-md" />
+      ) : detail.isError ? (
+        <p className="text-sm text-muted-foreground">No pudimos cargar sus partidos.</p>
+      ) : matches.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-semibold">Partidos</h3>
+          <ul className="flex flex-col">
+            {shownMatches.map((match, index) => {
+              const own = match.teams.find((team) => team.id === match.teamId) ?? match.teams[0];
+              const rival = match.teams.find((team) => team.id !== own?.id) ?? match.teams[1];
+              return (
+                <li key={match.matchId} className={cn(index > 0 && "border-t border-border/60")}>
+                  <Link
+                    href={`/dashboard/estadisticas/partidos/${match.matchId}` as Route}
+                    className="-mx-2 flex min-h-11 items-center gap-3 rounded-md px-2 text-sm transition-colors duration-150 ease-out hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  >
+                    <span className="w-14 shrink-0 text-xs text-muted-foreground">
+                      {formatShortDate(match.scheduledAt)}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "size-2 shrink-0 rounded-full",
+                        own?.slot === 1 ? "bg-team-blue" : "bg-team-amber",
+                      )}
+                    />
+                    <span className="font-semibold tabular-nums">
+                      {own?.goals}–{rival?.goals}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                      {outcomeVerb(match.outcome)}
+                      <span className="sr-only"> con {own?.displayName}</span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                      {contributionLabel(match.goals, match.assists)}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          {!showAll && matches.length > 3 ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-ml-3 w-fit"
+              onClick={() => setShowAll(true)}
+            >
+              Ver los {matches.length} partidos
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       {canManage ? (
-        <SheetFooter className="flex-row flex-wrap pb-[max(1rem,env(safe-area-inset-bottom))]">
+        // Manager actions: first on desktop (next to the title), last on mobile (thumb reach).
+        <div className="order-last flex flex-row flex-wrap gap-2 pb-[env(safe-area-inset-bottom)] lg:order-first lg:pb-0">
           <Button variant="outline" onClick={() => setEditOpen(true)}>
             <PencilIcon data-icon="inline-start" aria-hidden="true" />
             Editar
@@ -533,9 +519,9 @@ function PlayerDetail({
             open={editOpen}
             player={player}
           />
-        </SheetFooter>
+        </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -594,7 +580,7 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
   );
 }
 
-function useSelectedPlayer() {
+function useOpenKey() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
