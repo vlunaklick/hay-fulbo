@@ -225,6 +225,7 @@ La carga del Partido se organiza en tabs directas con un checklist compacto de c
 
 ## Layout & composition
 
+- **Próximo paso.** Toda pantalla sigue `StatusHeader` → `HeroNumber` → `NextStep` → `DrillList` (+ `ActionDock` solo para acciones del momento), de `apps/web/src/components/next-step.tsx`. Sin pestañas para separar secciones: cada sección es una `DrillRow` que abre una `Sheet` o subpágina. Ver `docs/prototypes/proximo-paso.md`.
 - **Page header.** Toda pantalla del dashboard abre con `PageHeader` (`apps/web/src/components/page-header.tsx`): `h1`, una línea opcional en `muted-foreground` y, a la derecha en escritorio, sus acciones. Nada de eyebrows de color encima del título.
 - **Space before boxes.** Las secciones se separan con espacio (`gap-8` entre secciones, `gap-4` dentro) y un `h2` `text-base font-semibold`, no envolviendo todo en cards. Una card agrupa datos que se leen juntos; no se anidan ni se apilan cards de una línea.
 - **Metrics strip.** Varios datos sueltos van en una sola card dividida (`divide-x`), no en una card por dato. Label `text-xs font-medium text-muted-foreground`, valor `text-lg font-semibold tabular-nums`.
