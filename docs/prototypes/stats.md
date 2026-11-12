@@ -26,3 +26,12 @@ Rechazadas:
 
 - Capturas a 390 × 844 y 1440 × 900 de las tres variantes y de sus vistas de sociedades, con datos determinísticos pasados por `deriveStatsDashboard`: 18 jugadores, 30 partidos, nombres largos, un jugador inactivo y notas parciales.
 - Sin errores de consola en ninguna variante.
+
+## Actualización: Próximo paso
+
+Con el patrón de `docs/prototypes/proximo-paso.md` se quitan las pestañas y la barra de filtros. `/dashboard/estadisticas` queda como portada corta:
+
+- `HeroNumber` con los partidos cerrados del período y un `NextStep`: "Calificá el último partido" si el visitante todavía no votó; si no, quién lidera la tabla con "Ver la tabla".
+- Filas: Período (abre una Sheet con período, cancha y resultado), Tabla, Jugadores (Sheet A–Z), Sociedades y Partidos.
+- La Planilla sigue entera en `/dashboard/estadisticas/tabla` y la Química en `/dashboard/estadisticas/sociedades` (que vuelve a ser página propia). Los partidos en `/dashboard/estadisticas/partidos`.
+- Los filtros viven en la URL y viajan entre subpáginas. Los links viejos con `?tab=quimica|partidos|tabla` redirigen a su subpágina.

@@ -1,6 +1,12 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
-// Societies now live in the stats "Química" tab; keep old links working.
+import { MemberStatsSocieties } from "@/features/stats/stats-dashboard";
+import { StatsLoading } from "@/features/stats/stats-loading";
+
 export default function DashboardSocietiesPage() {
-  redirect("/dashboard/estadisticas?tab=quimica");
+  return (
+    <Suspense fallback={<StatsLoading />}>
+      <MemberStatsSocieties />
+    </Suspense>
+  );
 }
