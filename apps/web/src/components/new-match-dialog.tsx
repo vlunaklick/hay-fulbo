@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { DrillSheet } from "@/components/drill-sheet";
+import { DrillDetail, useIsDesktop } from "@/components/next-step-layout";
 import { formatDayTitle, formatMoney, formatShortWeekday, formatTime } from "@/lib/format";
 import {
   groupHabit,
@@ -150,19 +150,24 @@ export function QuickCreateForm({
   );
 }
 
-/** {@link QuickCreateForm} in a sheet, for screens that don't load the match list. */
-export function NewMatchSheet({
+/**
+ * {@link QuickCreateForm} as a `DrillDetail` (bottom sheet on phones, right column
+ * on desktop), for screens that don't load the match list.
+ */
+export function NewMatchDetail({
   open,
   onOpenChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  // On desktop the screen's NextStep already holds the primary "Crear partido".
+  const desktop = useIsDesktop();
   const matches = useQuery({ ...trpc.matches.list.queryOptions({ limit: 50 }), enabled: open });
   const directory = useQuery({ ...trpc.matches.directory.queryOptions(), enabled: open });
 
   return (
-    <DrillSheet
+    <DrillDetail
       description="Cancha y equipos se completan después."
       onOpenChange={onOpenChange}
       open={open}
@@ -176,7 +181,7 @@ export function NewMatchSheet({
             scheduledAt: new Date(match.scheduledAt),
           }))}
           now={new Date()}
-          primary
+          primary={!desktop}
         />
       ) : matches.isError || directory.isError ? (
         <p className="text-sm text-destructive">
@@ -185,6 +190,6 @@ export function NewMatchSheet({
       ) : (
         <Skeleton aria-label="Cargando fechas" className="h-32 w-full" />
       )}
-    </DrillSheet>
+    </DrillDetail>
   );
 }

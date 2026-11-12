@@ -38,3 +38,7 @@ El muro se reemplaza por el patrón de `docs/prototypes/proximo-paso.md`. El her
 Lo demás son filas: Próximo partido, Último resultado (abre los últimos 6 resultados con figura), Deudas (abre deudores y tu parte), Jugadores, Estadísticas y Todos los partidos. Goleadores y el resumen de temporada quedan en Estadísticas.
 
 La deuda es la del próximo partido: `stats.dashboard` no trae deuda acumulada del grupo. Si hace falta, hay que sumarla a la query.
+
+### Escritorio
+
+Desde `lg` la pantalla es maestro-detalle (`NextStepLayout`): la columna izquierda es la pantalla móvil y la derecha muestra lo que abre la fila (`DrillDetail`). Sin elección del usuario se abre la fila más relevante: el partido en juego, después las deudas si el próximo paso es cobrar o pagar, después el próximo partido (resumen con equipos, caja y "Abrir partido"), y si no hay fecha el alta. "Próximo partido" y "Partido en juego" abren ese resumen (`MatchSummary`) en vez de navegar.

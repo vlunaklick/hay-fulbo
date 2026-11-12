@@ -11,9 +11,10 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { useAppContext } from "@/components/app-shell";
-import { DrillSheet } from "@/components/drill-sheet";
+import { MatchSummary } from "@/components/match-summary";
 import { QuickCreateForm } from "@/components/new-match-dialog";
 import { DrillList, DrillRow, NextStep, StatusHeader } from "@/components/next-step";
+import { DrillDetail, NextStepLayout, useIsDesktop } from "@/components/next-step-layout";
 import { formatDayTitle, formatMoney, formatTime } from "@/lib/format";
 import { relativeDay, splitMatches } from "@/lib/match-schedule";
 import { isLive } from "@/lib/next-step";
@@ -48,11 +49,11 @@ export default function MatchesPage() {
 
   if (matches.isPending) {
     return (
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+      <NextStepLayout>
         <StatusHeader title="Partidos" />
         <Skeleton className="h-36 w-full" />
         <Skeleton className="h-60 w-full" />
-      </div>
+      </NextStepLayout>
     );
   }
   if (matches.isError) {
@@ -103,19 +104,31 @@ function MatchesOverview({
   const { upcoming, unclosed, played } = splitMatches(matches, now);
   const [next, ...later] = upcoming;
   const [showAll, setShowAll] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const desktop = useIsDesktop();
+  // `undefined` until the viewer picks something: desktop then shows the focus match.
+  const [picked, setPicked] = useState<{ kind: "match"; id: string } | { kind: "create" } | null>();
   const history = showAll ? played : played.slice(0, HISTORY_PREVIEW);
   const live = next && isLive(next, now) ? next : null;
   // A manager's first job is closing what was left open; the next date waits.
   const toClose = !live && canManage ? unclosed[0] : undefined;
   const months = groupByMonth(history);
+  const focus = live ?? toClose ?? next ?? played[0];
+  const detail =
+    picked === undefined
+      ? desktop && focus
+        ? { kind: "match" as const, id: focus.id }
+        : null
+      : picked;
+  const selectedId = detail?.kind === "match" ? detail.id : null;
+  const selected = selectedId ? matches.find((match) => match.id === selectedId) : undefined;
+  const select = (id: string) => setPicked({ kind: "match", id });
   const metaParts = [
     `${played.length} ${played.length === 1 ? "jugado" : "jugados"}`,
     upcoming.length ? `${upcoming.length} por jugar` : null,
   ].filter(Boolean);
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+    <NextStepLayout emptyDetail="Cuando haya partidos, acá vas a ver el elegido.">
       <StatusHeader
         title="Partidos"
         meta={metaParts.join(" · ")}
@@ -161,6 +174,8 @@ function MatchesOverview({
             <MatchRow
               key={match.id}
               match={match}
+              selected={match.id === selectedId}
+              onSelect={desktop ? select : undefined}
               value={`${match.home.goals} – ${match.away.goals} · ${relativeDay(match.scheduledAt, now)}`}
             />
           ))}
@@ -173,11 +188,17 @@ function MatchesOverview({
             <MatchRow
               key={match.id}
               match={match}
+              selected={match.id === selectedId}
+              onSelect={desktop ? select : undefined}
               value={`${formatTime(match.scheduledAt)} · ${match.courtName ?? "cancha a definir"}`}
             />
           ))}
           {next && canManage ? (
-            <DrillRow label="Armar otra fecha" onClick={() => setCreating(true)} />
+            <DrillRow
+              label="Armar otra fecha"
+              selected={detail?.kind === "create"}
+              onClick={() => setPicked({ kind: "create" })}
+            />
           ) : null}
         </DrillList>
       ) : null}
@@ -194,6 +215,8 @@ function MatchesOverview({
                 <MatchRow
                   key={match.id}
                   match={match}
+                  selected={match.id === selectedId}
+                  onSelect={desktop ? select : undefined}
                   value={
                     match.status === "cancelled"
                       ? "Cancelado"
@@ -215,17 +238,28 @@ function MatchesOverview({
         </div>
       )}
 
+      {selected ? (
+        <DrillDetail
+          open
+          onOpenChange={(open) => setPicked(open ? { kind: "match", id: selected.id } : null)}
+          title={`${formatDayTitle(selected.scheduledAt)} · ${formatTime(selected.scheduledAt)}`}
+          description={`${statusLabel(selected, now)} · ${selected.courtName ?? "Cancha a definir"}`}
+        >
+          <MatchSummary matchId={selected.id} />
+        </DrillDetail>
+      ) : null}
+
       {canManage && next ? (
-        <DrillSheet
-          open={creating}
-          onOpenChange={setCreating}
+        <DrillDetail
+          open={detail?.kind === "create"}
+          onOpenChange={(open) => setPicked(open ? { kind: "create" } : null)}
           title="Armar otra fecha"
           description="Cancha y equipos se completan después."
         >
           <QuickCreateForm courts={courts} matches={matches} now={now} primary />
-        </DrillSheet>
+        </DrillDetail>
       ) : null}
-    </div>
+    </NextStepLayout>
   );
 }
 
@@ -237,8 +271,29 @@ function OpenMatch({ id, children }: { id: string; children: React.ReactNode }) 
   );
 }
 
-/** "Jueves 19 nov · 3 – 2", with the teams spelled out for screen readers. */
-function MatchRow({ match, value }: { match: ListMatch; value: string }) {
+function statusLabel(match: ListMatch, now: Date) {
+  if (match.status === "cancelled") return "Cancelado";
+  if (match.status === "closed") return "Jugado";
+  if (isLive(match, now)) return "En juego";
+  return match.scheduledAt < now ? "Falta cerrar" : capitalize(relativeDay(match.scheduledAt, now));
+}
+
+/**
+ * "Jueves 19 nov · 3 – 2", with the teams spelled out for screen readers. Always a
+ * link to the match; on desktop a plain click shows it in the right column instead
+ * (`onSelect`), and the summary there has "Abrir partido".
+ */
+function MatchRow({
+  match,
+  onSelect,
+  selected,
+  value,
+}: {
+  match: ListMatch;
+  onSelect?: (id: string) => void;
+  selected: boolean;
+  value: string;
+}) {
   const date = formatDayTitle(match.scheduledAt);
   const label =
     match.status === "cancelled"
@@ -250,9 +305,22 @@ function MatchRow({ match, value }: { match: ListMatch; value: string }) {
     <DrillRow
       label={date}
       value={value}
+      selected={selected}
       className={match.status === "cancelled" ? "text-muted-foreground" : undefined}
       render={({ className, children }) => (
-        <Link aria-label={label} className={className} href={matchHref(match.id)}>
+        <Link
+          aria-current={selected ? "true" : undefined}
+          aria-label={label}
+          className={className}
+          href={matchHref(match.id)}
+          onClick={(event) => {
+            if (!onSelect) return;
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            if (event.button !== 0) return;
+            event.preventDefault();
+            onSelect(match.id);
+          }}
+        >
           {children}
         </Link>
       )}
