@@ -80,9 +80,10 @@ test("an organizer can create a group and its first match", async ({ page }, tes
   await expect(page).toHaveURL(/\/dashboard\/partidos\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Equipo 1", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Equipo 2", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Los equipos/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /El partido/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /El cierre/ })).toBeVisible();
+  await expect(page.getByText("Por jugar", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cómo llegan" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Equipos" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: /Caja/ })).toBeVisible();
   if (process.env.MATCH_SCREENSHOT_PHASE) {
     await page.setViewportSize(
       desktop ? { width: 1440, height: 900 } : { width: 375, height: 812 },
@@ -95,11 +96,9 @@ test("an organizer can create a group and its first match", async ({ page }, tes
     });
   }
 
-  const closeButton = page.getByRole("button", { name: /Cerrar partido/ });
-  await expect(closeButton).toBeDisabled();
-  await closeButton.focus();
-  await page.keyboard.press("Enter");
-  await expect(page.getByText("La hora del partido todavía no pasó.").first()).toBeVisible();
+  // Before kickoff the one thing to do is invite; closing only shows up once the match starts.
+  await expect(page.getByRole("button", { name: "Invitar" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Cerrar partido/ })).toHaveCount(0);
 
   await expectNoHorizontalOverflow(page);
   await expectWcagAA(page);
@@ -307,6 +306,7 @@ test("a designated planillero scores persisted goals without organizer permissio
       timeout: 12000,
     });
 
+    await page.getByRole("tab", { name: "Equipos" }).click();
     await page.getByRole("button", { name: "Opciones de Pepe" }).click();
     await page.getByRole("menuitem", { name: "No vino", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Pepe no vino" })).toBeVisible();
@@ -317,8 +317,8 @@ test("a designated planillero scores persisted goals without organizer permissio
       .boundingBox();
     expect(absenceAction).not.toBeNull();
     expect(absenceAction!.x + absenceAction!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
-    await page.getByRole("button", { name: /La caja/ }).click();
-    const caja = page.getByRole("dialog", { name: "La caja" });
+    await page.getByRole("tab", { name: /Caja/ }).click();
+    const caja = page.getByRole("tabpanel", { name: /Caja/ });
     await expect(caja.getByText("Ausente · aporta", { exact: true })).toBeVisible();
     await caja.getByRole("button", { name: "Editar pago de Beto" }).click();
     await caja.getByLabel("Pagó Beto").fill("50");
@@ -335,7 +335,6 @@ test("a designated planillero scores persisted goals without organizer permissio
         fullPage: false,
       });
     }
-    await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Cerrar partido", exact: true })).toBeEnabled();
     if (process.env.MATCH_SCREENSHOT_DIR) {
       await page.screenshot({

@@ -77,14 +77,14 @@ export function MatchScoreboard({
   canScore,
   pending,
   run,
-  scorekeeperControl,
+  actions,
 }: {
   detail: Detail;
   canScore: boolean;
   pending: boolean;
   run: RunMatchAction;
-  /** Optional control (the organizer's scorekeeper picker) shown next to the scorekeeper line. */
-  scorekeeperControl?: ReactNode;
+  /** Controls shown next to the scorekeeper line (scorekeeper picker, pitch-mode link). */
+  actions?: ReactNode;
 }) {
   const [picker, setPicker] = useState<{ teamId: string; delta: 1 | -1 } | null>(null);
   const returnFocus = useRef<HTMLButtonElement | null>(null);
@@ -95,11 +95,9 @@ export function MatchScoreboard({
   const hint =
     detail.status !== "open"
       ? "Marcador cerrado"
-      : scorekeeperControl
-        ? "Puede sumar y restar goles mientras el partido esté abierto."
-        : editable
-          ? null
-          : "El organizador y el planillero cargan los goles";
+      : editable
+        ? null
+        : "El organizador y el planillero cargan los goles";
   const choices = selected
     ? [
         ...selected.appearances
@@ -199,7 +197,7 @@ export function MatchScoreboard({
           </p>
           {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
         </div>
-        {scorekeeperControl}
+        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
       <Sheet
         open={picker !== null}
