@@ -75,21 +75,16 @@ export function useMatchCommand(detail: Detail) {
 export function MatchScoreboard({
   detail,
   canScore,
-  forceDark = false,
   pending,
   run,
   scorekeeperControl,
-  size = "default",
 }: {
   detail: Detail;
   canScore: boolean;
-  forceDark?: boolean;
   pending: boolean;
   run: RunMatchAction;
   /** Optional control (the organizer's scorekeeper picker) shown next to the scorekeeper line. */
   scorekeeperControl?: ReactNode;
-  /** `pitch` blows the score up for the full-screen pitch mode. */
-  size?: "default" | "pitch";
 }) {
   const [picker, setPicker] = useState<{ teamId: string; delta: 1 | -1 } | null>(null);
   const returnFocus = useRef<HTMLButtonElement | null>(null);
@@ -97,7 +92,6 @@ export function MatchScoreboard({
   const selected = teams.find((team) => team.id === picker?.teamId);
   const rivals = teams.find((team) => team.id !== selected?.id)?.appearances ?? [];
   const editable = canScore && detail.status === "open";
-  const pitch = size === "pitch";
   const hint =
     detail.status !== "open"
       ? "Marcador cerrado"
@@ -138,7 +132,7 @@ export function MatchScoreboard({
     : [];
 
   return (
-    <Card className={cn("gap-0 py-0", pitch && "rounded-xl")}>
+    <Card className="gap-0 py-0">
       <div className="grid grid-cols-2 divide-x">
         {teams.map((team) => {
           const score = detail.score.find((row) => row.teamId === team.id)?.goals ?? 0;
@@ -146,17 +140,9 @@ export function MatchScoreboard({
             <section
               key={team.id}
               aria-label={team.displayName}
-              className={cn(
-                "flex min-w-0 flex-col items-center gap-3 px-3 py-5 sm:py-6",
-                pitch && "gap-6 py-8 sm:py-12",
-              )}
+              className="flex min-w-0 flex-col items-center gap-3 px-3 py-5 sm:py-6"
             >
-              <h3
-                className={cn(
-                  "flex max-w-full items-center gap-2 text-sm font-semibold",
-                  pitch && "text-base",
-                )}
-              >
+              <h3 className="flex max-w-full items-center gap-2 text-sm font-semibold">
                 <span
                   className={cn(
                     "size-2 shrink-0 rounded-full",
@@ -168,10 +154,7 @@ export function MatchScoreboard({
               </h3>
               <output
                 aria-label={`Marcador de ${team.displayName}`}
-                className={cn(
-                  "font-black leading-none tabular-nums",
-                  pitch ? "text-8xl sm:text-9xl" : "text-6xl sm:text-7xl",
-                )}
+                className="text-6xl leading-none font-black tabular-nums sm:text-7xl"
               >
                 {score}
               </output>
@@ -181,7 +164,6 @@ export function MatchScoreboard({
                     aria-label={`Restar un gol a ${team.displayName}`}
                     className="flex-1"
                     disabled={pending || score === 0}
-                    size={pitch ? "lg" : "default"}
                     variant="outline"
                     onClick={(event) => {
                       returnFocus.current = event.currentTarget;
@@ -195,7 +177,6 @@ export function MatchScoreboard({
                     aria-label={`Sumar un gol a ${team.displayName}`}
                     className="flex-1"
                     disabled={pending}
-                    size={pitch ? "lg" : "default"}
                     variant={team.slot === 1 ? "team-blue" : "team-amber"}
                     onClick={(event) => {
                       returnFocus.current = event.currentTarget;
@@ -236,7 +217,7 @@ export function MatchScoreboard({
               false
             );
           }}
-          className={cn("max-h-[85dvh]", forceDark && "dark")}
+          className="max-h-[85dvh]"
         >
           <SheetHeader>
             <SheetTitle>

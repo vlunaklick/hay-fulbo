@@ -202,33 +202,57 @@ test("a designated planillero scores persisted goals without organizer permissio
     await expect(scorer.getByRole("combobox", { name: "Planillero", exact: true })).toHaveCount(0);
     await scorer.getByRole("button", { name: "Modo cancha" }).click();
     await expect(scorer).toHaveURL(new RegExp(`${matchUrl}/cancha$`));
-    const plus = scorer.getByRole("button", { name: "Sumar un gol a Equipo 1", exact: true });
-    const minus = scorer.getByRole("button", { name: "Restar un gol a Equipo 1", exact: true });
-    await expect(minus).toBeDisabled();
-    for (const author of ["Beto", "Sin autor", "Autogol de Tito"]) {
-      await plus.click();
-      await expect(scorer.locator("html")).toHaveClass(/light/);
-      await expect(scorer.getByRole("dialog")).toHaveCSS("color-scheme", "dark");
-      if (!desktop && author === "Beto" && process.env.MATCH_SCREENSHOT_DIR) {
-        await scorer.screenshot({
-          animations: "disabled",
-          scale: "css",
-          path: `${process.env.MATCH_SCREENSHOT_DIR}/r2-pitch-light-375.png`,
-        });
-      }
-      await scorer.getByRole("dialog").getByRole("button", { name: author, exact: true }).click();
-      await expect(scorer.getByRole("dialog")).toHaveCount(0);
-      await expect(plus).toBeFocused();
+    const score = scorer.getByLabel("Marcador de Equipo 1", { exact: true });
+    const beto = scorer.getByRole("button", { name: "Gol de Beto", exact: true });
+    const unattributed = scorer.getByRole("button", {
+      name: "Gol sin autor de Equipo 1",
+      exact: true,
+    });
+    const ownGoal = scorer.getByRole("button", {
+      name: "Autogol a favor de Equipo 1",
+      exact: true,
+    });
+    await expect(scorer.locator("html")).toHaveClass(/light/);
+    await expect(scorer.getByRole("region", { name: "Marcador" })).toHaveCSS(
+      "color-scheme",
+      "dark",
+    );
+
+    // One tap is one goal: a player, an unattributed goal, and an own goal from the rival.
+    await beto.click();
+    await expect(score).toHaveText("1");
+    await unattributed.click();
+    await expect(score).toHaveText("2");
+    await ownGoal.click();
+    const ownGoalPicker = scorer.getByRole("dialog");
+    await expect(ownGoalPicker).toHaveCSS("color-scheme", "dark");
+    if (!desktop && process.env.MATCH_SCREENSHOT_DIR) {
+      await scorer.screenshot({
+        animations: "disabled",
+        scale: "css",
+        path: `${process.env.MATCH_SCREENSHOT_DIR}/r2-pitch-light-375.png`,
+      });
     }
-    await expect(scorer.getByLabel("Marcador de Equipo 1", { exact: true })).toHaveText("3");
+    await ownGoalPicker.getByRole("button", { name: "Autogol de Tito", exact: true }).click();
+    await expect(scorer.getByRole("dialog")).toHaveCount(0);
+    await expect(score).toHaveText("3");
     await expect(page.getByLabel("Marcador de Equipo 1", { exact: true })).toHaveText("3", {
       timeout: 12000,
     });
+
+    // The last change is one tap from being undone.
+    await expect(scorer.getByText(/Último:\s*Autogol de Tito/)).toBeVisible();
+    await scorer.getByRole("button", { name: "Deshacer", exact: true }).click();
+    await expect(score).toHaveText("2");
+    await ownGoal.click();
+    await scorer.getByRole("dialog").getByRole("button", { name: "Autogol de Tito" }).click();
+    await expect(score).toHaveText("3");
+
     await scorer.reload();
-    await minus.click();
+    await scorer.getByRole("button", { name: "Corregir", exact: true }).click();
     await expect(
-      scorer.getByRole("dialog").getByRole("button", { name: "Beto 1", exact: true }),
-    ).toBeVisible();
+      scorer.getByRole("button", { name: "Restar gol a Pepe", exact: true }),
+    ).toBeDisabled();
     if (process.env.MATCH_SCREENSHOT_DIR) {
       await scorer.screenshot({
         animations: "disabled",
@@ -237,19 +261,22 @@ test("a designated planillero scores persisted goals without organizer permissio
         fullPage: true,
       });
     }
-    await scorer.keyboard.press("Escape");
-    await expect(minus).toBeFocused();
-    for (const author of ["Beto", "Sin autor", "Autogol de Tito"]) {
-      await minus.click();
-      await scorer
-        .getByRole("dialog")
-        .getByRole("button", { name: `${author} 1`, exact: true })
-        .click();
-      await expect(scorer.getByRole("dialog")).toHaveCount(0);
-    }
-    await expect(minus).toBeDisabled();
-    await expect(plus).toBeFocused();
-    await expect(scorer.getByLabel("Marcador de Equipo 1", { exact: true })).toHaveText("0");
+    await scorer.getByRole("button", { name: "Restar gol a Beto", exact: true }).click();
+    await expect(score).toHaveText("2");
+    await scorer
+      .getByRole("button", { name: "Restar gol sin autor a Equipo 1", exact: true })
+      .click();
+    await expect(score).toHaveText("1");
+    await scorer
+      .getByRole("button", { name: "Restar autogol a favor de Equipo 1", exact: true })
+      .click();
+    await scorer.getByRole("dialog").getByRole("button", { name: "Autogol de Tito" }).click();
+    await expect(scorer.getByRole("dialog")).toHaveCount(0);
+    await expect(score).toHaveText("0");
+    await expect(
+      scorer.getByRole("button", { name: "Restar gol a Beto", exact: true }),
+    ).toBeDisabled();
+    await scorer.getByRole("button", { name: "Listo", exact: true }).click();
     await expectNoHorizontalOverflow(scorer);
 
     // Exercise conflict recovery without requiring timing-dependent simultaneous clicks.
@@ -262,11 +289,11 @@ test("a designated planillero scores persisted goals without organizer permissio
       },
       { times: 1 },
     );
-    await plus.click();
-    await scorer.getByRole("dialog").getByRole("button", { name: "Beto", exact: true }).click();
+    await beto.click();
     await expect(scorer.getByText(/Alguien cambió el partido/)).toBeVisible();
-    await scorer.getByRole("dialog").getByRole("button", { name: "Beto", exact: true }).click();
-    await expect(scorer.getByLabel("Marcador de Equipo 1", { exact: true })).toHaveText("1");
+    await expect(score).toHaveText("0");
+    await beto.click();
+    await expect(score).toHaveText("1");
     await expect(page.getByLabel("Marcador de Equipo 1", { exact: true })).toHaveText("1", {
       timeout: 12000,
     });
