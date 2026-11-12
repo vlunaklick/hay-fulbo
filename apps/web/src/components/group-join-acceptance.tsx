@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { GroupPassBenefits } from "@/components/group-pass-benefits";
-import { AccountSwitch, GroupPass, PublicSplit } from "@/components/public-shell";
+import { NextStep } from "@/components/next-step";
+import { AccountSwitch, entryNextStep, GroupPass, PublicSplit } from "@/components/public-shell";
 import { queryClient, trpc } from "@/utils/trpc";
 
 export function GroupJoinAcceptance({
@@ -51,11 +52,19 @@ export function GroupJoinAcceptance({
       }
       bar={
         <>
-          <Button disabled={accept.isPending} onClick={() => accept.mutate({ token })}>
-            {accept.isPending ? <Spinner data-icon="inline-start" /> : null}
-            {accept.isPending ? "Sumándote…" : "Sumarme al grupo"}
-            {accept.isPending ? null : <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />}
-          </Button>
+          <NextStep
+            action={
+              <Button disabled={accept.isPending} onClick={() => accept.mutate({ token })}>
+                {accept.isPending ? <Spinner data-icon="inline-start" /> : null}
+                {accept.isPending ? "Sumándote…" : "Sumarme al grupo"}
+                {accept.isPending ? null : (
+                  <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
+                )}
+              </Button>
+            }
+            className={entryNextStep}
+            title="Sumate al grupo"
+          />
           <AccountSwitch email={userEmail} returnTo={`/sumarse/${token}`} />
         </>
       }

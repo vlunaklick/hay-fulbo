@@ -9,7 +9,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { GroupPassBenefits } from "@/components/group-pass-benefits";
-import { AccountSwitch, GroupPass, PublicSplit } from "@/components/public-shell";
+import { NextStep } from "@/components/next-step";
+import { AccountSwitch, entryNextStep, GroupPass, PublicSplit } from "@/components/public-shell";
 import { authClient } from "@/lib/auth-client";
 import { queryClient } from "@/utils/trpc";
 
@@ -62,15 +63,21 @@ export function InvitationAcceptance({
       }
       bar={
         <>
-          <Button
-            aria-describedby={error ? "invitation-error" : undefined}
-            onClick={accept}
-            disabled={pending}
-          >
-            {pending ? <Spinner data-icon="inline-start" /> : null}
-            {pending ? "Aceptando…" : "Aceptar invitación"}
-            {pending ? null : <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />}
-          </Button>
+          <NextStep
+            action={
+              <Button
+                aria-describedby={error ? "invitation-error" : undefined}
+                onClick={accept}
+                disabled={pending}
+              >
+                {pending ? <Spinner data-icon="inline-start" /> : null}
+                {pending ? "Aceptando…" : "Aceptar invitación"}
+                {pending ? null : <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />}
+              </Button>
+            }
+            className={entryNextStep}
+            title="Entrá al grupo"
+          />
           <AccountSwitch email={email} returnTo={`/invitaciones/${invitationId}`} />
         </>
       }

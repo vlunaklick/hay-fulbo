@@ -6,7 +6,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { GroupJoinAcceptance } from "@/components/group-join-acceptance";
-import { PublicHeading, PublicShell } from "@/components/public-shell";
+import { NextStep } from "@/components/next-step";
+import { PublicShell } from "@/components/public-shell";
 
 export default async function JoinGroupPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -15,13 +16,16 @@ export default async function JoinGroupPage({ params }: { params: Promise<{ toke
   if (!preview) {
     return (
       <PublicShell>
-        <PublicHeading
+        <NextStep
+          action={
+            <Button render={<Link href="/login" />} nativeButton={false}>
+              Ir al inicio
+            </Button>
+          }
           title="Este link ya no está disponible"
-          description="El organizador pudo haberlo renovado o desactivado. Pedile el link nuevo."
-        />
-        <Button render={<Link href="/login" />} nativeButton={false}>
-          Ir al inicio
-        </Button>
+        >
+          El organizador pudo haberlo renovado o desactivado. Pedile el link nuevo.
+        </NextStep>
       </PublicShell>
     );
   }

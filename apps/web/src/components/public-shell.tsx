@@ -33,9 +33,16 @@ export function PublicShell({ children }: { children: ReactNode }) {
 }
 
 /**
+ * Classes for the `NextStep` that goes in `PublicSplit`'s `bar`: a card in the
+ * desktop column, flat inside the thumb bar on mobile.
+ */
+export const entryNextStep =
+  "max-lg:gap-2 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-0";
+
+/**
  * Entry pages reached from a shared link: what you are joining leads, the action
- * sits in a bar pinned to the thumb on mobile. On desktop the context sits left
- * and the action right.
+ * (the page's `NextStep`) sits in a bar pinned to the thumb on mobile. On desktop
+ * the context sits left and the action right.
  */
 export function PublicSplit({
   context,
@@ -47,7 +54,7 @@ export function PublicSplit({
   bar?: ReactNode;
 }) {
   return (
-    <main className={`min-h-svh px-4 pt-6 sm:pt-10 lg:px-8 lg:pb-16 ${bar ? "pb-48" : "pb-12"}`}>
+    <main className={`min-h-svh px-4 pt-6 sm:pt-10 lg:px-8 lg:pb-16 ${bar ? "pb-64" : "pb-12"}`}>
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 lg:max-w-5xl lg:gap-12">
         <Brand />
         <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
