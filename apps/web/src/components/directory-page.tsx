@@ -22,14 +22,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@hay-fulbo/ui/components/dialog";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@hay-fulbo/ui/components/empty";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@hay-fulbo/ui/components/field";
 import { Input } from "@hay-fulbo/ui/components/input";
 import {
@@ -67,6 +59,7 @@ import { Fragment, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppContext } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
 import { initials } from "@/lib/initials";
 import {
   accountLinkOptions,
@@ -185,49 +178,46 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-semibold text-primary-text">Directorio</p>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-            {isPlayers ? "Jugadores" : "Canchas"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {isPlayers
-              ? "Entrá a una tarjeta para ver estadísticas y editar."
-              : "Entrá a una tarjeta para consultar o actualizar sus datos."}
-          </p>
-        </div>
-        {canManage ? (
-          <div className="flex shrink-0 gap-2">
-            {isPlayers && role === "owner" ? (
-              <Button
-                nativeButton={false}
-                render={<Link href="/dashboard/grupo#invitar" />}
-                variant="outline"
-              >
-                <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
-                <span className="hidden sm:inline">Invitar amigos</span>
-                <span className="sm:hidden">Invitar</span>
-              </Button>
-            ) : null}
-            <CreateDirectoryDialog
-              key={`${kind}-${createOpen ? "open" : "closed"}`}
-              error={error}
-              isPending={execute.isPending}
-              kind={kind}
-              onOpenChange={(open) => {
-                setCreateOpen(open);
-                setError(null);
-              }}
-              onSave={(input) => {
-                setError(null);
-                execute.mutate(input);
-              }}
-              open={createOpen}
-            />
-          </div>
-        ) : null}
-      </header>
+      <PageHeader
+        title={isPlayers ? "Jugadores" : "Canchas"}
+        description={
+          isPlayers
+            ? "Entrá a un jugador para ver estadísticas y editar."
+            : "Entrá a una cancha para consultar o actualizar sus datos."
+        }
+        actions={
+          canManage ? (
+            <>
+              {isPlayers && role === "owner" ? (
+                <Button
+                  nativeButton={false}
+                  render={<Link href="/dashboard/grupo#invitar" />}
+                  variant="ghost"
+                >
+                  <MailPlusIcon data-icon="inline-start" aria-hidden="true" />
+                  <span className="hidden sm:inline">Invitar amigos</span>
+                  <span className="sm:hidden">Invitar</span>
+                </Button>
+              ) : null}
+              <CreateDirectoryDialog
+                key={`${kind}-${createOpen ? "open" : "closed"}`}
+                error={error}
+                isPending={execute.isPending}
+                kind={kind}
+                onOpenChange={(open) => {
+                  setCreateOpen(open);
+                  setError(null);
+                }}
+                onSave={(input) => {
+                  setError(null);
+                  execute.mutate(input);
+                }}
+                open={createOpen}
+              />
+            </>
+          ) : null
+        }
+      />
 
       {!canManage ? (
         <Alert>
@@ -239,7 +229,7 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
 
       {isPlayers ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <InputGroup className="max-w-md">
+          <InputGroup className="sm:max-w-xs">
             <InputGroupAddon>
               <SearchIcon aria-hidden="true" />
             </InputGroupAddon>
@@ -262,11 +252,6 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
               </InputGroupAddon>
             ) : null}
           </InputGroup>
-          {!directory.isPending ? (
-            <span className="text-xs text-muted-foreground">
-              {visiblePlayers.length} de {players.length}
-            </span>
-          ) : null}
           <Tabs
             value={playerFilter}
             onValueChange={(value) => setPlayerFilter(value as "active" | "all" | "archived")}
@@ -296,44 +281,52 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
           <AlertDescription>{directory.error?.message ?? stats.error?.message}</AlertDescription>
         </Alert>
       ) : (isPlayers ? players : courts).length === 0 ? (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              {isPlayers ? <UserRoundIcon aria-hidden="true" /> : <MapPinIcon aria-hidden="true" />}
-            </EmptyMedia>
-            <EmptyTitle>{isPlayers ? "No hay jugadores" : "No hay canchas guardadas"}</EmptyTitle>
-            <EmptyDescription>
+        <div className="flex items-center gap-4 rounded-lg border border-dashed p-4">
+          {isPlayers ? (
+            <UserRoundIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          ) : (
+            <MapPinIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <p className="text-sm font-medium">
+              {isPlayers ? "No hay jugadores" : "No hay canchas guardadas"}
+            </p>
+            <p className="text-sm text-muted-foreground">
               {canManage
                 ? "Usá el botón Agregar para cargar el primero."
                 : "El organizador todavía no cargó información."}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+            </p>
+          </div>
+        </div>
       ) : isPlayers && visiblePlayers.length === 0 ? (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <SearchXIcon aria-hidden="true" />
-            </EmptyMedia>
-            <EmptyTitle>No encontramos jugadores</EmptyTitle>
-            <EmptyDescription>
+        <div className="flex flex-col items-start gap-4 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center">
+          <SearchXIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <p className="text-sm font-medium">No encontramos jugadores</p>
+            <p className="text-sm text-muted-foreground">
               Probá con otro nombre, cambiá el filtro o limpiá la búsqueda.
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button variant="outline" onClick={() => setSearch("")}>
-              Limpiar búsqueda
-            </Button>
-          </EmptyContent>
-        </Empty>
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => setSearch("")}>
+            Limpiar búsqueda
+          </Button>
+        </div>
       ) : isPlayers ? (
         <Card className="gap-0 py-0">
+          <div className="flex items-center gap-3 border-b px-4 py-2 text-xs font-medium text-muted-foreground">
+            <span className="flex-1 tabular-nums">
+              {visiblePlayers.length} de {players.length}
+            </span>
+            <span className="w-9 text-right">PJ</span>
+            <span className="w-9 text-right">G</span>
+            <span className="w-9 text-right">A</span>
+          </div>
           {visiblePlayers.map((player, index) => (
             <Fragment key={player.id}>
               {index > 0 ? <Separator /> : null}
               <Button
                 aria-label={`Ver detalle de ${player.displayName}`}
-                className="h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal sm:px-5"
+                className="h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal"
                 onClick={() => {
                   setError(null);
                   setSelectedId(player.id);
@@ -355,7 +348,7 @@ export function DirectoryPage({ kind }: { kind: "players" | "courts" }) {
               {index > 0 ? <Separator /> : null}
               <Button
                 aria-label={`Ver detalle de ${court.name}`}
-                className="h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal sm:px-5"
+                className="h-auto min-h-14 w-full justify-between gap-3 rounded-none px-4 py-2 text-left whitespace-normal"
                 onClick={() => {
                   setError(null);
                   setSelectedId(court.id);
@@ -430,22 +423,18 @@ function PlayerRow({ player, stats }: { player: PlayerRow; stats: PlayerAggregat
       <Avatar>
         <AvatarFallback>{initials(player.displayName)}</AvatarFallback>
       </Avatar>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium">{player.displayName}</span>
-          {player.archivedAt ? <Badge variant="secondary">Archivado</Badge> : null}
-        </span>
-        <span className="block text-xs text-muted-foreground">
-          {stats.played} {stats.played === 1 ? "partido" : "partidos"}
-        </span>
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="truncate text-sm font-medium">{player.displayName}</span>
+        {player.archivedAt ? <Badge variant="secondary">Archivado</Badge> : null}
       </span>
-      <span className="flex shrink-0 items-baseline gap-3 text-sm tabular-nums">
-        <span aria-label="Goles">
-          <span className="text-xs text-muted-foreground">G</span> <strong>{stats.goals}</strong>
-        </span>
-        <span aria-label="Asistencias">
-          <span className="text-xs text-muted-foreground">A</span> <strong>{stats.assists}</strong>
-        </span>
+      <span className="w-9 text-right text-sm text-muted-foreground tabular-nums">
+        {stats.played}
+      </span>
+      <span className="w-9 text-right text-sm font-semibold tabular-nums" aria-label="Goles">
+        {stats.goals}
+      </span>
+      <span className="w-9 text-right text-sm font-semibold tabular-nums" aria-label="Asistencias">
+        {stats.assists}
       </span>
     </span>
   );
@@ -454,15 +443,11 @@ function PlayerRow({ player, stats }: { player: PlayerRow; stats: PlayerAggregat
 function CourtRow({ court }: { court: CourtRow }) {
   return (
     <span className="flex min-w-0 flex-1 items-center gap-3">
-      <span className="flex size-9 shrink-0 items-center justify-center bg-muted text-muted-foreground">
-        <MapPinIcon className="size-4" aria-hidden="true" />
-      </span>
+      <MapPinIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">{court.name}</span>
-          <Badge variant={court.archivedAt ? "secondary" : "outline"}>
-            {court.archivedAt ? "Archivada" : "Activa"}
-          </Badge>
+          {court.archivedAt ? <Badge variant="secondary">Archivada</Badge> : null}
         </span>
         <span className="block truncate text-xs text-muted-foreground">{court.address}</span>
       </span>
