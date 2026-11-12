@@ -3,7 +3,6 @@
 import type { AppRouter } from "@hay-fulbo/api/routers/index";
 import { Button } from "@hay-fulbo/ui/components/button";
 import { Card } from "@hay-fulbo/ui/components/card";
-import { Separator } from "@hay-fulbo/ui/components/separator";
 import {
   Sheet,
   SheetBody,
@@ -17,6 +16,7 @@ import { useMutation } from "@tanstack/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { MinusIcon, PlusIcon } from "lucide-react";
 import { useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { matchCommandErrorMessage, isMatchConflict } from "@/lib/match-command-error";
@@ -78,12 +78,18 @@ export function MatchScoreboard({
   forceDark = false,
   pending,
   run,
+  scorekeeperControl,
+  size = "default",
 }: {
   detail: Detail;
   canScore: boolean;
   forceDark?: boolean;
   pending: boolean;
   run: RunMatchAction;
+  /** Optional control (the organizer's scorekeeper picker) shown next to the scorekeeper line. */
+  scorekeeperControl?: ReactNode;
+  /** `pitch` blows the score up for the full-screen pitch mode. */
+  size?: "default" | "pitch";
 }) {
   const [picker, setPicker] = useState<{ teamId: string; delta: 1 | -1 } | null>(null);
   const returnFocus = useRef<HTMLButtonElement | null>(null);
@@ -91,6 +97,15 @@ export function MatchScoreboard({
   const selected = teams.find((team) => team.id === picker?.teamId);
   const rivals = teams.find((team) => team.id !== selected?.id)?.appearances ?? [];
   const editable = canScore && detail.status === "open";
+  const pitch = size === "pitch";
+  const hint =
+    detail.status !== "open"
+      ? "Marcador cerrado"
+      : scorekeeperControl
+        ? "Puede sumar y restar goles mientras el partido esté abierto."
+        : editable
+          ? null
+          : "El organizador y el planillero cargan los goles";
   const choices = selected
     ? [
         ...selected.appearances
@@ -123,40 +138,50 @@ export function MatchScoreboard({
     : [];
 
   return (
-    <Card className="gap-0 rounded-xl py-0">
-      <p className="px-4 py-3 text-sm text-muted-foreground">
-        {detail.scorekeeperName ? `Planillero: ${detail.scorekeeperName}` : "Sin planillero"}
-      </p>
-      <Separator />
+    <Card className={cn("gap-0 py-0", pitch && "rounded-xl")}>
       <div className="grid grid-cols-2 divide-x">
         {teams.map((team) => {
           const score = detail.score.find((row) => row.teamId === team.id)?.goals ?? 0;
           return (
             <section
               key={team.id}
-              className="relative flex min-h-72 flex-col items-center gap-4 px-3 py-6 sm:min-h-80"
+              aria-label={team.displayName}
+              className={cn(
+                "flex min-w-0 flex-col items-center gap-3 px-3 py-5 sm:py-6",
+                pitch && "gap-6 py-8 sm:py-12",
+              )}
             >
-              <span
+              <h3
                 className={cn(
-                  "absolute inset-x-0 top-0 h-1",
-                  team.slot === 1 ? "bg-team-blue" : "bg-team-amber",
+                  "flex max-w-full items-center gap-2 text-sm font-semibold",
+                  pitch && "text-base",
                 )}
-                aria-hidden="true"
-              />
-              <h3 className="max-w-full truncate text-sm font-bold text-muted-foreground">
-                {team.displayName}
+              >
+                <span
+                  className={cn(
+                    "size-2 shrink-0 rounded-full",
+                    team.slot === 1 ? "bg-team-blue" : "bg-team-amber",
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="truncate">{team.displayName}</span>
               </h3>
               <output
                 aria-label={`Marcador de ${team.displayName}`}
-                className="text-[clamp(4.5rem,16vw,10rem)] font-black leading-none tabular-nums"
+                className={cn(
+                  "font-black leading-none tabular-nums",
+                  pitch ? "text-8xl sm:text-9xl" : "text-6xl sm:text-7xl",
+                )}
               >
                 {score}
               </output>
               {editable ? (
-                <div className="flex w-full max-w-56 flex-wrap justify-center gap-2">
+                <div className="flex w-full max-w-60 flex-wrap justify-center gap-2">
                   <Button
                     aria-label={`Restar un gol a ${team.displayName}`}
+                    className="flex-1"
                     disabled={pending || score === 0}
+                    size={pitch ? "lg" : "default"}
                     variant="outline"
                     onClick={(event) => {
                       returnFocus.current = event.currentTarget;
@@ -168,7 +193,9 @@ export function MatchScoreboard({
                   </Button>
                   <Button
                     aria-label={`Sumar un gol a ${team.displayName}`}
+                    className="flex-1"
                     disabled={pending}
+                    size={pitch ? "lg" : "default"}
                     variant={team.slot === 1 ? "team-blue" : "team-amber"}
                     onClick={(event) => {
                       returnFocus.current = event.currentTarget;
@@ -179,16 +206,19 @@ export function MatchScoreboard({
                     Gol
                   </Button>
                 </div>
-              ) : (
-                <p className="text-center text-xs text-muted-foreground">
-                  {detail.status === "open"
-                    ? "El organizador y el planillero cargan los goles"
-                    : "Marcador cerrado"}
-                </p>
-              )}
+              ) : null}
             </section>
           );
         })}
+      </div>
+      <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-2">
+        <div className="flex min-w-0 flex-col">
+          <p className="text-sm">
+            {detail.scorekeeperName ? `Planillero: ${detail.scorekeeperName}` : "Sin planillero"}
+          </p>
+          {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+        </div>
+        {scorekeeperControl}
       </div>
       <Sheet
         open={picker !== null}

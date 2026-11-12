@@ -3,22 +3,7 @@
 import type { MatchInvitation as MatchInvitationData } from "@hay-fulbo/api/match-invite-access";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@hay-fulbo/ui/components/card";
 import { Field, FieldLabel } from "@hay-fulbo/ui/components/field";
-import {
-  Item,
-  ItemContent,
-  ItemDescription,
-  ItemMedia,
-  ItemTitle,
-} from "@hay-fulbo/ui/components/item";
-import { Separator } from "@hay-fulbo/ui/components/separator";
 import {
   Select,
   SelectContent,
@@ -33,7 +18,7 @@ import { CalendarPlusIcon, MapPinIcon, MessageCircleIcon, UsersIcon, XIcon } fro
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { LogoMark } from "@/components/logo-mark";
+import { PublicShell } from "@/components/public-shell";
 import {
   buildCalendarIcs,
   buildMatchMessage,
@@ -103,163 +88,141 @@ export function MatchInvitation({
     downloadCalendar(`hay-fulbo-${invitation.match.id}.ics`, contents);
   }
 
+  const status = invitation.match.status;
   return (
-    <main className="min-h-svh bg-background px-4 py-6 sm:py-10">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <LogoMark className="size-10" />
-            <div>
-              <p className="font-bold tracking-tight">Hay Fulbo</p>
-              <p className="text-xs text-muted-foreground">{invitation.group.name}</p>
-            </div>
-          </div>
-          <Badge variant={invitation.match.status === "open" ? "outline" : "secondary"}>
-            {invitation.match.status === "open"
-              ? "Convocatoria abierta"
-              : invitation.match.status === "cancelled"
-                ? "Partido cancelado"
-                : "Partido cerrado"}
-          </Badge>
-        </header>
+    <PublicShell width="lg">
+      <section className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            {invitation.group.name}
+            <Badge variant={status === "open" ? "outline" : "secondary"}>
+              {status === "open"
+                ? "Convocatoria abierta"
+                : status === "cancelled"
+                  ? "Partido cancelado"
+                  : "Partido cerrado"}
+            </Badge>
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-balance first-letter:uppercase sm:text-3xl">
+            {formatMatchDate(invitation.match.scheduledAt, invitation.group.timeZone)}
+          </h1>
+          <p className="text-base text-muted-foreground">
+            {formatMatchTime(invitation.match.scheduledAt, invitation.group.timeZone)}
+            {invitation.match.court ? ` · ${invitation.match.court.name}` : " · Cancha a definir"}
+          </p>
+        </div>
 
-        <Card className="overflow-hidden">
-          <CardHeader className="border-b">
-            <p className="eyebrow text-primary-text">
-              {invitation.match.status === "open" ? "Próximo partido" : "Partido"}
-            </p>
-            <h1 className="text-3xl font-bold">
-              {formatMatchDate(invitation.match.scheduledAt, invitation.group.timeZone)}
-            </h1>
-            <CardDescription className="text-base">
-              {formatMatchTime(invitation.match.scheduledAt, invitation.group.timeZone)}
-              {invitation.match.court ? ` · ${invitation.match.court.name}` : " · Cancha a definir"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6 py-6 sm:flex-row">
-            <p className="flex items-center gap-3 text-lg font-semibold sm:flex-[1_1_0]">
-              <UsersIcon className="size-5 text-primary-text" aria-hidden="true" />
+        <dl className="flex flex-col divide-y divide-border border-y">
+          <div className="flex items-center gap-3 py-3">
+            <UsersIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+            <dt className="sr-only">Jugadores</dt>
+            <dd className="text-sm font-medium">
               {invitation.summary.playing}{" "}
               {invitation.summary.playing === 1 ? "anotado" : "anotados"}
-            </p>
-            <Separator className="sm:hidden" />
-            <Separator className="hidden sm:block" orientation="vertical" />
-            <div className="flex flex-col justify-center gap-3 sm:flex-[0.85_1_0]">
-              {invitation.match.court ? (
-                <Item
-                  size="sm"
-                  className="p-2"
-                  render={
-                    <a href={invitation.match.court.mapsUrl} rel="noreferrer" target="_blank" />
-                  }
+            </dd>
+          </div>
+          {invitation.match.court ? (
+            <div className="flex items-center gap-3 py-3">
+              <MapPinIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+              <dt className="sr-only">Cancha</dt>
+              <dd className="min-w-0 text-sm">
+                <a
+                  className="font-medium underline-offset-4 hover:underline"
+                  href={invitation.match.court.mapsUrl}
+                  rel="noreferrer"
+                  target="_blank"
                 >
-                  <ItemMedia variant="icon" className="text-primary-text">
-                    <MapPinIcon aria-hidden="true" />
-                  </ItemMedia>
-                  <ItemContent>
-                    <ItemTitle>{invitation.match.court.name}</ItemTitle>
-                    <ItemDescription>{invitation.match.court.address}</ItemDescription>
-                  </ItemContent>
-                </Item>
-              ) : null}
-              {invitation.match.estimatedPerPlayerMinor ? (
-                <Item variant="outline" size="sm" className="px-3 py-2">
-                  <ItemContent className="gap-0">
-                    <p className="text-xs text-muted-foreground">Estimado por jugador</p>
-                    <strong className="text-lg tabular-nums">
-                      {formatMoney(
-                        invitation.match.estimatedPerPlayerMinor,
-                        invitation.group.currency,
-                      )}
-                    </strong>
-                  </ItemContent>
-                </Item>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {invitation.match.status === "cancelled"
-                    ? "Este partido no genera aportes."
-                    : "El aporte se define cuando estén el costo y los jugadores."}
-                </p>
-              )}
+                  {invitation.match.court.name}
+                </a>
+                <span className="block text-muted-foreground">
+                  {invitation.match.court.address}
+                </span>
+              </dd>
             </div>
-          </CardContent>
-        </Card>
+          ) : null}
+          <div className="flex items-center justify-between gap-3 py-3 text-sm">
+            <dt className="text-muted-foreground">Estimado por jugador</dt>
+            <dd className="font-medium tabular-nums">
+              {invitation.match.estimatedPerPlayerMinor
+                ? formatMoney(invitation.match.estimatedPerPlayerMinor, invitation.group.currency)
+                : status === "cancelled"
+                  ? "Sin aportes"
+                  : "A definir"}
+            </dd>
+          </div>
+        </dl>
+      </section>
 
-        {invitation.match.status === "open" ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>¿Jugás?</CardTitle>
-              <CardDescription>Elegí tu nombre y anotate. No necesitás una cuenta.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <Field>
-                <FieldLabel htmlFor="rsvp-player">Tu nombre</FieldLabel>
-                <Select items={playerOptions} value={playerId} onValueChange={setPlayerId}>
-                  <SelectTrigger id="rsvp-player" className="w-full">
-                    <SelectValue placeholder="Elegí tu nombre">{selected?.displayName}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {invitation.players.map((player) => (
-                        <SelectItem key={player.id} value={player.id}>
-                          <span className={cn(player.joined && "font-semibold")}>
-                            {player.displayName}
-                            {player.joined ? " · Anotado" : ""}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              {selected?.joined ? (
-                <p className="text-sm text-muted-foreground">
-                  Ya estás anotado. Si algo cambió, podés bajarte.
-                </p>
-              ) : null}
-              <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
-                <Button disabled={!playerId || join.isPending} onClick={() => answer(true)}>
-                  Me sumo
-                </Button>
-                <Button
-                  disabled={!playerId || !selected?.joined || join.isPending}
-                  onClick={() => answer(false)}
-                  variant="ghost"
-                >
-                  <XIcon data-icon="inline-start" aria-hidden="true" />
-                  Bajarme
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
+      {status === "open" ? (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-semibold">¿Jugás?</h2>
+            <p className="text-sm text-muted-foreground">
+              Elegí tu nombre y anotate. No necesitás una cuenta.
+            </p>
+          </div>
+          <Field>
+            <FieldLabel htmlFor="rsvp-player">Tu nombre</FieldLabel>
+            <Select items={playerOptions} value={playerId} onValueChange={setPlayerId}>
+              <SelectTrigger id="rsvp-player" className="w-full">
+                <SelectValue placeholder="Elegí tu nombre">{selected?.displayName}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {invitation.players.map((player) => (
+                    <SelectItem key={player.id} value={player.id}>
+                      <span className={cn(player.joined && "font-semibold")}>
+                        {player.displayName}
+                        {player.joined ? " · Anotado" : ""}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          {selected?.joined ? (
+            <p className="text-sm text-muted-foreground">
+              Ya estás anotado. Si algo cambió, podés bajarte.
+            </p>
+          ) : null}
+          <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
+            <Button disabled={!playerId || join.isPending} onClick={() => answer(true)}>
+              Me sumo
+            </Button>
+            <Button
+              disabled={!playerId || !selected?.joined || join.isPending}
+              onClick={() => answer(false)}
+              variant="ghost"
+            >
+              <XIcon data-icon="inline-start" aria-hidden="true" />
+              Bajarme
+            </Button>
+          </div>
+        </section>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {status === "cancelled"
+            ? "Este partido no se va a jugar. Ya no se pueden sumar jugadores."
+            : "El organizador cerró el partido. La convocatoria ya terminó."}
+        </p>
+      )}
 
-        {invitation.match.status !== "open" ? (
-          <p className="text-sm text-muted-foreground">
-            {invitation.match.status === "cancelled"
-              ? "Este partido no se va a jugar. Ya no se pueden sumar jugadores."
-              : "El organizador cerró el partido. La convocatoria ya terminó."}
-          </p>
-        ) : null}
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Button
-            onClick={() => window.open(buildWhatsAppUrl(shareMessage), "_blank", "noopener")}
-            variant="outline"
-          >
-            <MessageCircleIcon data-icon="inline-start" aria-hidden="true" />
-            Compartir por WhatsApp
-          </Button>
-          <Button
-            disabled={invitation.match.status !== "open"}
-            onClick={addToCalendar}
-            variant="outline"
-          >
-            <CalendarPlusIcon data-icon="inline-start" aria-hidden="true" />
-            Agregar al calendario
-          </Button>
-        </div>
+      <div className="flex flex-wrap gap-x-2 gap-y-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => window.open(buildWhatsAppUrl(shareMessage), "_blank", "noopener")}
+        >
+          <MessageCircleIcon data-icon="inline-start" aria-hidden="true" />
+          Compartir por WhatsApp
+        </Button>
+        <Button size="sm" variant="ghost" disabled={status !== "open"} onClick={addToCalendar}>
+          <CalendarPlusIcon data-icon="inline-start" aria-hidden="true" />
+          Agregar al calendario
+        </Button>
       </div>
-    </main>
+    </PublicShell>
   );
 }
 

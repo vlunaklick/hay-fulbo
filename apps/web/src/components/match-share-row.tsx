@@ -2,7 +2,16 @@
 
 import { Button } from "@hay-fulbo/ui/components/button";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarPlusIcon, CopyIcon, MessageCircleIcon } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@hay-fulbo/ui/components/dropdown-menu";
+import { CalendarPlusIcon, CopyIcon, MessageCircleIcon, Share2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -70,41 +79,48 @@ export function MatchShareRow({
     }
   }
 
+  const ready = Boolean(invite.data);
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {!invite.data ? (
-        <div
-          className="w-full text-sm text-muted-foreground"
-          role={invite.isError ? "alert" : "status"}
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button size="sm" variant="outline" />}>
+        <Share2Icon data-icon="inline-start" aria-hidden="true" />
+        Invitar
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        {!ready ? (
+          <>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel role={invite.isError ? "alert" : "status"}>
+                {invite.isError
+                  ? "No pudimos cargar el enlace para compartir."
+                  : "Preparando el enlace para compartir…"}
+              </DropdownMenuLabel>
+              {invite.isError ? (
+                <DropdownMenuItem closeOnClick={false} onClick={() => invite.refetch()}>
+                  Reintentar
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
+        <DropdownMenuItem
+          disabled={!message}
+          onClick={() => message && window.open(buildWhatsAppUrl(message), "_blank", "noopener")}
         >
-          {invite.isError ? (
-            <>
-              No pudimos cargar el enlace para compartir.{" "}
-              <Button variant="ghost" onClick={() => invite.refetch()}>
-                Reintentar
-              </Button>
-            </>
-          ) : (
-            "Preparando el enlace para compartir…"
-          )}
-        </div>
-      ) : null}
-      <Button
-        disabled={!message}
-        onClick={() => message && window.open(buildWhatsAppUrl(message), "_blank", "noopener")}
-        size="sm"
-      >
-        <MessageCircleIcon data-icon="inline-start" aria-hidden="true" />
-        WhatsApp
-      </Button>
-      <Button disabled={!invite.data} onClick={copyLink} size="sm" variant="outline">
-        <CopyIcon data-icon="inline-start" aria-hidden="true" />
-        Copiar link
-      </Button>
-      <Button disabled={!invite.data} onClick={addToCalendar} size="sm" variant="ghost">
-        <CalendarPlusIcon data-icon="inline-start" aria-hidden="true" />
-        Calendario
-      </Button>
-    </div>
+          <MessageCircleIcon aria-hidden="true" />
+          WhatsApp
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={!ready} onClick={copyLink}>
+          <CopyIcon aria-hidden="true" />
+          Copiar link
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={!ready} onClick={addToCalendar}>
+          <CalendarPlusIcon aria-hidden="true" />
+          Calendario
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
