@@ -232,6 +232,7 @@ La carga del Partido se organiza en tabs directas con un checklist compacto de c
 - **Empty states are compact.** Dentro de una card: una línea `text-sm text-muted-foreground`. A nivel página: una fila con icono, título, una frase y la acción, con `border-dashed`; nunca un bloque de varios cientos de píxeles vacío. `Empty` grande solo cuando la pantalla entera no tiene nada que mostrar.
 - **Card headers.** `CardHeader` + `CardTitle` + `CardAction`: la acción se centra en la línea del título (el componente ya lo resuelve; no agregar márgenes a mano).
 - **Lists over grids.** Filas de 44 px separadas por `border-t` dentro de una card, con la info principal a la izquierda y la secundaria (`text-xs text-muted-foreground`) a la derecha.
+- **Entry pages.** Las páginas a las que se llega desde un link (`/jugar`, `/sumarse`, `/invitaciones`, `/login` con `returnTo`) usan `PublicSplit`: primero el partido o grupo como un bloque destacado, después la acción en una barra fija al pulgar en móvil y en la columna derecha en escritorio. Ver `docs/prototypes/entry-flows.md`.
 - **Dates and money.** Fechas con `formatDate`/`formatShortDate` (24 h); importes con `formatMoney` y `tabular-nums`.
 
 ## Do's and Don'ts

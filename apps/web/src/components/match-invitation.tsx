@@ -1,8 +1,16 @@
 "use client";
 
 import type { MatchInvitation as MatchInvitationData } from "@hay-fulbo/api/match-invite-access";
+import { Alert, AlertDescription } from "@hay-fulbo/ui/components/alert";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+} from "@hay-fulbo/ui/components/avatar";
 import { Badge } from "@hay-fulbo/ui/components/badge";
 import { Button } from "@hay-fulbo/ui/components/button";
+import { Card, CardContent } from "@hay-fulbo/ui/components/card";
 import { Field, FieldLabel } from "@hay-fulbo/ui/components/field";
 import {
   Select,
@@ -12,13 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@hay-fulbo/ui/components/select";
+import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
-import { CalendarPlusIcon, MapPinIcon, MessageCircleIcon, UsersIcon, XIcon } from "lucide-react";
+import { CalendarPlusIcon, CheckIcon, MapPinIcon, MessageCircleIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { PublicShell } from "@/components/public-shell";
+import { PublicSplit } from "@/components/public-shell";
 import {
   buildCalendarIcs,
   buildMatchMessage,
@@ -89,83 +98,142 @@ export function MatchInvitation({
   }
 
   const status = invitation.match.status;
-  return (
-    <PublicShell width="lg">
-      <section className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            {invitation.group.name}
-            <Badge variant={status === "open" ? "outline" : "secondary"}>
-              {status === "open"
-                ? "Convocatoria abierta"
-                : status === "cancelled"
-                  ? "Partido cancelado"
-                  : "Partido cerrado"}
-            </Badge>
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-balance first-letter:uppercase sm:text-3xl">
-            {formatMatchDate(invitation.match.scheduledAt, invitation.group.timeZone)}
-          </h1>
-          <p className="text-base text-muted-foreground">
-            {formatMatchTime(invitation.match.scheduledAt, invitation.group.timeZone)}
-            {invitation.match.court ? ` · ${invitation.match.court.name}` : " · Cancha a definir"}
-          </p>
-        </div>
+  const open = status === "open";
+  const joined = invitation.players.filter((player) => player.joined);
+  const shown = joined.slice(0, 5);
 
-        <dl className="flex flex-col divide-y divide-border border-y">
-          <div className="flex items-center gap-3 py-3">
-            <UsersIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-            <dt className="sr-only">Jugadores</dt>
-            <dd className="text-sm font-medium">
-              {invitation.summary.playing}{" "}
-              {invitation.summary.playing === 1 ? "anotado" : "anotados"}
-            </dd>
+  const context = (
+    <>
+      <Card className="rounded-xl">
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex items-start justify-between gap-3">
+            <p className="line-clamp-2 text-sm text-muted-foreground">{invitation.group.name}</p>
+            <Badge
+              variant={open ? "outline" : status === "cancelled" ? "destructive" : "secondary"}
+            >
+              {open ? "Convocatoria abierta" : status === "cancelled" ? "Cancelado" : "Cerrado"}
+            </Badge>
           </div>
-          {invitation.match.court ? (
-            <div className="flex items-center gap-3 py-3">
-              <MapPinIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-              <dt className="sr-only">Cancha</dt>
-              <dd className="min-w-0 text-sm">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-xl font-bold text-balance first-letter:uppercase">
+              {formatMatchDate(invitation.match.scheduledAt, invitation.group.timeZone)}
+            </h1>
+            <p className="text-6xl leading-none font-black tracking-tight tabular-nums">
+              {formatMatchTime(invitation.match.scheduledAt, invitation.group.timeZone)}
+            </p>
+          </div>
+          <div className="flex items-start gap-3">
+            <MapPinIcon className="mt-0.5 size-4 text-muted-foreground" aria-hidden="true" />
+            {invitation.match.court ? (
+              <div className="min-w-0 text-sm">
                 <a
-                  className="font-medium underline-offset-4 hover:underline"
+                  className="font-semibold underline-offset-4 hover:underline"
                   href={invitation.match.court.mapsUrl}
                   rel="noreferrer"
                   target="_blank"
                 >
                   {invitation.match.court.name}
                 </a>
-                <span className="block text-muted-foreground">
-                  {invitation.match.court.address}
+                <p className="text-muted-foreground">{invitation.match.court.address}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Cancha a definir</p>
+            )}
+          </div>
+          <dl className="grid grid-cols-2 divide-x border-t pt-5">
+            <div className="flex flex-col gap-1 pr-4">
+              <dt className="text-xs font-medium text-muted-foreground">Anotados</dt>
+              <dd className="flex items-center gap-2">
+                <span className="text-lg font-semibold tabular-nums">
+                  {invitation.summary.playing}
                 </span>
+                {shown.length > 0 ? (
+                  <AvatarGroup aria-hidden="true">
+                    {shown.map((player) => (
+                      <Avatar key={player.id} size="sm">
+                        <AvatarFallback>
+                          {player.displayName.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                    {joined.length > shown.length ? (
+                      <AvatarGroupCount className="text-xs">
+                        +{joined.length - shown.length}
+                      </AvatarGroupCount>
+                    ) : null}
+                  </AvatarGroup>
+                ) : null}
               </dd>
             </div>
-          ) : null}
-          <div className="flex items-center justify-between gap-3 py-3 text-sm">
-            <dt className="text-muted-foreground">Estimado por jugador</dt>
-            <dd className="font-medium tabular-nums">
-              {invitation.match.estimatedPerPlayerMinor
-                ? formatMoney(invitation.match.estimatedPerPlayerMinor, invitation.group.currency)
-                : status === "cancelled"
-                  ? "Sin aportes"
-                  : "A definir"}
-            </dd>
-          </div>
-        </dl>
-      </section>
+            <div className="flex flex-col gap-1 pl-4">
+              <dt className="text-xs font-medium text-muted-foreground">Estimado por jugador</dt>
+              <dd className="text-lg font-semibold tabular-nums">
+                {invitation.match.estimatedPerPlayerMinor
+                  ? formatMoney(invitation.match.estimatedPerPlayerMinor, invitation.group.currency)
+                  : status === "cancelled"
+                    ? "Sin aportes"
+                    : "A definir"}
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
+      <div className="flex flex-wrap gap-x-2 gap-y-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => window.open(buildWhatsAppUrl(shareMessage), "_blank", "noopener")}
+        >
+          <MessageCircleIcon data-icon="inline-start" aria-hidden="true" />
+          Compartir por WhatsApp
+        </Button>
+        <Button size="sm" variant="ghost" disabled={!open} onClick={addToCalendar}>
+          <CalendarPlusIcon data-icon="inline-start" aria-hidden="true" />
+          Agregar al calendario
+        </Button>
+      </div>
+    </>
+  );
 
-      {status === "open" ? (
-        <section className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold">¿Jugás?</h2>
-            <p className="text-sm text-muted-foreground">
-              Elegí tu nombre y anotate. No necesitás una cuenta.
-            </p>
-          </div>
+  if (!open) {
+    return (
+      <PublicSplit
+        context={context}
+        action={
+          <Alert variant={status === "cancelled" ? "destructive" : "default"}>
+            <AlertDescription>
+              {status === "cancelled"
+                ? "Este partido no se va a jugar. Ya no se pueden sumar jugadores."
+                : "El organizador cerró el partido. La convocatoria ya terminó."}
+            </AlertDescription>
+          </Alert>
+        }
+      />
+    );
+  }
+
+  return (
+    <PublicSplit
+      context={context}
+      action={
+        <div className="hidden flex-col gap-1 lg:flex">
+          <h2 className="text-lg font-semibold">¿Jugás?</h2>
+          <p className="text-sm text-muted-foreground">
+            Elegí tu nombre y anotate. No necesitás una cuenta.
+          </p>
+        </div>
+      }
+      bar={
+        <>
           <Field>
-            <FieldLabel htmlFor="rsvp-player">Tu nombre</FieldLabel>
+            <FieldLabel htmlFor="rsvp-player" className="sr-only lg:not-sr-only">
+              Tu nombre
+            </FieldLabel>
             <Select items={playerOptions} value={playerId} onValueChange={setPlayerId}>
-              <SelectTrigger id="rsvp-player" className="w-full">
-                <SelectValue placeholder="Elegí tu nombre">{selected?.displayName}</SelectValue>
+              <SelectTrigger id="rsvp-player" className="w-full text-base md:text-sm">
+                <SelectValue placeholder="¿Quién sos? Elegí tu nombre">
+                  {selected?.displayName}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -182,47 +250,29 @@ export function MatchInvitation({
             </Select>
           </Field>
           {selected?.joined ? (
-            <p className="text-sm text-muted-foreground">
-              Ya estás anotado. Si algo cambió, podés bajarte.
-            </p>
-          ) : null}
-          <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
+            <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+              <p className="flex items-center gap-2 text-sm font-medium">
+                <CheckIcon className="size-4 text-success" aria-hidden="true" />
+                Estás anotado
+              </p>
+              <Button variant="ghost" disabled={join.isPending} onClick={() => answer(false)}>
+                {join.isPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <XIcon data-icon="inline-start" aria-hidden="true" />
+                )}
+                Bajarme
+              </Button>
+            </div>
+          ) : (
             <Button disabled={!playerId || join.isPending} onClick={() => answer(true)}>
-              Me sumo
+              {join.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {join.isPending ? "Anotándote…" : "Me sumo"}
             </Button>
-            <Button
-              disabled={!playerId || !selected?.joined || join.isPending}
-              onClick={() => answer(false)}
-              variant="ghost"
-            >
-              <XIcon data-icon="inline-start" aria-hidden="true" />
-              Bajarme
-            </Button>
-          </div>
-        </section>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          {status === "cancelled"
-            ? "Este partido no se va a jugar. Ya no se pueden sumar jugadores."
-            : "El organizador cerró el partido. La convocatoria ya terminó."}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-x-2 gap-y-1">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => window.open(buildWhatsAppUrl(shareMessage), "_blank", "noopener")}
-        >
-          <MessageCircleIcon data-icon="inline-start" aria-hidden="true" />
-          Compartir por WhatsApp
-        </Button>
-        <Button size="sm" variant="ghost" disabled={status !== "open"} onClick={addToCalendar}>
-          <CalendarPlusIcon data-icon="inline-start" aria-hidden="true" />
-          Agregar al calendario
-        </Button>
-      </div>
-    </PublicShell>
+          )}
+        </>
+      }
+    />
   );
 }
 

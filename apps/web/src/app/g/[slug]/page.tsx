@@ -1,15 +1,4 @@
-import { Suspense } from "react";
-
-import { PublicStatsDashboard } from "@/features/stats/stats-dashboard";
-import { StatsLoading } from "@/features/stats/stats-loading";
-
-export default async function PublicGroupPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  return (
-    <>
-      <Suspense fallback={<StatsLoading />}>
-        <PublicStatsDashboard slug={slug} />
-      </Suspense>
-    </>
-  );
+// Rendered by the layout's shared view, which reads this route from the URL.
+export default function Page() {
+  return null;
 }
