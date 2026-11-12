@@ -28,37 +28,41 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@hay-fulbo/ui/components/input-group";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@hay-fulbo/ui/components/sheet";
 import { Skeleton } from "@hay-fulbo/ui/components/skeleton";
 import { Spinner } from "@hay-fulbo/ui/components/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@hay-fulbo/ui/components/toggle-group";
+import { useIsMobile } from "@hay-fulbo/ui/hooks/use-mobile";
 import { cn } from "@hay-fulbo/ui/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ArrowRightLeftIcon,
   CheckIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   CircleAlertIcon,
   CopyIcon,
   EllipsisIcon,
-  GlobeIcon,
   LinkIcon,
   PlusIcon,
   RefreshCwIcon,
   Share2Icon,
-  StarIcon,
   Trash2Icon,
   UnlinkIcon,
   UsersRoundIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppContext } from "@/components/app-shell";
 import { GroupCreateDialog } from "@/components/group-switcher";
-import { PageHeader } from "@/components/page-header";
+import { DrillList, DrillRow, HeroNumber, NextStep, StatusHeader } from "@/components/next-step";
 import { initials } from "@/lib/initials";
 import { queryClient, trpc } from "@/utils/trpc";
 
@@ -74,18 +78,33 @@ type GroupMember = {
 type RatingQuorum = "all_voted" | "half_plus_one" | "first_vote";
 
 /**
- * The group's home. Phones show the hub and drill into one topic at a time
- * (`?tema=`, so the system back gesture returns to the hub); desktop shows the
- * hub beside the open topic.
+ * The group's home, "Próximo paso" style: header → people count → what is pending →
+ * one row per topic. Each topic opens in a Sheet whose open state lives in `?tema=`,
+ * so the phone's back gesture closes it and other screens can deep-link to it.
  */
 const topics = {
-  integrantes: "Integrantes",
-  invitar: "Link para sumarse",
-  publico: "Vista pública",
-  notas: "Notas entre jugadores",
+  integrantes: { title: "Integrantes", description: "Quién está en el grupo y qué puede hacer." },
+  invitar: {
+    title: "Link para sumarse",
+    description: "Cualquiera con este link crea su cuenta o entra, y queda como miembro.",
+  },
+  publico: {
+    title: "Vista pública",
+    description:
+      "Cualquiera con la dirección ve partidos, resultados y estadísticas. Los pagos nunca se muestran.",
+  },
+  notas: {
+    title: "Notas entre jugadores",
+    description:
+      "Los que jugaron se ponen notas del 1 al 10. Son anónimas y los promedios se ven al llegar al quórum.",
+  },
+  grupos: { title: "Tus grupos", description: "Cambiá de grupo o armá uno nuevo." },
 } as const;
 
 type Topic = keyof typeof topics;
+
+/** Topics only the owner can open. */
+const ownerTopics: readonly Topic[] = ["integrantes", "invitar", "publico", "notas"];
 
 function parseTopic(value: string | null): Topic | null {
   return value && value in topics ? (value as Topic) : null;
@@ -102,238 +121,237 @@ const roleHint = {
   leader: "Puede editar partidos, jugadores y canchas.",
 } as const;
 
-const quorumOptions: { value: RatingQuorum; label: string; hint: string }[] = [
+const quorumOptions: { value: RatingQuorum; label: string; short: string; hint: string }[] = [
   {
     value: "all_voted",
     label: "Cuando voten todos",
+    short: "Votan todos",
     hint: "El promedio aparece recién con el último voto.",
   },
   {
     value: "half_plus_one",
     label: "Con mitad más uno",
+    short: "Mitad más uno",
     hint: "Alcanza con que vote la mayoría de los que jugaron.",
   },
   {
     value: "first_vote",
     label: "Con el primer voto completo",
+    short: "Primer voto",
     hint: "Se revela apenas alguien vota a todos.",
   },
 ];
 
-export function GroupMembersPage() {
-  const { role } = useAppContext();
-  const router = useRouter();
-  const opened = parseTopic(useSearchParams().get("tema"));
-  const topic = opened ?? "integrantes";
-  const focusDetail = useRef(false);
+const BASE_PATH = "/dashboard/grupo";
 
-  if (role !== "owner") {
-    return (
-      <Alert>
-        <CircleAlertIcon aria-hidden="true" />
-        <AlertTitle>Solo para el responsable del grupo</AlertTitle>
-        <AlertDescription>
-          Los líderes pueden administrar partidos, jugadores y canchas, pero no los permisos del
-          grupo.
-        </AlertDescription>
-      </Alert>
-    );
-  }
+export function GroupMembersPage() {
+  const { groupName, role } = useAppContext();
+  const router = useRouter();
+  const isOwner = role === "owner";
+  const requested = parseTopic(useSearchParams().get("tema"));
+  const opened = requested && (isOwner || !ownerTopics.includes(requested)) ? requested : null;
+  // Keep the last topic rendered while the sheet animates out.
+  const [shown, setShown] = useState<Topic | null>(opened);
+  if (opened && opened !== shown) setShown(opened);
+  const pushed = useRef(false);
 
   function open(next: Topic) {
-    focusDetail.current = true;
-    router.push(`/dashboard/grupo?tema=${next}`);
+    pushed.current = true;
+    router.push(`${BASE_PATH}?tema=${next}`, { scroll: false });
+  }
+
+  function close() {
+    if (pushed.current) {
+      pushed.current = false;
+      router.back();
+    } else {
+      router.replace(BASE_PATH, { scroll: false });
+    }
   }
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] md:items-start">
-      <div className={cn("flex flex-col gap-8 md:sticky md:top-8", opened && "max-md:hidden")}>
-        <GroupHub topic={topic} onOpen={open} />
-      </div>
-      <div className={cn("flex min-w-0 flex-col gap-4", !opened && "max-md:hidden")}>
-        <Button
-          variant="ghost"
-          nativeButton={false}
-          render={<Link href="/dashboard/grupo" />}
-          className="-ml-3 self-start md:hidden"
-        >
-          <ChevronLeftIcon data-icon="inline-start" aria-hidden="true" />
-          Grupo
-        </Button>
-        <section aria-labelledby="group-topic" className="flex flex-col gap-4">
-          <h2
-            // Keyed on the URL topic so opening one from the hub remounts the heading and focuses it.
-            key={opened ?? "default"}
-            id="group-topic"
-            tabIndex={-1}
-            // Moving between topics swaps the whole view on phones: land focus on the new heading.
-            ref={(node) => {
-              if (node && focusDetail.current) {
-                focusDetail.current = false;
-                node.focus();
-              }
-            }}
-            className="text-xl font-bold tracking-tight outline-none"
-          >
-            {topics[topic]}
-          </h2>
-          {topic === "integrantes" ? <MembersTopic /> : null}
-          {topic === "invitar" ? <InviteTopic /> : null}
-          {topic === "publico" ? <PublicTopic /> : null}
-          {topic === "notas" ? <QuorumTopic /> : null}
-        </section>
-      </div>
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+      <StatusHeader
+        title={groupName}
+        meta={isOwner ? "Vos sos el responsable" : `Vos sos ${roleLabel[role].toLowerCase()}`}
+      />
+      {isOwner ? (
+        <OwnerHub onOpen={open} />
+      ) : (
+        <>
+          <Alert>
+            <CircleAlertIcon aria-hidden="true" />
+            <AlertTitle>Solo para el responsable del grupo</AlertTitle>
+            <AlertDescription>
+              Los líderes pueden administrar partidos, jugadores y canchas, pero no los permisos del
+              grupo.
+            </AlertDescription>
+          </Alert>
+          <DrillList>
+            <GroupsRow onOpen={open} />
+          </DrillList>
+        </>
+      )}
+      <TopicSheet topic={shown} open={opened !== null} onClose={close} />
     </div>
   );
 }
 
-function GroupHub({ topic, onOpen }: { topic: Topic; onOpen: (topic: Topic) => void }) {
+function OwnerHub({ onOpen }: { onOpen: (topic: Topic) => void }) {
   const { activeGroupId, groupName } = useAppContext();
-  const router = useRouter();
-  const [createOpen, setCreateOpen] = useState(false);
   const directory = useQuery(trpc.matches.directory.queryOptions());
   const joinLink = useQuery(trpc.group.joinLink.status.queryOptions({ groupId: activeGroupId }));
   const settings = useQuery(trpc.group.settings.read.queryOptions({ groupId: activeGroupId }));
-  const groups = useQuery(trpc.group.list.queryOptions());
-  const select = useMutation(
-    trpc.group.select.mutationOptions({
-      onSuccess: () => {
-        queryClient.clear();
-        router.push("/dashboard");
-        router.refresh();
-      },
-      onError: (error) =>
-        toast.error("No pudimos cambiar de grupo", { description: error.message }),
-    }),
-  );
+  const renew = useRenewJoinLink({ onRenewed: () => onOpen("invitar") });
 
   const members = directory.data?.members as GroupMember[] | undefined;
   const leaders = members?.filter((member) => member.role === "leader").length ?? 0;
-  const others = groups.data?.filter((group) => group.id !== activeGroupId) ?? [];
-  const quorum = quorumOptions.find((option) => option.value === settings.data?.ratingQuorum);
+  const quorum = settings.data
+    ? (quorumOptions.find((option) => option.value === settings.data?.ratingQuorum) ??
+      quorumOptions[0]!)
+    : null;
+  const activeUrl = joinLink.data?.active ? joinLink.data.url : null;
+  const loading = <Skeleton className="h-4 w-14" />;
 
   return (
     <>
-      <PageHeader title={groupName} />
+      {directory.isError ? (
+        <Alert variant="destructive">
+          <CircleAlertIcon aria-hidden="true" />
+          <AlertTitle>No pudimos cargar el grupo</AlertTitle>
+          <AlertDescription>{directory.error.message}</AlertDescription>
+        </Alert>
+      ) : members ? (
+        <HeroNumber
+          caption={leaders > 0 ? `${leaders} ${leaders === 1 ? "líder" : "líderes"}` : undefined}
+          className="py-2"
+        >
+          {members.length}
+          <span className="ml-2 text-2xl font-bold">
+            {members.length === 1 ? "persona" : "personas"}
+          </span>
+        </HeroNumber>
+      ) : (
+        <Skeleton className="mx-auto h-16 w-48" />
+      )}
 
-      <RowGroup label="Personas">
-        <HubRow
-          icon={<UsersRoundIcon aria-hidden="true" />}
-          label={topics.integrantes}
-          value={
-            members ? (
-              <span className="tabular-nums">
-                {members.length} · {leaders} {leaders === 1 ? "líder" : "líderes"}
-              </span>
-            ) : null
-          }
-          active={topic === "integrantes"}
+      {members && joinLink.data ? (
+        members.length <= 1 ? (
+          <NextStep
+            kicker="Estás solo en el grupo"
+            title="Invitá a los que juegan"
+            action={
+              activeUrl ? (
+                <Button onClick={() => shareLink(activeUrl, groupName)}>
+                  <Share2Icon data-icon="inline-start" aria-hidden="true" />
+                  Compartir link
+                </Button>
+              ) : (
+                <CreateLinkButton renew={renew} groupId={activeGroupId} />
+              )
+            }
+          >
+            Con el link entran solos y quedan como miembros.
+          </NextStep>
+        ) : !joinLink.data.active ? (
+          <NextStep
+            kicker="El link para sumarse está apagado"
+            title="Nadie nuevo puede entrar"
+            action={<CreateLinkButton renew={renew} groupId={activeGroupId} />}
+          >
+            Creá un link nuevo cuando quieras sumar gente.
+          </NextStep>
+        ) : null
+      ) : null}
+
+      <DrillList>
+        <DrillRow
+          label={topics.integrantes.title}
+          value={members ? members.length : loading}
           onClick={() => onOpen("integrantes")}
         />
-        <HubRow
-          icon={<LinkIcon aria-hidden="true" />}
-          label={topics.invitar}
-          value={joinLink.data ? (joinLink.data.active ? "Activo" : "Desactivado") : null}
-          active={topic === "invitar"}
+        <DrillRow
+          label={topics.invitar.title}
+          value={joinLink.data ? (joinLink.data.active ? "Activo" : "Apagado") : loading}
           onClick={() => onOpen("invitar")}
         />
-      </RowGroup>
-
-      <RowGroup label="Lo que se ve afuera">
-        <HubRow
-          icon={<GlobeIcon aria-hidden="true" />}
-          label={topics.publico}
-          value={settings.data ? (settings.data.publicVisibility ? "Activa" : "Privado") : null}
-          active={topic === "publico"}
+        <DrillRow
+          label={topics.publico.title}
+          value={settings.data ? (settings.data.publicVisibility ? "Pública" : "Privada") : loading}
           onClick={() => onOpen("publico")}
         />
-        <HubRow
-          icon={<StarIcon aria-hidden="true" />}
+        <DrillRow
           label="Notas"
-          value={settings.data ? (quorum?.label ?? quorumOptions[0]!.label) : null}
-          active={topic === "notas"}
+          value={quorum ? quorum.short : loading}
           onClick={() => onOpen("notas")}
         />
-      </RowGroup>
-
-      <RowGroup label={others.length ? "Tus otros grupos" : "Otros grupos"}>
-        {others.map((group) => (
-          <button
-            key={group.id}
-            type="button"
-            disabled={select.isPending}
-            onClick={() => select.mutate({ groupId: group.id })}
-            aria-label={`Cambiar a ${group.name}`}
-            className={rowClass}
-          >
-            <span
-              aria-hidden="true"
-              className="grid size-7 shrink-0 place-items-center rounded-md bg-secondary text-xs font-bold text-secondary-foreground"
-            >
-              {initials(group.name)}
-            </span>
-            <span className="min-w-0 flex-1 truncate font-medium">{group.name}</span>
-            {select.isPending && select.variables?.groupId === group.id ? (
-              <Spinner />
-            ) : (
-              <ArrowRightLeftIcon aria-hidden="true" />
-            )}
-          </button>
-        ))}
-        <button type="button" onClick={() => setCreateOpen(true)} className={rowClass}>
-          <PlusIcon aria-hidden="true" />
-          <span className="flex-1 font-medium">Crear grupo</span>
-        </button>
-      </RowGroup>
-      <GroupCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
+        <GroupsRow onOpen={onOpen} />
+      </DrillList>
     </>
   );
 }
 
-const rowClass =
-  "flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors duration-150 ease-out outline-none hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset active:bg-muted disabled:opacity-60 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-muted-foreground";
-
-function RowGroup({ label, children }: { label: string; children: React.ReactNode }) {
+function GroupsRow({ onOpen }: { onOpen: (topic: Topic) => void }) {
+  const groups = useQuery(trpc.group.list.queryOptions());
   return (
-    <div className="flex flex-col gap-2">
-      <h2 className="px-1 text-xs font-medium text-muted-foreground">{label}</h2>
-      <div className="flex flex-col divide-y overflow-hidden rounded-lg border bg-card">
-        {children}
-      </div>
-    </div>
+    <DrillRow
+      label={topics.grupos.title}
+      value={groups.data ? groups.data.length : <Skeleton className="h-4 w-6" />}
+      onClick={() => onOpen("grupos")}
+    />
   );
 }
 
-function HubRow({
-  icon,
-  label,
-  value,
-  active,
-  onClick,
+function CreateLinkButton({
+  groupId,
+  renew,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  /** null while loading. */
-  value: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
+  groupId: string;
+  renew: ReturnType<typeof useRenewJoinLink>;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-current={active ? "true" : undefined}
-      className={cn(rowClass, "md:aria-current:bg-muted")}
-    >
-      {icon}
-      <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
-      {value === null ? (
-        <Skeleton className="h-4 w-16" />
+    <Button disabled={renew.isPending} onClick={() => renew.mutate({ groupId })}>
+      {renew.isPending ? (
+        <Spinner data-icon="inline-start" />
       ) : (
-        <span className="min-w-0 shrink truncate text-muted-foreground">{value}</span>
+        <LinkIcon data-icon="inline-start" aria-hidden="true" />
       )}
-      <ChevronRightIcon aria-hidden="true" />
-    </button>
+      {renew.isPending ? "Creando…" : "Crear link"}
+    </Button>
+  );
+}
+
+function TopicSheet({
+  topic,
+  open,
+  onClose,
+}: {
+  topic: Topic | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const isMobile = useIsMobile();
+  const copy = topic ? topics[topic] : null;
+
+  return (
+    <Sheet open={open} onOpenChange={(next) => (next ? null : onClose())}>
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        className="max-h-[92dvh] md:max-h-none md:max-w-md"
+      >
+        <SheetHeader>
+          <SheetTitle className="text-balance">{copy?.title ?? ""}</SheetTitle>
+          {copy ? <SheetDescription>{copy.description}</SheetDescription> : null}
+        </SheetHeader>
+        <SheetBody className="flex flex-col gap-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          {topic === "integrantes" ? <MembersTopic /> : null}
+          {topic === "invitar" ? <InviteTopic /> : null}
+          {topic === "publico" ? <PublicTopic /> : null}
+          {topic === "notas" ? <QuorumTopic /> : null}
+          {topic === "grupos" ? <GroupsTopic /> : null}
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -367,12 +385,9 @@ function MembersTopic() {
   return (
     <>
       {directory.isPending ? (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-2">
           {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton
-              key={index}
-              className="h-14 w-full rounded-none first:rounded-t-lg last:rounded-b-lg"
-            />
+            <Skeleton key={index} className="h-12 w-full" />
           ))}
         </div>
       ) : directory.isError ? (
@@ -382,12 +397,9 @@ function MembersTopic() {
           <AlertDescription>{directory.error.message}</AlertDescription>
         </Alert>
       ) : (
-        <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+        <ul aria-label="Integrantes del grupo" className="-my-2 flex flex-col divide-y">
           {(directory.data.members as GroupMember[]).map((member) => (
-            <li
-              key={member.membershipId}
-              className="flex min-h-14 items-center gap-3 py-2 pr-2 pl-4"
-            >
+            <li key={member.membershipId} className="flex min-h-14 items-center gap-3 py-2">
               <Avatar>
                 <AvatarFallback>{initials(member.name)}</AvatarFallback>
               </Avatar>
@@ -504,28 +516,37 @@ function MembersTopic() {
   );
 }
 
-function InviteTopic() {
-  const { activeGroupId, groupName } = useAppContext();
-  const joinLink = useQuery(trpc.group.joinLink.status.queryOptions({ groupId: activeGroupId }));
-  const invalidate = () =>
-    queryClient.invalidateQueries({
-      queryKey: trpc.group.joinLink.status.queryKey({ groupId: activeGroupId }),
-    });
-  const renew = useMutation(
+function invalidateJoinLink(groupId: string) {
+  return queryClient.invalidateQueries({
+    queryKey: trpc.group.joinLink.status.queryKey({ groupId }),
+  });
+}
+
+/** Creates (or replaces) the join link and copies it. */
+function useRenewJoinLink({ onRenewed }: { onRenewed?: () => void } = {}) {
+  const { activeGroupId } = useAppContext();
+  return useMutation(
     trpc.group.joinLink.renew.mutationOptions({
       onSuccess: async (result) => {
-        await invalidate();
+        await invalidateJoinLink(activeGroupId);
         await navigator.clipboard.writeText(result.url).catch(() => undefined);
         toast.success("Link creado y copiado");
+        onRenewed?.();
       },
       onError: (error) => toast.error("No pudimos crear el link", { description: error.message }),
     }),
   );
+}
+
+function InviteTopic() {
+  const { activeGroupId, groupName } = useAppContext();
+  const joinLink = useQuery(trpc.group.joinLink.status.queryOptions({ groupId: activeGroupId }));
+  const renew = useRenewJoinLink();
   const revoke = useMutation(
     trpc.group.joinLink.revoke.mutationOptions({
       onSuccess: async () => {
         toast.success("Link desactivado");
-        await invalidate();
+        await invalidateJoinLink(activeGroupId);
       },
       onError: (error) =>
         toast.error("No pudimos desactivar el link", { description: error.message }),
@@ -547,14 +568,7 @@ function InviteTopic() {
     return (
       <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-4">
         <p className="text-sm text-muted-foreground">No hay link activo.</p>
-        <Button disabled={renew.isPending} onClick={() => renew.mutate({ groupId: activeGroupId })}>
-          {renew.isPending ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <LinkIcon data-icon="inline-start" aria-hidden="true" />
-          )}
-          {renew.isPending ? "Creando…" : "Crear link"}
-        </Button>
+        <CreateLinkButton renew={renew} groupId={activeGroupId} />
       </div>
     );
   }
@@ -562,9 +576,6 @@ function InviteTopic() {
   const url = joinLink.data.url;
   return (
     <>
-      <p className="text-sm text-muted-foreground">
-        Cualquiera con este link crea su cuenta o entra, y queda como miembro.
-      </p>
       <InputGroup>
         <InputGroupInput aria-label="Link para sumarse al grupo" readOnly value={url} />
         <InputGroupAddon align="inline-end">
@@ -638,16 +649,12 @@ function PublicTopic() {
 
   return (
     <>
-      <p className="max-w-prose text-sm text-muted-foreground">
-        Cualquiera con la dirección ve partidos, resultados y estadísticas. Los pagos nunca se
-        muestran.
-      </p>
       <ToggleGroup
         aria-label="Visibilidad del grupo"
         variant="outline"
         spacing={0}
         disabled={updateVisibility.isPending}
-        className="w-full sm:w-80"
+        className="w-full"
         value={[isPublic ? "public" : "private"]}
         onValueChange={(value) => {
           const next = value[0];
@@ -696,50 +703,116 @@ function QuorumTopic() {
     }),
   );
 
-  if (settings.isPending) return <Skeleton className="h-40 w-full max-w-md" />;
+  if (settings.isPending) return <Skeleton className="h-40 w-full" />;
   if (settings.isError) return <SettingsError message={settings.error.message} />;
   if (!settings.data) return <SettingsError message="El grupo no tiene configuración." />;
 
   const current = settings.data.ratingQuorum ?? "all_voted";
 
   return (
-    <>
-      <p className="max-w-prose text-sm text-muted-foreground">
-        Los que jugaron se ponen notas del 1 al 10. Son anónimas y los promedios se ven al llegar al
-        quórum.
-      </p>
-      <ToggleGroup
-        aria-label="Cuándo revelar las notas"
-        orientation="vertical"
-        variant="outline"
-        spacing={2}
-        disabled={updateRatingQuorum.isPending}
-        className="w-full max-w-md"
-        value={[current]}
-        onValueChange={(value) => {
-          const next = value[0] as RatingQuorum | undefined;
-          if (!next || next === current) return;
-          updateRatingQuorum.mutate({ groupId: activeGroupId, ratingQuorum: next });
-        }}
-      >
-        {quorumOptions.map((option) => (
-          <ToggleGroupItem
-            key={option.value}
-            value={option.value}
-            className="h-auto w-full justify-between gap-3 rounded-lg px-4 py-3 text-left aria-pressed:border-primary aria-pressed:bg-primary/10"
-          >
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-sm font-medium">{option.label}</span>
-              <span className="text-xs font-normal whitespace-normal text-muted-foreground">
-                {option.hint}
-              </span>
+    <ToggleGroup
+      aria-label="Cuándo revelar las notas"
+      orientation="vertical"
+      variant="outline"
+      spacing={2}
+      disabled={updateRatingQuorum.isPending}
+      className="w-full"
+      value={[current]}
+      onValueChange={(value) => {
+        const next = value[0] as RatingQuorum | undefined;
+        if (!next || next === current) return;
+        updateRatingQuorum.mutate({ groupId: activeGroupId, ratingQuorum: next });
+      }}
+    >
+      {quorumOptions.map((option) => (
+        <ToggleGroupItem
+          key={option.value}
+          value={option.value}
+          className="h-auto w-full justify-between gap-3 rounded-lg px-4 py-3 text-left aria-pressed:border-primary aria-pressed:bg-primary/10"
+        >
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-sm font-medium">{option.label}</span>
+            <span className="text-xs font-normal whitespace-normal text-muted-foreground">
+              {option.hint}
             </span>
-            {current === option.value ? (
-              <CheckIcon className="text-primary-text" aria-hidden="true" />
-            ) : null}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+          </span>
+          {current === option.value ? (
+            <CheckIcon className="text-primary-text" aria-hidden="true" />
+          ) : null}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  );
+}
+
+function GroupsTopic() {
+  const { activeGroupId } = useAppContext();
+  const router = useRouter();
+  const [createOpen, setCreateOpen] = useState(false);
+  const groups = useQuery(trpc.group.list.queryOptions());
+  const select = useMutation(
+    trpc.group.select.mutationOptions({
+      onSuccess: () => {
+        queryClient.clear();
+        router.push("/dashboard");
+        router.refresh();
+      },
+      onError: (error) =>
+        toast.error("No pudimos cambiar de grupo", { description: error.message }),
+    }),
+  );
+
+  return (
+    <>
+      {groups.isPending ? (
+        <Skeleton className="h-12 w-full" />
+      ) : groups.isError ? (
+        <Alert variant="destructive">
+          <CircleAlertIcon aria-hidden="true" />
+          <AlertTitle>No pudimos cargar tus grupos</AlertTitle>
+          <AlertDescription>{groups.error.message}</AlertDescription>
+        </Alert>
+      ) : (
+        <ul aria-label="Tus grupos" className="-my-2 flex flex-col divide-y">
+          {groups.data.map((group) => {
+            const current = group.id === activeGroupId;
+            return (
+              <li key={group.id}>
+                <button
+                  type="button"
+                  disabled={current || select.isPending}
+                  onClick={() => select.mutate({ groupId: group.id })}
+                  aria-label={current ? `${group.name}, grupo actual` : `Cambiar a ${group.name}`}
+                  className="flex min-h-12 w-full items-center gap-3 py-2 text-left text-sm outline-none transition-colors duration-100 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:hover:bg-transparent"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="grid size-7 shrink-0 place-items-center rounded-md bg-secondary text-xs font-bold text-secondary-foreground"
+                  >
+                    {initials(group.name)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate font-medium">{group.name}</span>
+                  {current ? (
+                    <CheckIcon aria-hidden="true" className="size-4 shrink-0 text-primary-text" />
+                  ) : select.isPending && select.variables?.groupId === group.id ? (
+                    <Spinner />
+                  ) : (
+                    <ArrowRightLeftIcon
+                      aria-hidden="true"
+                      className="size-4 shrink-0 text-muted-foreground"
+                    />
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <Button variant="outline" className="self-start" onClick={() => setCreateOpen(true)}>
+        <PlusIcon data-icon="inline-start" aria-hidden="true" />
+        Crear grupo
+      </Button>
+      <GroupCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
     </>
   );
 }
