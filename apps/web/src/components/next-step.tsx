@@ -106,6 +106,8 @@ type DrillRowProps = {
   leading?: React.ReactNode;
   /** Hide the chevron for read-only rows. */
   static?: boolean;
+  /** The row whose DrillDetail is open (highlighted on desktop). */
+  selected?: boolean;
   className?: string;
 } & (
   | { render?: never; onClick?: () => void }
@@ -119,6 +121,7 @@ type DrillRowProps = {
 export function DrillRow(props: DrillRowProps) {
   const { label, value, leading, className } = props;
   const isStatic = props.static;
+  const selected = props.selected;
   const content = (
     <>
       {leading ? <span className="flex shrink-0 items-center">{leading}</span> : null}
@@ -134,6 +137,7 @@ export function DrillRow(props: DrillRowProps) {
   const rowClass = cn(
     "flex min-h-12 w-full items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
     !isStatic && "cursor-pointer transition-colors duration-100 hover:bg-muted/50",
+    selected && "lg:bg-muted lg:-mx-3 lg:w-[calc(100%+1.5rem)] lg:rounded-md lg:px-3",
     className,
   );
   if ("render" in props && props.render) {
@@ -143,7 +147,12 @@ export function DrillRow(props: DrillRowProps) {
     return <div className={rowClass}>{content}</div>;
   }
   return (
-    <button className={rowClass} onClick={props.onClick} type="button">
+    <button
+      aria-current={selected ? "true" : undefined}
+      className={rowClass}
+      onClick={props.onClick}
+      type="button"
+    >
       {content}
     </button>
   );
