@@ -1,19 +1,4 @@
-import { Suspense } from "react";
-
-import { PublicPlayerStats } from "@/features/stats/stats-detail";
-import { StatsLoading } from "@/features/stats/stats-loading";
-
-export default async function PublicPlayerPage({
-  params,
-}: {
-  params: Promise<{ playerId: string; slug: string }>;
-}) {
-  const { playerId, slug } = await params;
-  return (
-    <>
-      <Suspense fallback={<StatsLoading />}>
-        <PublicPlayerStats playerId={playerId} slug={slug} />
-      </Suspense>
-    </>
-  );
+// Rendered by the layout's shared view, which reads this route from the URL.
+export default function Page() {
+  return null;
 }

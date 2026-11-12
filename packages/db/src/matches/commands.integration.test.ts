@@ -329,6 +329,76 @@ integration("MatchCommands public seam", () => {
     }
   });
 
+  test("summarizes how each court is used in the directory", async () => {
+    const scope = { groupId, actorUserId: organizerId };
+    const { courtId } = await commands.execute(scope, {
+      type: "upsertCourt",
+      name: "La de siempre",
+      address: "Rojas 1450",
+      mapsUrl: "https://example.com/rojas",
+    });
+    const { courtId: unusedCourtId } = await commands.execute(scope, {
+      type: "upsertCourt",
+      name: "Sin uso",
+      address: "Bulnes 960",
+      mapsUrl: "https://example.com/bulnes",
+    });
+
+    const played = await commands.execute(scope, {
+      type: "createMatch",
+      scheduledAt: new Date("2026-01-08T21:00:00Z"),
+      courtId,
+      courtCostMinor: 9_000_000n,
+    });
+    let current = { lockVersion: 0 };
+    for (const teamId of played.teamIds) {
+      current = await commands.execute(scope, {
+        type: "createAndAddParticipant",
+        matchId: played.matchId,
+        expectedLockVersion: current.lockVersion,
+        teamId,
+        displayName: `Jugador ${teamId}`,
+      });
+    }
+    await commands.execute(scope, {
+      type: "closeMatch",
+      matchId: played.matchId,
+      expectedLockVersion: current.lockVersion,
+    });
+    const cancelled = await commands.execute(scope, {
+      type: "createMatch",
+      scheduledAt: new Date("2026-01-15T21:00:00Z"),
+      courtId,
+      courtCostMinor: 12_000_000n,
+    });
+    await commands.execute(scope, {
+      type: "cancelMatch",
+      matchId: cancelled.matchId,
+      expectedLockVersion: 0,
+    });
+    const upcoming = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    await commands.execute(scope, {
+      type: "createMatch",
+      scheduledAt: upcoming,
+      courtId,
+      courtCostMinor: 9_600_000n,
+    });
+
+    const { courts } = await queries.directory({ groupId, actorUserId: memberId });
+    expect(courts.find(({ id }) => id === courtId)).toMatchObject({
+      played: 1,
+      lastPlayedAt: new Date("2026-01-08T21:00:00Z"),
+      nextMatchAt: upcoming,
+      lastCostMinor: "9600000",
+    });
+    expect(courts.find(({ id }) => id === unusedCourtId)).toMatchObject({
+      played: 0,
+      lastPlayedAt: null,
+      nextMatchAt: null,
+      lastCostMinor: null,
+    });
+  });
+
   test("creates the match with default temporary teams and its initial event atomically", async () => {
     const scope = { groupId, actorUserId: organizerId };
     const created = await commands.execute(scope, {

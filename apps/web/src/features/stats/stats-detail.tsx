@@ -19,7 +19,6 @@ import {
   ArrowLeftIcon,
   BanknoteIcon,
   CalendarDaysIcon,
-  LockKeyholeIcon,
   MapPinIcon,
   TrophyIcon,
 } from "lucide-react";
@@ -29,14 +28,11 @@ import { useSearchParams } from "next/navigation";
 import type * as React from "react";
 import { Fragment, useMemo } from "react";
 
-import { trpc, trpcHttpClient } from "@/utils/trpc";
+import { trpc } from "@/utils/trpc";
 
-import { sharedStatsClient } from "./stats-client";
 import { StatsError } from "./stats-error";
 import { StatsLoading } from "./stats-loading";
-import { useSharedCapability } from "./shared-fragment";
 
-type Mode = "member" | "shared" | "public";
 type SerializedPlayerStats = Omit<PlayerStats, "matches"> & {
   matches: Array<
     Omit<PlayerStats["matches"][number], "scheduledAt"> & {
@@ -60,37 +56,7 @@ export function MemberPlayerStats({ playerId }: { playerId: string }) {
       />
     );
   }
-  return <PlayerStatsContent data={query.data} mode="member" />;
-}
-
-export function SharedPlayerStats({ playerId }: { playerId: string }) {
-  const capability = useSharedCapability();
-  const filters = usePlayerFilters();
-  const query = useQuery({
-    queryKey: ["shared-player-stats", playerId, filters],
-    queryFn: () => sharedStatsClient.player.query({ playerId, filters }),
-    enabled: capability.ready,
-    retry: false,
-  });
-  if (capability.error)
-    return (
-      <StatsError
-        message="No pudimos abrir el enlace privado. Revisá tu conexión o pedile al organizador el enlace más reciente."
-        onRetry={capability.retry}
-        exitHref="/compartido"
-      />
-    );
-  if (capability.exchanging || query.isPending) return <StatsLoading />;
-  if (query.error || !query.data) {
-    return (
-      <StatsError
-        message="El jugador no está disponible en este enlace."
-        exitHref="/compartido"
-        onRetry={() => void query.refetch()}
-      />
-    );
-  }
-  return <PlayerStatsContent data={query.data} mode="shared" />;
+  return <PlayerStatsContent data={query.data} />;
 }
 
 export function MemberMatchStats({ matchId }: { matchId: string }) {
@@ -101,90 +67,14 @@ export function MemberMatchStats({ matchId }: { matchId: string }) {
       <StatsError message="No encontramos este partido." onRetry={() => void query.refetch()} />
     );
   }
-  return <MatchStatsContent data={query.data} mode="member" />;
+  return <MatchStatsContent data={query.data} />;
 }
 
-export function SharedMatchStats({ matchId }: { matchId: string }) {
-  const capability = useSharedCapability();
-  const query = useQuery({
-    queryKey: ["shared-match-stats", matchId],
-    queryFn: () => sharedStatsClient.match.query({ matchId }),
-    enabled: capability.ready,
-    retry: false,
-  });
-  if (capability.error)
-    return (
-      <StatsError
-        message="No pudimos abrir el enlace privado. Revisá tu conexión o pedile al organizador el enlace más reciente."
-        onRetry={capability.retry}
-        exitHref="/compartido"
-      />
-    );
-  if (capability.exchanging || query.isPending) return <StatsLoading />;
-  if (query.error || !query.data) {
-    return (
-      <StatsError
-        message="El partido no está disponible en este enlace."
-        exitHref="/compartido"
-        onRetry={() => void query.refetch()}
-      />
-    );
-  }
-  return <MatchStatsContent data={query.data} mode="shared" />;
-}
-
-export function PublicPlayerStats({ playerId, slug }: { playerId: string; slug: string }) {
-  const filters = usePlayerFilters();
-  const query = useQuery({
-    queryKey: ["public-player-stats", slug, playerId, filters],
-    queryFn: () => trpcHttpClient.public.player.query({ playerId, slug, filters }),
-    retry: false,
-  });
-  if (query.isPending) return <StatsLoading />;
-  if (query.error || !query.data) {
-    return (
-      <StatsError
-        message="Este grupo no está disponible públicamente."
-        exitHref={`/g/${slug}` as Route}
-        onRetry={() => void query.refetch()}
-      />
-    );
-  }
-  return <PlayerStatsContent data={query.data} mode="public" slug={slug} />;
-}
-
-export function PublicMatchStats({ matchId, slug }: { matchId: string; slug: string }) {
-  const query = useQuery({
-    queryKey: ["public-match-stats", slug, matchId],
-    queryFn: () => trpcHttpClient.public.match.query({ matchId, slug }),
-    retry: false,
-  });
-  if (query.isPending) return <StatsLoading />;
-  if (query.error || !query.data) {
-    return (
-      <StatsError
-        message="Este grupo no está disponible públicamente."
-        exitHref={`/g/${slug}` as Route}
-        onRetry={() => void query.refetch()}
-      />
-    );
-  }
-  return <MatchStatsContent data={query.data} mode="public" slug={slug} />;
-}
-
-function PlayerStatsContent({
-  data,
-  mode,
-  slug,
-}: {
-  data: SerializedPlayerStats;
-  mode: Mode;
-  slug?: string;
-}) {
+function PlayerStatsContent({ data }: { data: SerializedPlayerStats }) {
   const searchParams = useSearchParams();
   const rankingParams = new URLSearchParams(searchParams.toString());
-  rankingParams.set("tab", "ranking");
-  const base = baseFor(mode, slug);
+  rankingParams.delete("tab");
+  const base = DETAIL_BASE;
   const aggregate = data.aggregate;
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6">
@@ -236,10 +126,7 @@ function PlayerStatsContent({
           <TrophyIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">Sin partidos cerrados</h2>
-            <p className="text-sm text-muted-foreground">
-              Este jugador existe en el grupo, pero todavía no tiene una actuación que cuente para
-              estadísticas.
-            </p>
+            <p className="text-sm text-muted-foreground">Todavía no jugó ninguno.</p>
           </div>
         </section>
       )}
@@ -293,20 +180,11 @@ function PlayerStatsContent({
   );
 }
 
-function MatchStatsContent({
-  data,
-  mode,
-  slug,
-}: {
-  data: SerializedMatchDetail;
-  mode: Mode;
-  slug?: string;
-}) {
+function MatchStatsContent({ data }: { data: SerializedMatchDetail }) {
   const searchParams = useSearchParams();
   const rankingParams = new URLSearchParams(searchParams.toString());
-  rankingParams.set("tab", "ranking");
-  const base = baseFor(mode, slug);
-  const showPayments = mode !== "public";
+  rankingParams.delete("tab");
+  const base = DETAIL_BASE;
   const grouped = data.teams.map((team) => ({
     team,
     appearances: data.appearances.filter((appearance) => appearance.teamId === team.id),
@@ -318,12 +196,6 @@ function MatchStatsContent({
     <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <BackLink href={`${base}?${rankingParams}` as Route}>Volver</BackLink>
-        {mode !== "member" ? (
-          <Badge variant="outline">
-            <LockKeyholeIcon data-icon="inline-start" />
-            Solo lectura
-          </Badge>
-        ) : null}
       </div>
 
       <header className="flex flex-col gap-2">
@@ -376,21 +248,17 @@ function MatchStatsContent({
                 </TableHead>
                 <StatHead title="Goles">G</StatHead>
                 <StatHead title="Asistencias">A</StatHead>
-                <StatHead className={showPayments ? undefined : "pr-4"} title="Goles en contra">
-                  AG
-                </StatHead>
-                {showPayments ? (
-                  <TableHead className="w-24 pr-4 text-right text-xs font-medium text-muted-foreground">
-                    Pago
-                  </TableHead>
-                ) : null}
+                <StatHead title="Goles en contra">AG</StatHead>
+                <TableHead className="w-24 pr-4 text-right text-xs font-medium text-muted-foreground">
+                  Pago
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {grouped.map(({ team, appearances }) => (
                 <Fragment key={team.id}>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableCell className="pl-4" colSpan={showPayments ? 5 : 4}>
+                    <TableCell className="pl-4" colSpan={5}>
                       <span className="flex items-center justify-between gap-3">
                         <span className="flex min-w-0 items-center gap-2 font-semibold">
                           <span
@@ -414,7 +282,6 @@ function MatchStatsContent({
                       appearance={appearance}
                       href={`${base}/jugadores/${appearance.playerId}?${rankingParams}` as Route}
                       key={appearance.playerId}
-                      showPayments={showPayments}
                     />
                   ))}
                 </Fragment>
@@ -424,7 +291,6 @@ function MatchStatsContent({
                   appearance={appearance}
                   href={`${base}/jugadores/${appearance.playerId}?${rankingParams}` as Route}
                   key={appearance.playerId}
-                  showPayments={showPayments}
                 />
               ))}
             </TableBody>
@@ -438,11 +304,9 @@ function MatchStatsContent({
 function AppearanceRow({
   appearance,
   href,
-  showPayments,
 }: {
   appearance: SerializedMatchDetail["appearances"][number];
   href: Route;
-  showPayments: boolean;
 }) {
   return (
     <TableRow className="h-11">
@@ -456,16 +320,14 @@ function AppearanceRow({
       </TableCell>
       <StatCell value={appearance.goals} />
       <StatCell value={appearance.assists} />
-      <StatCell className={showPayments ? undefined : "pr-4"} value={appearance.ownGoals} />
-      {showPayments ? (
-        <TableCell className="pr-4 text-right">
-          {appearance.debtMinor === "0" ? (
-            <span className="text-xs text-muted-foreground">Al día</span>
-          ) : (
-            <Badge variant="outline">Pendiente</Badge>
-          )}
-        </TableCell>
-      ) : null}
+      <StatCell value={appearance.ownGoals} />
+      <TableCell className="pr-4 text-right">
+        {appearance.debtMinor === "0" ? (
+          <span className="text-xs text-muted-foreground">Al día</span>
+        ) : (
+          <Badge variant="outline">Pendiente</Badge>
+        )}
+      </TableCell>
     </TableRow>
   );
 }
@@ -525,13 +387,7 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function baseFor(mode: Mode, slug?: string) {
-  return mode === "shared"
-    ? "/compartido"
-    : mode === "public"
-      ? (`/g/${slug ?? ""}` as Route)
-      : "/dashboard/estadisticas";
-}
+const DETAIL_BASE = "/dashboard/estadisticas";
 
 function formatDate(value: Date | string, timeZone: string) {
   return new Intl.DateTimeFormat("es-AR", {

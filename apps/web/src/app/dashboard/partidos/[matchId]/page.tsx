@@ -296,7 +296,7 @@ function MatchWorkspace({ detail, directory }: { detail: Detail; directory: Dire
                 </div>
               ) : (
                 <p className="border-t px-4 py-3 text-sm text-muted-foreground">
-                  Partido cancelado. No aporta resultados ni deuda.
+                  Partido cancelado · no suma resultados ni deuda.
                 </p>
               )}
             </Lineup>

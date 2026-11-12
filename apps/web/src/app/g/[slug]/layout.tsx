@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Suspense } from "react";
+
+import { PublicGroupView } from "@/features/shared-view/shared-group-view";
 
 export const metadata: Metadata = {
   title: "Hay Fulbo · Grupo público",
 };
 
-export default function PublicGroupLayout({ children }: Readonly<{ children: ReactNode }>) {
+// The view lives here, not in the pages, so match and player routes open as a
+// sheet over the same screen and keep the tab underneath.
+export default async function PublicGroupLayout({
+  children,
+  params,
+}: Readonly<{ children: ReactNode; params: Promise<{ slug: string }> }>) {
+  const { slug } = await params;
   return (
-    <main className="mx-auto min-h-svh w-full max-w-7xl bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8 lg:py-12">
+    <Suspense>
+      <PublicGroupView slug={slug} />
       {children}
-    </main>
+    </Suspense>
   );
 }

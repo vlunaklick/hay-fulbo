@@ -14,8 +14,7 @@ test("a failed background poll keeps open drafts", async ({ page }, testInfo) =>
   await page.getByRole("button", { name: "Crear y entrar" }).click();
   await expect(page.getByRole("heading", { name: "Resumen del grupo" })).toBeVisible();
   await page.goto("/dashboard/partidos");
-  await page.getByRole("button", { name: /Nuevo/ }).first().click();
-  await page.getByRole("button", { name: "Crear partido" }).click();
+  await page.getByRole("button", { name: /^Crear / }).click();
   await expect(page).toHaveURL(/\/dashboard\/partidos\/[0-9a-f-]{36}$/);
 
   await page.getByRole("button", { name: "Editar datos" }).click();
@@ -31,7 +30,7 @@ test("a failed background poll keeps open drafts", async ({ page }, testInfo) =>
   await expect(page.getByLabel("Precio total")).toHaveValue(/12\.?345/);
 });
 
-test("a failed background poll keeps modo cancha and its open goal picker", async ({
+test("a failed background poll keeps modo cancha and its open own-goal picker", async ({
   page,
 }, testInfo) => {
   const runId = `pitch-poll-${testInfo.project.name}-${Date.now()}`;
@@ -47,12 +46,11 @@ test("a failed background poll keeps modo cancha and its open goal picker", asyn
   await page.getByRole("button", { name: "Crear y entrar" }).click();
   await expect(page.getByRole("heading", { name: "Resumen del grupo" })).toBeVisible();
   await page.goto("/dashboard/partidos");
-  await page.getByRole("button", { name: /Nuevo/ }).first().click();
-  await page.getByRole("button", { name: "Crear partido" }).click();
+  await page.getByRole("button", { name: /^Crear / }).click();
   await expect(page).toHaveURL(/\/dashboard\/partidos\/[0-9a-f-]{36}$/);
   await page.goto(`${page.url()}/cancha`);
 
-  await page.getByRole("button", { name: "Sumar un gol a Equipo 1" }).click();
+  await page.getByRole("button", { name: "Autogol a favor de Equipo 1" }).click();
   const picker = page.getByRole("dialog");
   await expect(picker).toBeVisible();
 
