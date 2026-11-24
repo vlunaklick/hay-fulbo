@@ -6,7 +6,7 @@ import {
   buildRuntimeDatabaseUrl,
   createClientFromEnv,
   generateSecret,
-  getOriginMainSha,
+  getReleaseSha,
 } from "./client.mjs";
 
 export const COOLIFY_VERSION = "4.1.2";
@@ -15,11 +15,21 @@ export const NAMES = Object.freeze({
   environment: "production",
   database: "hay-fulbo-postgres",
   application: "hay-fulbo-web",
+  // Name the old Dockerfile-built application gets during the one-time cutover.
+  legacyApplication: "hay-fulbo-web-legacy",
 });
+
+// Built and published by GitHub Actions; the VPS only pulls it.
+export const IMAGE = "ghcr.io/vlunaklick/hay-fulbo-web";
+
+// Sized for a low-traffic personal app on a shared 2 CPU / 8 GB host. The web
+// limit leaves room for the 256 MB V8 heap, the healthcheck process, and the
+// migration runner that starts before the server.
+const APP_LIMITS = Object.freeze({ limits_memory: "384m", limits_cpus: "1" });
+const DB_LIMITS = Object.freeze({ limits_memory: "256m", limits_cpus: "1" });
 
 const APP_DESCRIPTION = "Hay Fulbo production web application";
 const DB_DESCRIPTION = "PostgreSQL 18 production database for Hay Fulbo";
-const REPOSITORY = "vlunaklick/hay-fulbo";
 
 function asArray(value, key) {
   if (Array.isArray(value)) return value;
@@ -44,6 +54,7 @@ function resourceProjectUuid(resource) {
 }
 
 function assertOwnedBy(resource, projectUuid, kind) {
+  if (!resource) return;
   const owner = resourceProjectUuid(resource);
   if (owner && owner !== projectUuid) {
     throw new Error(`${kind} name is already used outside project ${NAMES.project}`);
@@ -106,6 +117,13 @@ function chooseInfrastructure(servers, applications, env) {
   return { serverUuid: server.uuid, destinationUuid: destination };
 }
 
+function isPrebuiltImageApplication(application) {
+  return (
+    application.build_pack === "dockerimage" ||
+    (!application.build_pack && Boolean(application.docker_registry_image_name))
+  );
+}
+
 function projectEnvironment(project) {
   return oneExact(asArray(project?.environments, "environments"), NAMES.environment, "environment");
 }
@@ -125,12 +143,8 @@ function desiredApplication({
     destination_uuid: selectedDestination,
     name: NAMES.application,
     description: APP_DESCRIPTION,
-    git_repository: REPOSITORY,
-    git_branch: "main",
-    git_commit_sha: sha,
-    build_pack: "dockerfile",
-    base_directory: "/",
-    dockerfile_location: "/apps/web/Dockerfile",
+    docker_registry_image_name: IMAGE,
+    docker_registry_image_tag: sha,
     ports_exposes: "3001",
     health_check_enabled: true,
     health_check_path: "/api/health",
@@ -138,11 +152,11 @@ function desiredApplication({
     health_check_method: "GET",
     health_check_return_code: 200,
     health_check_scheme: "http",
-    health_check_interval: 10,
+    health_check_interval: 30,
     health_check_timeout: 5,
     health_check_retries: 5,
     health_check_start_period: 60,
-    is_auto_deploy_enabled: false,
+    ...APP_LIMITS,
     is_force_https_enabled: true,
     autogenerate_domain: true,
     instant_deploy: false,
@@ -169,12 +183,14 @@ function desiredDatabase({
     postgres_password: password,
     postgres_db: "hay_fulbo",
     is_public: false,
+    ...DB_LIMITS,
     instant_deploy: true,
   };
 }
 
 const BACKUP = Object.freeze({
-  frequency: "daily",
+  // Off the midnight slot most scheduled jobs on the shared host use.
+  frequency: "17 4 * * *",
   enabled: true,
   save_s3: false,
   dump_all: false,
@@ -271,13 +287,13 @@ async function discover(client) {
 export async function reconcileCoolify({
   client,
   apply = false,
-  getSha = getOriginMainSha,
+  getSha = getReleaseSha,
   randomBytesImpl,
   env = process.env,
 }) {
   const sha = getSha();
   if (!/^[0-9a-f]{40}$/i.test(sha)) {
-    throw new Error("origin/main did not resolve to a full commit SHA");
+    throw new Error("Release did not resolve to a full commit SHA");
   }
 
   const inventory = await discover(client);
@@ -291,11 +307,23 @@ export async function reconcileCoolify({
   let project = oneExact(inventory.projects, NAMES.project, "project");
   let database = oneExact(inventory.databases, NAMES.database, "database");
   let application = oneExact(inventory.applications, NAMES.application, "application");
+  const legacyApplication = oneExact(
+    inventory.applications,
+    NAMES.legacyApplication,
+    "application",
+  );
   if (project) {
     assertOwnedBy(database, project.uuid, "Database");
     assertOwnedBy(application, project.uuid, "Application");
+    assertOwnedBy(legacyApplication, project.uuid, "Application");
   } else if (database || application) {
     throw new Error("Target resource names exist without the target project");
+  }
+  if (application && !isPrebuiltImageApplication(application)) {
+    throw new Error(
+      `${NAMES.application} still builds on the server; rename it to ` +
+        `${NAMES.legacyApplication} in Coolify and run the cutover in ops/coolify/README.md`,
+    );
   }
 
   if (!apply && !project) {
@@ -369,6 +397,7 @@ export async function reconcileCoolify({
       postgres_user: "hay_fulbo_migrator",
       postgres_db: "hay_fulbo",
       is_public: false,
+      ...DB_LIMITS,
     };
     if (differs(database, databaseUpdate)) {
       actions.push(`update PostgreSQL ${NAMES.database}`);
@@ -385,7 +414,7 @@ export async function reconcileCoolify({
   });
   if (!application) {
     actions.push(`create application ${NAMES.application}`);
-    const created = await client.post("/applications/public", applicationDesired);
+    const created = await client.post("/applications/dockerimage", applicationDesired);
     application = await client.get(`/applications/${created.uuid}`);
   } else {
     application = await client.get(`/applications/${application.uuid}`);
@@ -400,8 +429,9 @@ export async function reconcileCoolify({
             "destination_uuid",
             "instant_deploy",
             "autogenerate_domain",
-            "is_auto_deploy_enabled",
             "is_force_https_enabled",
+            // deploy.mjs owns the release tag.
+            "docker_registry_image_tag",
           ].includes(key),
       ),
     );
@@ -433,6 +463,23 @@ export async function reconcileCoolify({
   );
   const currentEnvs = allCurrentEnvs.filter((item) => item.is_preview !== true);
   const currentByKey = new Map(currentEnvs.map((item) => [item.key, environmentValue(item)]));
+  // During the cutover, carry the auth secret and runtime password over from the
+  // legacy application so sessions and the runtime role keep working.
+  if (legacyApplication) {
+    const legacyEnvs = asArray(
+      await client.get(`/applications/${legacyApplication.uuid}/envs`),
+      "envs",
+    ).filter((item) => item.is_preview !== true);
+    for (const item of legacyEnvs) {
+      if (
+        ["RUNTIME_DATABASE_PASSWORD", "BETTER_AUTH_SECRET"].includes(item.key) &&
+        !currentByKey.get(item.key) &&
+        environmentValue(item)
+      ) {
+        currentByKey.set(item.key, environmentValue(item));
+      }
+    }
+  }
   const existingRuntimePassword = normalizeGeneratedSecret(
     currentByKey.get("RUNTIME_DATABASE_PASSWORD"),
   );

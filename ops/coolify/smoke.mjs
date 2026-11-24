@@ -2,7 +2,7 @@
 
 import { pathToFileURL } from "node:url";
 
-import { createClientFromEnv, getOriginMainSha } from "./client.mjs";
+import { createClientFromEnv, getReleaseSha } from "./client.mjs";
 import { NAMES } from "./reconcile.mjs";
 
 function projectUuid(application) {
@@ -25,14 +25,14 @@ function applicationUrl(application) {
 
 export async function smokeRelease({
   client,
-  getSha = getOriginMainSha,
+  getSha = getReleaseSha,
   externalFetch = globalThis.fetch,
   healthAttempts = 3,
   requestTimeoutMs = 15_000,
 }) {
   const sha = getSha();
   if (!/^[0-9a-f]{40}$/i.test(sha)) {
-    throw new Error("origin/main did not resolve to a full commit SHA");
+    throw new Error("Release did not resolve to a full commit SHA");
   }
   const [projects, applications] = await Promise.all([
     client.get("/projects"),
@@ -48,13 +48,9 @@ export async function smokeRelease({
   if (/crecenly/i.test(matches[0].name) || protectedProjects.has(projectUuid(matches[0]))) {
     throw new Error("Refusing to inspect a protected Crecenly resource");
   }
-  if (matches[0].git_commit_sha !== sha) {
-    throw new Error("Coolify application SHA does not match origin/main");
-  }
-
   const application = await client.get(`/applications/${matches[0].uuid}`);
-  if (application.git_commit_sha !== sha) {
-    throw new Error("Coolify application SHA does not match origin/main");
+  if (application.docker_registry_image_tag !== sha) {
+    throw new Error("Coolify image tag does not match the release SHA");
   }
   if (!application.status?.includes("running") || !application.status?.includes("healthy")) {
     throw new Error(`Coolify application is not healthy: ${application.status}`);

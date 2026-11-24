@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { buildRuntimeDatabaseUrl, createCoolifyClient, redact } from "./client.mjs";
+import { buildRuntimeDatabaseUrl, createCoolifyClient, getReleaseSha, redact } from "./client.mjs";
 
 test("blocks Crecenly identifiers before a mutating request", async () => {
   let calls = 0;
@@ -92,5 +92,18 @@ test("redacts credentials from values before logging", () => {
       DATABASE_URL: "postgresql://u:p@db/hay",
     }),
     { name: "hay-fulbo", password: "[REDACTED]", DATABASE_URL: "[REDACTED]" },
+  );
+});
+
+test("prefers RELEASE_SHA over origin/main and validates it", () => {
+  const sha = "A".repeat(40);
+  const neverCalled = () => {
+    throw new Error("git must not run when RELEASE_SHA is set");
+  };
+  assert.equal(getReleaseSha({ RELEASE_SHA: sha }, neverCalled), "a".repeat(40));
+  assert.throws(() => getReleaseSha({ RELEASE_SHA: "abc" }, neverCalled), /full commit SHA/);
+  assert.equal(
+    getReleaseSha({}, (command, args) => (args[0] === "rev-parse" ? `${"b".repeat(40)}\n` : "")),
+    "b".repeat(40),
   );
 });
