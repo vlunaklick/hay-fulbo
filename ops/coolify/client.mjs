@@ -133,6 +133,19 @@ export function getOriginMainSha(execFileSyncImpl = execFileSync) {
   }).trim();
 }
 
+// CI passes RELEASE_SHA (the commit whose image it just published); local runs
+// fall back to origin/main.
+export function getReleaseSha(env = process.env, execFileSyncImpl = execFileSync) {
+  const sha = env.RELEASE_SHA?.trim();
+  if (sha) {
+    if (!/^[0-9a-f]{40}$/i.test(sha)) {
+      throw new Error("RELEASE_SHA must be a full commit SHA");
+    }
+    return sha.toLowerCase();
+  }
+  return getOriginMainSha(execFileSyncImpl);
+}
+
 export function createClientFromEnv(env = process.env, options = {}) {
   return createCoolifyClient({
     baseUrl: env.COOLIFY_API_URL,

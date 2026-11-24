@@ -2,8 +2,8 @@
 
 import { pathToFileURL } from "node:url";
 
-import { createClientFromEnv, getOriginMainSha } from "./client.mjs";
-import { NAMES } from "./reconcile.mjs";
+import { createClientFromEnv, getReleaseSha } from "./client.mjs";
+import { IMAGE, NAMES } from "./reconcile.mjs";
 
 const SUCCESS = new Set(["finished", "success", "completed"]);
 const FAILURE = new Set(["failed", "error", "cancelled", "cancelled-by-user"]);
@@ -42,25 +42,33 @@ function protectCrecenly(client, projects, applications) {
 
 export async function deployRelease({
   client,
-  getSha = getOriginMainSha,
+  getSha = getReleaseSha,
   sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
   pollIntervalMs = 5_000,
   maxPolls = 180,
 }) {
   const sha = getSha();
   if (!/^[0-9a-f]{40}$/i.test(sha)) {
-    throw new Error("origin/main did not resolve to a full commit SHA");
+    throw new Error("Release did not resolve to a full commit SHA");
   }
   const [projects, applications] = await Promise.all([
     client.get("/projects"),
     client.get("/applications"),
   ]);
   protectCrecenly(client, projects, applications);
-  let application = exactApplication(applications);
+  let application = await client.get(`/applications/${exactApplication(applications).uuid}`);
+  // Never fall back to building on the shared VPS: only a prebuilt image app
+  // may be deployed from here.
+  if (application.docker_registry_image_name !== IMAGE || application.build_pack === "dockerfile") {
+    throw new Error(
+      `${NAMES.application} is not the prebuilt ${IMAGE} application; ` +
+        "run the cutover in ops/coolify/README.md",
+    );
+  }
 
-  if (application.git_commit_sha !== sha) {
+  if (application.docker_registry_image_tag !== sha) {
     await client.patch(`/applications/${application.uuid}`, {
-      git_commit_sha: sha,
+      docker_registry_image_tag: sha,
     });
   }
 
@@ -87,8 +95,8 @@ export async function deployRelease({
   }
 
   application = await client.get(`/applications/${application.uuid}`);
-  if (application.git_commit_sha !== sha) {
-    throw new Error("Deployed application SHA does not match origin/main");
+  if (application.docker_registry_image_tag !== sha) {
+    throw new Error("Deployed image tag does not match the release SHA");
   }
   if (
     application.status &&

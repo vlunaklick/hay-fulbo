@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { createCoolifyClient } from "./client.mjs";
-import { reconcileCoolify } from "./reconcile.mjs";
+import { IMAGE, reconcileCoolify } from "./reconcile.mjs";
 
 function json(value, status = 200) {
   return Response.json(value, { status });
@@ -83,15 +83,15 @@ function createFakeCoolify() {
       return json(database);
     }
 
-    if (method === "POST" && path === "/applications/public") {
+    if (method === "POST" && path === "/applications/dockerimage") {
       const app = {
         uuid: "hay-app",
         ...body,
+        build_pack: "dockerimage",
         fqdn: state.generatedFqdn,
         status: "running:healthy",
       };
       delete app.autogenerate_domain;
-      delete app.is_auto_deploy_enabled;
       delete app.is_force_https_enabled;
       state.apps.push(app);
       return json(app, 201);
@@ -202,4 +202,66 @@ test("apply is idempotent and never sends Crecenly in a mutation", async () => {
   assert.ok(env.RUNTIME_DATABASE_PASSWORD);
   assert.match(env.DATABASE_URL, /^postgresql:\/\/hay_fulbo_runtime:/);
   assert.equal(env.BETTER_AUTH_URL, "https://hay-fulbo.example.test");
+
+  const app = fake.state.apps.find(({ name }) => name === "hay-fulbo-web");
+  assert.equal(app.docker_registry_image_name, IMAGE);
+  assert.equal(app.docker_registry_image_tag, "b".repeat(40));
+  assert.equal(app.limits_memory, "384m");
+  assert.ok(!("git_repository" in app));
+  const database = fake.state.databases.find(({ name }) => name === "hay-fulbo-postgres");
+  assert.equal(database.limits_memory, "256m");
+  assert.equal(fake.state.backups.get("hay-db")[0].frequency, "17 4 * * *");
+});
+
+test("refuses to reconcile an application that still builds on the server", async () => {
+  const fake = createFakeCoolify();
+  fake.state.projects.push({ uuid: "hay-project", name: "hay-fulbo" });
+  fake.state.environments.set("hay-project", [{ uuid: "production-env", name: "production" }]);
+  fake.state.apps.push({
+    uuid: "legacy-app",
+    name: "hay-fulbo-web",
+    project_uuid: "hay-project",
+    destination_uuid: "destination-1",
+    build_pack: "dockerfile",
+  });
+
+  await assert.rejects(
+    reconcileCoolify({ client: clientFor(fake), apply: true, getSha: () => "c".repeat(40) }),
+    /rename it to hay-fulbo-web-legacy/,
+  );
+  assert.equal(fake.state.mutations.length, 0);
+});
+
+test("cutover reuses the legacy application's secrets", async () => {
+  const fake = createFakeCoolify();
+  fake.state.projects.push({ uuid: "hay-project", name: "hay-fulbo" });
+  fake.state.environments.set("hay-project", [{ uuid: "production-env", name: "production" }]);
+  fake.state.apps.push({
+    uuid: "legacy-app",
+    name: "hay-fulbo-web-legacy",
+    project_uuid: "hay-project",
+    destination_uuid: "destination-1",
+    build_pack: "dockerfile",
+  });
+  fake.state.envs.set("legacy-app", [
+    { key: "BETTER_AUTH_SECRET", real_value: "'legacy-auth-secret'" },
+    { key: "RUNTIME_DATABASE_PASSWORD", real_value: "'legacy-runtime-password-at-least-32-chars'" },
+  ]);
+
+  await reconcileCoolify({
+    client: clientFor(fake),
+    apply: true,
+    getSha: () => "d".repeat(40),
+    randomBytesImpl: (size) => Buffer.alloc(size, 9),
+  });
+
+  const env = Object.fromEntries(
+    fake.state.envs.get("hay-app").map(({ key, value }) => [key, value]),
+  );
+  assert.equal(env.BETTER_AUTH_SECRET, "legacy-auth-secret");
+  assert.equal(env.RUNTIME_DATABASE_PASSWORD, "legacy-runtime-password-at-least-32-chars");
+  assert.ok(
+    fake.state.mutations.every(({ path }) => !path.includes("legacy-app")),
+    "the legacy application must never be mutated",
+  );
 });

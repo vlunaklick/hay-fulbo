@@ -3,15 +3,18 @@ import { test } from "node:test";
 
 import { createCoolifyClient } from "./client.mjs";
 import { deployRelease } from "./deploy.mjs";
+import { IMAGE } from "./reconcile.mjs";
 
-test("updates origin/main SHA, triggers exactly once, and waits for finished", async () => {
+test("pins the release image tag, triggers exactly once, and waits for finished", async () => {
   const sha = "c".repeat(40);
   const calls = [];
   let polls = 0;
   const app = {
     uuid: "hay-app",
     name: "hay-fulbo-web",
-    git_commit_sha: "d".repeat(40),
+    build_pack: "dockerimage",
+    docker_registry_image_name: IMAGE,
+    docker_registry_image_tag: "d".repeat(40),
     status: "running:healthy",
   };
   const fetchImpl = async (input, init = {}) => {
@@ -59,6 +62,36 @@ test("updates origin/main SHA, triggers exactly once, and waits for finished", a
   assert.equal(deployCall.method, "POST");
   assert.equal(deployCall.body, JSON.stringify({ uuid: "hay-app", force: false }));
   assert.equal(polls, 2);
+  const patch = calls.find(({ method }) => method === "PATCH");
+  assert.equal(patch.body, JSON.stringify({ docker_registry_image_tag: sha }));
+});
+
+test("refuses to deploy an application that would build on the server", async () => {
+  const calls = [];
+  const legacy = {
+    uuid: "hay-app",
+    name: "hay-fulbo-web",
+    build_pack: "dockerfile",
+    git_commit_sha: "d".repeat(40),
+  };
+  const client = createCoolifyClient({
+    baseUrl: "https://coolify.example",
+    token: "api-token",
+    fetchImpl: async (input, init = {}) => {
+      const path = new URL(input).pathname.replace("/api/v1", "");
+      calls.push({ method: init.method ?? "GET", path });
+      if (path === "/projects") return Response.json([]);
+      if (path === "/applications") return Response.json([legacy]);
+      if (path === "/applications/hay-app") return Response.json(legacy);
+      return Response.json({}, { status: 404 });
+    },
+  });
+
+  await assert.rejects(
+    deployRelease({ client, getSha: () => "c".repeat(40), sleep: async () => {} }),
+    /run the cutover/,
+  );
+  assert.ok(calls.every(({ method }) => method === "GET"));
 });
 
 test("rejects a non-terminal deployment after the polling budget", async () => {
@@ -73,9 +106,19 @@ test("rejects a non-terminal deployment after the polling budget", async () => {
           {
             uuid: "hay-app",
             name: "hay-fulbo-web",
-            git_commit_sha: "e".repeat(40),
+            build_pack: "dockerimage",
+            docker_registry_image_name: IMAGE,
+            docker_registry_image_tag: "e".repeat(40),
           },
         ]);
+      if (path === "/applications/hay-app")
+        return Response.json({
+          uuid: "hay-app",
+          name: "hay-fulbo-web",
+          build_pack: "dockerimage",
+          docker_registry_image_name: IMAGE,
+          docker_registry_image_tag: "e".repeat(40),
+        });
       if (path === "/deploy")
         return Response.json({
           deployments: [{ deployment_uuid: "deployment-1" }],

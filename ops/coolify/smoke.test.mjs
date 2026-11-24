@@ -9,7 +9,7 @@ test("verifies exact SHA, HTTPS, and three healthy database probes", async () =>
   const app = {
     uuid: "hay-app",
     name: "hay-fulbo-web",
-    git_commit_sha: sha,
+    docker_registry_image_tag: sha,
     fqdn: "https://hay-fulbo.example.test",
     status: "running:healthy",
   };
@@ -54,7 +54,7 @@ test("fails before health probes when Coolify SHA is stale", async () => {
           {
             uuid: "hay-app",
             name: "hay-fulbo-web",
-            git_commit_sha: "0".repeat(40),
+            docker_registry_image_tag: "0".repeat(40),
           },
         ]);
       return Response.json({});
@@ -70,7 +70,7 @@ test("fails before health probes when Coolify SHA is stale", async () => {
         healthCalls += 1;
       },
     }),
-    /does not match origin\/main/,
+    /does not match the release SHA/,
   );
   assert.equal(healthCalls, 0);
 });

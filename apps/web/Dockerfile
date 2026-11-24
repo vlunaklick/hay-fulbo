@@ -43,12 +43,11 @@ RUN bun build packages/db/src/migrate.ts \
   && mkdir -p apps/web/public
 
 FROM node:24-slim AS runner
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl \
-  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Keep the V8 heap well below the container memory limit set in Coolify.
+ENV NODE_OPTIONS=--max-old-space-size=256
 
 COPY --chown=node:node apps/web/docker-entrypoint.sh ./apps/web/docker-entrypoint.sh
 COPY --from=builder --chown=node:node /app/packages/db/src/migrations ./packages/db/migrations
@@ -63,7 +62,7 @@ EXPOSE 3001
 
 USER node
 
-HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=60s \
+HEALTHCHECK --interval=30s --timeout=5s --retries=5 --start-period=60s \
   CMD ["node", "-e", "fetch('http://127.0.0.1:3001/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
 
 ENTRYPOINT ["/bin/sh", "/app/apps/web/docker-entrypoint.sh"]
